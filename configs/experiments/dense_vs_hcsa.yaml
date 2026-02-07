@@ -1,0 +1,130 @@
+name: dense_vs_hcsa
+outdir: experiments
+device: auto
+seed: 1337
+
+data:
+  path: data/tinyshakespeare.txt
+  tokenizer: char
+
+# Three model sizes: small, medium, large
+runs:
+  # --- Small (128 embd, 4 layers) ---
+  - name: small_dense
+    attn: dense
+    n_embd: 128
+    n_layers: 4
+    n_heads: 4
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: small_hcsa_random
+    attn: hcsa
+    cycle: random
+    window: 32
+    landmark_stride: 32
+    n_embd: 128
+    n_layers: 4
+    n_heads: 4
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: small_hcsa_greedy
+    attn: hcsa
+    cycle: greedy
+    window: 32
+    landmark_stride: 32
+    n_embd: 128
+    n_layers: 4
+    n_heads: 4
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  # --- Medium (256 embd, 6 layers) ---
+  - name: medium_dense
+    attn: dense
+    n_embd: 256
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: medium_hcsa_random
+    attn: hcsa
+    cycle: random
+    window: 64
+    landmark_stride: 64
+    n_embd: 256
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: medium_hcsa_greedy
+    attn: hcsa
+    cycle: greedy
+    window: 64
+    landmark_stride: 64
+    n_embd: 256
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  # --- Large (512 embd, 6 layers) ---
+  - name: large_dense
+    attn: dense
+    n_embd: 512
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: large_hcsa_random
+    attn: hcsa
+    cycle: random
+    window: 64
+    landmark_stride: 64
+    n_embd: 512
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337
+
+  - name: large_hcsa_greedy
+    attn: hcsa
+    cycle: greedy
+    window: 64
+    landmark_stride: 64
+    n_embd: 512
+    n_layers: 6
+    n_heads: 8
+    seq_len: 256
+    batch_size: 32
+    lr: 3.0e-4
+    steps: 500
+    seed: 1337

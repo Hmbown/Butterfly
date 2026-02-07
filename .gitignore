@@ -1,0 +1,27 @@
+# Python / tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+
+# Local environments
+.venv/
+.venv*/
+
+# Local caches and scratch
+.cache/
+_tmp_runs/
+.DS_Store
+
+# Heavy training checkpoints (keep summaries/metrics)
+runs/mlx/*/checkpoints/
+
+# Packaging artifacts
+*.egg-info/
+
+# Benchmark scratch
+.benchmarks/
+
+# PDF papers (local reference only)
+*.pdf

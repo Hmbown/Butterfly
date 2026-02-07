@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "HCSA: Hamiltonian Cycle Sparse Attention"
+authors:
+  - family-names: Bown
+    given-names: Hunter
+type: software
+license: MIT
+url: "https://github.com/Hmbown/hcsa"
+repository-code: "https://github.com/Hmbown/hcsa"
+version: "0.3.0"
+date-released: "2026-02-06"
+keywords:
+  - sparse attention
+  - hamiltonian cycle
+  - transformer
+  - efficient attention
+  - language model

@@ -1,0 +1,52 @@
+{
+  "created_at": "2026-02-07T05:03:21.895276+00:00",
+  "config": {
+    "steps_grid": [
+      500
+    ],
+    "window_sizes": [
+      8,
+      16,
+      32
+    ],
+    "window_drop_max": [
+      0.5,
+      0.7
+    ],
+    "bias_cycle_max": [
+      0.4,
+      0.8
+    ],
+    "landmark_strides": [
+      "off",
+      "64",
+      "128"
+    ],
+    "max_runs": 18
+  },
+  "num_runs": 18,
+  "best": {
+    "run_idx": 11,
+    "steps": 500,
+    "window_size": 8,
+    "window_drop_max": 0.7,
+    "bias_cycle_max": 0.8,
+    "landmark_stride": 64,
+    "dense_val_ppl": 63.87029530519406,
+    "val_ppl": 155.67268946825388,
+    "ppl_gap": 91.80239416305982,
+    "dense_tok_s": 354546.8315541759,
+    "tok_s": 204024.03680186952,
+    "tok_s_ratio": 0.5754501765183424,
+    "cycle_pct": 4.59112748503685,
+    "window_pct": 92.2104001045227,
+    "landmark_pct": 3.1984739005565643,
+    "rewire_pct": 0.0,
+    "reachability": 127.8359375,
+    "shortcut_rate": 0.984375,
+    "cache_hit_rate": 1.0,
+    "avg_graph_build_ms": 0.001750000286847353
+  },
+  "qualified_hits": 0,
+  "summary_csv": "runs/mlx/ablations_cycle_push/20260207_050232/summary.csv"
+}

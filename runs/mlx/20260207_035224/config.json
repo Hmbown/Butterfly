@@ -1,0 +1,40 @@
+{
+  "timestamp": "20260207_035224",
+  "data": "data/tinyshakespeare.txt",
+  "train_tokens": 1941,
+  "val_tokens": 215,
+  "tokenizer": "char",
+  "args": {
+    "data": "data/tinyshakespeare.txt",
+    "steps": 200,
+    "batch_size": 8,
+    "seq_len": 128,
+    "layers": 2,
+    "heads": 4,
+    "embd": 128,
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "strategy": "random",
+    "wayfinder_attn": "wayfinder_sparse",
+    "lr": 0.001,
+    "eval_every": 50,
+    "eval_batches": 4,
+    "seed": 1337
+  },
+  "base_config": {
+    "vocab_size": 56,
+    "seq_len": 128,
+    "n_layers": 2,
+    "n_heads": 4,
+    "n_embd": 128,
+    "dropout": 0.0,
+    "attn": "dense",
+    "strategy": "random",
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "routing_dim": null,
+    "seed": 1337
+  }
+}

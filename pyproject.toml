@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hcsa"
+version = "0.3.0"
+description = "HCSA: Hamiltonian Cycle Sparse Attention — sparse causal attention via graph-theoretic guarantees"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Hunter Bown", email = "hmbown@gmail.com" }]
+keywords = ["transformer", "sparse-attention", "hamiltonian-cycle", "language-model", "efficient-attention"]
+
+dependencies = [
+  "torch>=2.1",
+  "numpy>=1.24",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+bpe = ["transformers>=4.38"]
+hf = ["datasets>=2.18"]
+dev = ["pytest>=8.0", "ruff>=0.3", "mypy>=1.8", "hypothesis>=6.0", "pytest-benchmark>=4.0"]
+viz = ["matplotlib>=3.7", "networkx>=3.0"]
+kernels = ["triton>=2.1"]
+mlx = ["mlx>=0.10"]
+sweep = ["wandb"]
+experiments = ["pyyaml>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/Hmbown/hcsa"
+Repository = "https://github.com/Hmbown/hcsa"
+
+[tool.setuptools.packages.find]
+include = ["hcsa*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100

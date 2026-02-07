@@ -1,0 +1,47 @@
+{
+  "dense": {
+    "run": "dense",
+    "attn": "dense",
+    "steps": 200,
+    "final_train_loss": 2.019305944442749,
+    "final_train_ppl": 7.533094732584367,
+    "avg_tokens_per_sec": 111582.95935908015,
+    "last_tokens_per_sec": 112153.63123148259,
+    "final_val_loss": 3.2970179319381714,
+    "final_val_ppl": 27.031907619005622
+  },
+  "wayfinder": {
+    "run": "wayfinder",
+    "attn": "wayfinder_sparse",
+    "steps": 200,
+    "final_train_loss": 1.961228847503662,
+    "final_train_ppl": 7.108056417921516,
+    "avg_tokens_per_sec": 56923.50317681003,
+    "last_tokens_per_sec": 52426.33857259577,
+    "final_val_loss": 3.3997724056243896,
+    "final_val_ppl": 29.95728116275533,
+    "graph_metrics": {
+      "heads": 4,
+      "tokens": 128,
+      "max_degree": 38,
+      "degree_mean": 31.9140625,
+      "degree_min": 3,
+      "degree_max": 38,
+      "shortcut_rate": 0.984375,
+      "reachability_proxy": 127.99609375,
+      "edge_type_counts": {
+        "cycle": 1024,
+        "window": 14070,
+        "landmark": 1246,
+        "rewire": 0
+      }
+    },
+    "edge_utilization": {
+      "cycle": 0.030482470989227295,
+      "window": 0.8785409331321716,
+      "landmark": 0.09097660332918167,
+      "rewire": 0.0
+    }
+  },
+  "throughput_ratio_wayfinder_over_dense": 0.51014512882408
+}

@@ -1,0 +1,31 @@
+{
+  "dense": {
+    "run": "dense",
+    "attn": "dense",
+    "steps": 1000,
+    "final_train_loss": 0.5775450468063354,
+    "final_train_ppl": 1.7816591676428812,
+    "avg_tokens_per_sec": 369218.71771452134,
+    "last_tokens_per_sec": 253934.11897479685,
+    "final_val_loss": 4.251404583454132,
+    "final_val_ppl": 70.20395043519937,
+    "best_val_ppl": 16.253268826781337
+  },
+  "wayfinder": {
+    "run": "wayfinder",
+    "attn": "wayfinder_sparse",
+    "steps": 1000,
+    "final_train_loss": 0.5190033912658691,
+    "final_train_ppl": 1.6803521612940147,
+    "avg_tokens_per_sec": 131392.6701923907,
+    "last_tokens_per_sec": 122789.75444006099,
+    "final_val_loss": 4.232398629188538,
+    "final_val_ppl": 68.8822571704595,
+    "best_val_ppl": 18.10798131568535,
+    "cache_hit_rate": 0.999,
+    "avg_graph_build_ms": 0.01632654300169088,
+    "cache_persistent_bytes": 408576
+  },
+  "throughput_ratio_wayfinder_over_dense": 0.3558667637592065,
+  "val_ppl_gap_wayfinder_minus_dense": -1.3216932647398778
+}

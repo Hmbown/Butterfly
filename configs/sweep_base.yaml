@@ -1,0 +1,25 @@
+# Base hyperparameter sweep configuration
+# Usage: python scripts/sweep.py --config configs/sweep_base.yaml
+
+base:
+  data: "data/tinyshakespeare.txt"
+  tokenizer: "char"
+  seq_len: 256
+  layers: 4
+  heads: 4
+  embd: 256
+  dropout: 0.0
+  batch_size: 32
+  steps: 200
+  eval_every: 100
+  seed: 42
+  lr: 3e-4
+  weight_decay: 0.1
+  grad_clip: 1.0
+
+sweep:
+  attn: ["dense", "hcsa"]
+  cycle: ["random", "greedy"]
+  window: [16, 32, 64]
+  landmark_stride: [16, 32, 64]
+  lr: [1e-4, 3e-4, 1e-3]

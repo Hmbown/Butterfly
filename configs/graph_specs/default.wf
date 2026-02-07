@@ -1,0 +1,11 @@
+(wayfinder
+  (degree 64)
+  (backbone (cycle :type random :seed 42 :k 2))
+  (local (window :size (schedule :linear 64 16 :steps 2000)))
+  (highways (landmarks :stride 64))
+  (bias
+    (edge_logit_bias
+      :cycle (schedule :linear 0.0 0.4 :steps 2000)
+      :window (schedule :linear 0.0 -0.1 :steps 2000)
+      :landmark (schedule :constant 0.1)))
+  (permute_window :enabled true :window 32))

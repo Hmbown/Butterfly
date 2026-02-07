@@ -1,0 +1,111 @@
+{
+  "created_at": "2026-02-07T05:07:55.957413+00:00",
+  "config": {
+    "seq_lens": [
+      256
+    ],
+    "batch": 1,
+    "heads": 4,
+    "embd": 128,
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "strategy": "random",
+    "warmup": 1,
+    "iters": 2,
+    "graph_spec": "graphs/default.wf"
+  },
+  "attention": [
+    {
+      "mode": "dense",
+      "seq_len": 256,
+      "batch": 1,
+      "heads": 4,
+      "embd": 128,
+      "tokens_per_sec": 629734.5399090758,
+      "latency_ms": 0.40652049995060224,
+      "graph_build_ms_first": 0.0,
+      "graph_build_ms_cached": 0.0,
+      "graph_build_ms": 0.0,
+      "permute_ms": 0.0,
+      "attention_ms": 0.40652049995060224,
+      "total_ms": 0.40652049995060224,
+      "peak_memory_bytes": 5515296,
+      "largest_intermediate_bytes": 1048576,
+      "memory_proxy": {
+        "scores_fp32": 1048576,
+        "weights_fp32": 1048576,
+        "largest": 1048576
+      }
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 256,
+      "batch": 1,
+      "heads": 4,
+      "embd": 128,
+      "tokens_per_sec": 226340.05911692322,
+      "latency_ms": 1.1310415001162255,
+      "graph_build_ms_first": 12.14220800017938,
+      "graph_build_ms_cached": 0.10916699992958456,
+      "graph_build_ms": 0.10916699992958456,
+      "permute_ms": 0.0,
+      "attention_ms": 0.11029150011017919,
+      "total_ms": 1.1310415001162255,
+      "peak_memory_bytes": 24559844,
+      "largest_intermediate_bytes": 4718592,
+      "memory_proxy": {
+        "kv_gather": 4718592,
+        "scores_fp32": 294912,
+        "weights_fp32": 294912,
+        "largest": 4718592
+      }
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 256,
+      "batch": 1,
+      "heads": 4,
+      "embd": 128,
+      "tokens_per_sec": 242247.3743173598,
+      "latency_ms": 1.056770999980472,
+      "graph_build_ms_first": 12.096792000113055,
+      "graph_build_ms_cached": 0.07949949987232685,
+      "graph_build_ms": 0.07949949987232685,
+      "permute_ms": 0.0,
+      "attention_ms": 0.10210449993610382,
+      "total_ms": 1.056770999980472,
+      "peak_memory_bytes": 24297828,
+      "largest_intermediate_bytes": 4718592,
+      "memory_proxy": {
+        "kv_gather": 4718592,
+        "scores_fp32": 294912,
+        "weights_fp32": 294912,
+        "largest": 4718592
+      }
+    }
+  ],
+  "block": [
+    {
+      "mode": "dense",
+      "seq_len": 256,
+      "block_latency_ms": 0.5399579999902926,
+      "block_tokens_per_sec": 474110.9493786598,
+      "block_peak_memory_bytes": 7945260
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 256,
+      "block_latency_ms": 1.1472915000467765,
+      "block_tokens_per_sec": 223134.22525100427,
+      "block_peak_memory_bytes": 28341476
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 256,
+      "block_latency_ms": 1.154833499981578,
+      "block_tokens_per_sec": 221676.9776804048,
+      "block_peak_memory_bytes": 28079460
+    }
+  ]
+}

@@ -1,0 +1,400 @@
+{"run": "dense", "attn": "dense", "step": 1, "train_loss": 4.207839012145996, "train_ppl": 67.21114030556389, "tokens_per_sec": 83761.06828061624}
+{"run": "dense", "attn": "dense", "step": 2, "train_loss": 3.4137520790100098, "train_ppl": 30.379015152335153, "tokens_per_sec": 348013.21498788}
+{"run": "dense", "attn": "dense", "step": 3, "train_loss": 3.5965147018432617, "train_ppl": 36.47090071153928, "tokens_per_sec": 397387.02509297745}
+{"run": "dense", "attn": "dense", "step": 4, "train_loss": 3.31925106048584, "train_ppl": 27.63964238456078, "tokens_per_sec": 415219.24509335513}
+{"run": "dense", "attn": "dense", "step": 5, "train_loss": 3.0650978088378906, "train_ppl": 21.436558569529875, "tokens_per_sec": 259456.67643288977}
+{"run": "dense", "attn": "dense", "step": 6, "train_loss": 3.0911426544189453, "train_ppl": 22.002204533780315, "tokens_per_sec": 414526.0619078407}
+{"run": "dense", "attn": "dense", "step": 7, "train_loss": 3.254777431488037, "train_ppl": 25.91384628590056, "tokens_per_sec": 318432.71398771263}
+{"run": "dense", "attn": "dense", "step": 8, "train_loss": 3.234238624572754, "train_ppl": 25.387035353754012, "tokens_per_sec": 384120.0855691288}
+{"run": "dense", "attn": "dense", "step": 9, "train_loss": 3.274836778640747, "train_ppl": 26.43890973357745, "tokens_per_sec": 412660.62130930444}
+{"run": "dense", "attn": "dense", "step": 10, "train_loss": 3.1203737258911133, "train_ppl": 22.654844763306787, "tokens_per_sec": 421067.17502141604}
+{"run": "dense", "attn": "dense", "step": 11, "train_loss": 3.1201839447021484, "train_ppl": 22.650545707884618, "tokens_per_sec": 278750.12148451933}
+{"run": "dense", "attn": "dense", "step": 12, "train_loss": 2.932215690612793, "train_ppl": 18.769171135371288, "tokens_per_sec": 413869.81204474275}
+{"run": "dense", "attn": "dense", "step": 13, "train_loss": 2.9194164276123047, "train_ppl": 18.53047043291911, "tokens_per_sec": 349428.4251777297}
+{"run": "dense", "attn": "dense", "step": 14, "train_loss": 2.8570237159729004, "train_ppl": 17.40963373562941, "tokens_per_sec": 398695.67333277967}
+{"run": "dense", "attn": "dense", "step": 15, "train_loss": 2.9216341972351074, "train_ppl": 18.571612352127755, "tokens_per_sec": 414169.78375609976}
+{"run": "dense", "attn": "dense", "step": 16, "train_loss": 2.934840440750122, "train_ppl": 18.818500229839852, "tokens_per_sec": 250860.00394032474}
+{"run": "dense", "attn": "dense", "step": 17, "train_loss": 2.7834901809692383, "train_ppl": 16.17537753832425, "tokens_per_sec": 422471.3500964089}
+{"run": "dense", "attn": "dense", "step": 18, "train_loss": 2.727734088897705, "train_ppl": 15.298183393493133, "tokens_per_sec": 317535.7243102641}
+{"run": "dense", "attn": "dense", "step": 19, "train_loss": 2.693021535873413, "train_ppl": 14.776255523229755, "tokens_per_sec": 396259.2200702798}
+{"run": "dense", "attn": "dense", "step": 20, "train_loss": 2.66489315032959, "train_ppl": 14.366414417338747, "tokens_per_sec": 391393.62122270896}
+{"run": "dense", "attn": "dense", "step": 21, "train_loss": 2.6777684688568115, "train_ppl": 14.552582493889542, "tokens_per_sec": 418272.1195450898}
+{"run": "dense", "attn": "dense", "step": 22, "train_loss": 2.708347797393799, "train_ppl": 15.004464608666373, "tokens_per_sec": 258148.57055224152}
+{"run": "dense", "attn": "dense", "step": 23, "train_loss": 2.6355531215667725, "train_ppl": 13.951026943324479, "tokens_per_sec": 421319.59437774477}
+{"run": "dense", "attn": "dense", "step": 24, "train_loss": 2.508805513381958, "train_ppl": 12.290240761049562, "tokens_per_sec": 312870.7510758105}
+{"run": "dense", "attn": "dense", "step": 25, "train_loss": 2.7250261306762695, "train_ppl": 15.256812592481193, "tokens_per_sec": 400756.741426108}
+{"run": "dense", "attn": "dense", "step": 26, "train_loss": 2.553600788116455, "train_ppl": 12.853302575886135, "tokens_per_sec": 419966.1074091395}
+{"run": "dense", "attn": "dense", "step": 27, "train_loss": 2.5664615631103516, "train_ppl": 13.019673544908398, "tokens_per_sec": 425890.30413855525}
+{"run": "dense", "attn": "dense", "step": 28, "train_loss": 2.5550479888916016, "train_ppl": 12.871917351747292, "tokens_per_sec": 274377.6062741273}
+{"run": "dense", "attn": "dense", "step": 29, "train_loss": 2.654129981994629, "train_ppl": 14.212615447440596, "tokens_per_sec": 323935.3078509916}
+{"run": "dense", "attn": "dense", "step": 30, "train_loss": 2.642117500305176, "train_ppl": 14.04290800908988, "tokens_per_sec": 384938.23884989443}
+{"run": "dense", "attn": "dense", "step": 31, "train_loss": 2.5539190769195557, "train_ppl": 12.857394289317645, "tokens_per_sec": 410194.78244040505}
+{"run": "dense", "attn": "dense", "step": 32, "train_loss": 2.5897116661071777, "train_ppl": 13.325928732300579, "tokens_per_sec": 423563.5343414296}
+{"run": "dense", "attn": "dense", "step": 33, "train_loss": 2.4629337787628174, "train_ppl": 11.73920128879078, "tokens_per_sec": 258964.62704421257}
+{"run": "dense", "attn": "dense", "step": 34, "train_loss": 2.6125869750976562, "train_ppl": 13.634276802419226, "tokens_per_sec": 389977.7248222965}
+{"run": "dense", "attn": "dense", "step": 35, "train_loss": 2.5729422569274902, "train_ppl": 13.10432406352604, "tokens_per_sec": 332895.32457888365}
+{"run": "dense", "attn": "dense", "step": 36, "train_loss": 2.4526443481445312, "train_ppl": 11.61903089430916, "tokens_per_sec": 393058.82678425586}
+{"run": "dense", "attn": "dense", "step": 37, "train_loss": 2.5496811866760254, "train_ppl": 12.803021358135839, "tokens_per_sec": 421587.06948758964}
+{"run": "dense", "attn": "dense", "step": 38, "train_loss": 2.448690414428711, "train_ppl": 11.57318072031896, "tokens_per_sec": 254249.42912359434}
+{"run": "dense", "attn": "dense", "step": 39, "train_loss": 2.47275972366333, "train_ppl": 11.855118599743614, "tokens_per_sec": 402627.9336595456}
+{"run": "dense", "attn": "dense", "step": 40, "train_loss": 2.4794929027557373, "train_ppl": 11.935210570644145, "tokens_per_sec": 311858.35294346215}
+{"run": "dense", "attn": "dense", "step": 41, "train_loss": 2.5490143299102783, "train_ppl": 12.794486422827129, "tokens_per_sec": 397489.7590232131}
+{"run": "dense", "attn": "dense", "step": 42, "train_loss": 2.536379814147949, "train_ppl": 12.633851193473328, "tokens_per_sec": 404809.8046453685}
+{"run": "dense", "attn": "dense", "step": 43, "train_loss": 2.4431233406066895, "train_ppl": 11.508930976364422, "tokens_per_sec": 258162.10764113432}
+{"run": "dense", "attn": "dense", "step": 44, "train_loss": 2.4492053985595703, "train_ppl": 11.579142259650814, "tokens_per_sec": 404230.5251000477}
+{"run": "dense", "attn": "dense", "step": 45, "train_loss": 2.4855308532714844, "train_ppl": 12.007492780068235, "tokens_per_sec": 407859.74404019525}
+{"run": "dense", "attn": "dense", "step": 46, "train_loss": 2.4649205207824707, "train_ppl": 11.762547236777165, "tokens_per_sec": 373807.89414746687}
+{"run": "dense", "attn": "dense", "step": 47, "train_loss": 2.395709991455078, "train_ppl": 10.975988151102115, "tokens_per_sec": 405799.12308848504}
+{"run": "dense", "attn": "dense", "step": 48, "train_loss": 2.4292807579040527, "train_ppl": 11.350715231169419, "tokens_per_sec": 416337.67587676976}
+{"run": "dense", "attn": "dense", "step": 49, "train_loss": 2.4178805351257324, "train_ppl": 11.222049352185918, "tokens_per_sec": 259903.95228972094}
+{"run": "dense", "attn": "dense", "step": 50, "train_loss": 2.444814682006836, "train_ppl": 11.528412978510326, "tokens_per_sec": 409763.9055342217, "val_loss": 2.924720376729965, "val_ppl": 18.62901621510583}
+{"run": "dense", "attn": "dense", "step": 51, "train_loss": 2.3980889320373535, "train_ppl": 11.002130457913584, "tokens_per_sec": 395424.04785969196}
+{"run": "dense", "attn": "dense", "step": 52, "train_loss": 2.4240760803222656, "train_ppl": 11.291791889578858, "tokens_per_sec": 257332.2088490742}
+{"run": "dense", "attn": "dense", "step": 53, "train_loss": 2.425417423248291, "train_ppl": 11.306948217396208, "tokens_per_sec": 403282.0225373027}
+{"run": "dense", "attn": "dense", "step": 54, "train_loss": 2.4381580352783203, "train_ppl": 11.451927257613185, "tokens_per_sec": 298505.9833928949}
+{"run": "dense", "attn": "dense", "step": 55, "train_loss": 2.3972246646881104, "train_ppl": 10.992625783668135, "tokens_per_sec": 400821.99824724183}
+{"run": "dense", "attn": "dense", "step": 56, "train_loss": 2.42464542388916, "train_ppl": 11.298222629126288, "tokens_per_sec": 418172.53701123747}
+{"run": "dense", "attn": "dense", "step": 57, "train_loss": 2.397444725036621, "train_ppl": 10.995045090916172, "tokens_per_sec": 260355.55313781102}
+{"run": "dense", "attn": "dense", "step": 58, "train_loss": 2.3952713012695312, "train_ppl": 10.971174148828526, "tokens_per_sec": 402008.62985563837}
+{"run": "dense", "attn": "dense", "step": 59, "train_loss": 2.377873659133911, "train_ppl": 10.78195236635523, "tokens_per_sec": 312616.00984801375}
+{"run": "dense", "attn": "dense", "step": 60, "train_loss": 2.3773419857025146, "train_ppl": 10.77622141237644, "tokens_per_sec": 400182.27052543417}
+{"run": "dense", "attn": "dense", "step": 61, "train_loss": 2.4404098987579346, "train_ppl": 11.477744491909638, "tokens_per_sec": 417433.8985092673}
+{"run": "dense", "attn": "dense", "step": 62, "train_loss": 2.294346332550049, "train_ppl": 9.91795085130523, "tokens_per_sec": 416231.9062111936}
+{"run": "dense", "attn": "dense", "step": 63, "train_loss": 2.3153271675109863, "train_ppl": 10.128236006511347, "tokens_per_sec": 256939.43481132}
+{"run": "dense", "attn": "dense", "step": 64, "train_loss": 2.367884635925293, "train_ppl": 10.674787322071824, "tokens_per_sec": 423921.42221109016}
+{"run": "dense", "attn": "dense", "step": 65, "train_loss": 2.430328607559204, "train_ppl": 11.362615307866907, "tokens_per_sec": 322071.6250854359}
+{"run": "dense", "attn": "dense", "step": 66, "train_loss": 2.353361129760742, "train_ppl": 10.520872380355856, "tokens_per_sec": 413104.44766366464}
+{"run": "dense", "attn": "dense", "step": 67, "train_loss": 2.302396774291992, "train_ppl": 9.998116990288002, "tokens_per_sec": 409224.82269607944}
+{"run": "dense", "attn": "dense", "step": 68, "train_loss": 2.292635917663574, "train_ppl": 9.90100153983529, "tokens_per_sec": 391381.2049280324}
+{"run": "dense", "attn": "dense", "step": 69, "train_loss": 2.4117259979248047, "train_ppl": 11.153194932860556, "tokens_per_sec": 327483.5098799737}
+{"run": "dense", "attn": "dense", "step": 70, "train_loss": 2.3622546195983887, "train_ppl": 10.61485695792803, "tokens_per_sec": 416210.7587189896}
+{"run": "dense", "attn": "dense", "step": 71, "train_loss": 2.319014072418213, "train_ppl": 10.165646772135114, "tokens_per_sec": 348156.2677602657}
+{"run": "dense", "attn": "dense", "step": 72, "train_loss": 2.25510311126709, "train_ppl": 9.536276557013087, "tokens_per_sec": 402377.3269787477}
+{"run": "dense", "attn": "dense", "step": 73, "train_loss": 2.3604001998901367, "train_ppl": 10.595190798277777, "tokens_per_sec": 413125.4472979787}
+{"run": "dense", "attn": "dense", "step": 74, "train_loss": 2.2823519706726074, "train_ppl": 9.799701937494405, "tokens_per_sec": 262197.09386592015}
+{"run": "dense", "attn": "dense", "step": 75, "train_loss": 2.3141989707946777, "train_ppl": 10.116815807233793, "tokens_per_sec": 423424.82035736955}
+{"run": "dense", "attn": "dense", "step": 76, "train_loss": 2.3753490447998047, "train_ppl": 10.754766426307974, "tokens_per_sec": 318004.2253707404}
+{"run": "dense", "attn": "dense", "step": 77, "train_loss": 2.2891759872436523, "train_ppl": 9.866803958161748, "tokens_per_sec": 381537.88831412315}
+{"run": "dense", "attn": "dense", "step": 78, "train_loss": 2.343355655670166, "train_ppl": 10.41613093206729, "tokens_per_sec": 405283.7282615094}
+{"run": "dense", "attn": "dense", "step": 79, "train_loss": 2.3511202335357666, "train_ppl": 10.497322593324526, "tokens_per_sec": 413911.46739254735}
+{"run": "dense", "attn": "dense", "step": 80, "train_loss": 2.363654613494873, "train_ppl": 10.629728100206464, "tokens_per_sec": 254589.13069118088}
+{"run": "dense", "attn": "dense", "step": 81, "train_loss": 2.36032772064209, "train_ppl": 10.59442289464468, "tokens_per_sec": 410324.7976990314}
+{"run": "dense", "attn": "dense", "step": 82, "train_loss": 2.332019329071045, "train_ppl": 10.298717048413023, "tokens_per_sec": 316220.18066606467}
+{"run": "dense", "attn": "dense", "step": 83, "train_loss": 2.3217780590057373, "train_ppl": 10.193783350116153, "tokens_per_sec": 410564.82732581656}
+{"run": "dense", "attn": "dense", "step": 84, "train_loss": 2.3478384017944336, "train_ppl": 10.462928615332876, "tokens_per_sec": 411623.8722568161}
+{"run": "dense", "attn": "dense", "step": 85, "train_loss": 2.2848339080810547, "train_ppl": 9.824054392458233, "tokens_per_sec": 259936.93990211133}
+{"run": "dense", "attn": "dense", "step": 86, "train_loss": 2.361654758453369, "train_ppl": 10.608491427087216, "tokens_per_sec": 424940.3465143012}
+{"run": "dense", "attn": "dense", "step": 87, "train_loss": 2.341966152191162, "train_ppl": 10.40166773255947, "tokens_per_sec": 309229.34853466245}
+{"run": "dense", "attn": "dense", "step": 88, "train_loss": 2.2860755920410156, "train_ppl": 9.836260339615293, "tokens_per_sec": 399349.9643438246}
+{"run": "dense", "attn": "dense", "step": 89, "train_loss": 2.3354907035827637, "train_ppl": 10.334529876183689, "tokens_per_sec": 411437.8104254727}
+{"run": "dense", "attn": "dense", "step": 90, "train_loss": 2.293689489364624, "train_ppl": 9.911438451921894, "tokens_per_sec": 252087.35220656497}
+{"run": "dense", "attn": "dense", "step": 91, "train_loss": 2.2993927001953125, "train_ppl": 9.968126974690055, "tokens_per_sec": 404836.37138435314}
+{"run": "dense", "attn": "dense", "step": 92, "train_loss": 2.285750389099121, "train_ppl": 9.833062078885696, "tokens_per_sec": 412757.59561528394}
+{"run": "dense", "attn": "dense", "step": 93, "train_loss": 2.2707834243774414, "train_ppl": 9.686986863789754, "tokens_per_sec": 317130.17017531354}
+{"run": "dense", "attn": "dense", "step": 94, "train_loss": 2.2914228439331055, "train_ppl": 9.888998176916061, "tokens_per_sec": 408918.41477033455}
+{"run": "dense", "attn": "dense", "step": 95, "train_loss": 2.2950711250305176, "train_ppl": 9.925141913202907, "tokens_per_sec": 417937.86031397415}
+{"run": "dense", "attn": "dense", "step": 96, "train_loss": 2.2117533683776855, "train_ppl": 9.131713622323433, "tokens_per_sec": 425315.4041965419}
+{"run": "dense", "attn": "dense", "step": 97, "train_loss": 2.307732343673706, "train_ppl": 10.051605205324236, "tokens_per_sec": 297458.24256562424}
+{"run": "dense", "attn": "dense", "step": 98, "train_loss": 2.3037362098693848, "train_ppl": 10.01151779664661, "tokens_per_sec": 408673.78175188764}
+{"run": "dense", "attn": "dense", "step": 99, "train_loss": 2.1713550090789795, "train_ppl": 8.770159639087092, "tokens_per_sec": 368439.1564452067}
+{"run": "dense", "attn": "dense", "step": 100, "train_loss": 2.3323044776916504, "train_ppl": 10.301654132106165, "tokens_per_sec": 399207.35507805203, "val_loss": 2.9789859652519226, "val_ppl": 19.66786263331116}
+{"run": "dense", "attn": "dense", "step": 101, "train_loss": 2.3361825942993164, "train_ppl": 10.34168271567123, "tokens_per_sec": 388369.1038487503}
+{"run": "dense", "attn": "dense", "step": 102, "train_loss": 2.2676570415496826, "train_ppl": 9.656748926719153, "tokens_per_sec": 364029.60868308845}
+{"run": "dense", "attn": "dense", "step": 103, "train_loss": 2.2687020301818848, "train_ppl": 9.666845393999592, "tokens_per_sec": 391612.0073364093}
+{"run": "dense", "attn": "dense", "step": 104, "train_loss": 2.169889450073242, "train_ppl": 8.757315866598383, "tokens_per_sec": 409061.34801227035}
+{"run": "dense", "attn": "dense", "step": 105, "train_loss": 2.2108945846557617, "train_ppl": 9.12387482171026, "tokens_per_sec": 257872.21675712327}
+{"run": "dense", "attn": "dense", "step": 106, "train_loss": 2.2234249114990234, "train_ppl": 9.238919222024556, "tokens_per_sec": 395793.3046751223}
+{"run": "dense", "attn": "dense", "step": 107, "train_loss": 2.275676727294922, "train_ppl": 9.734504388879104, "tokens_per_sec": 305056.97475543007}
+{"run": "dense", "attn": "dense", "step": 108, "train_loss": 2.222195625305176, "train_ppl": 9.22756892399051, "tokens_per_sec": 399109.95362147485}
+{"run": "dense", "attn": "dense", "step": 109, "train_loss": 2.21474552154541, "train_ppl": 9.159078026994202, "tokens_per_sec": 410564.82732581656}
+{"run": "dense", "attn": "dense", "step": 110, "train_loss": 2.2379467487335205, "train_ppl": 9.374064204930077, "tokens_per_sec": 256435.42736313434}
+{"run": "dense", "attn": "dense", "step": 111, "train_loss": 2.309113025665283, "train_ppl": 10.065492860629313, "tokens_per_sec": 372538.6617832358}
+{"run": "dense", "attn": "dense", "step": 112, "train_loss": 2.2366366386413574, "train_ppl": 9.361791190066368, "tokens_per_sec": 296296.2963036147}
+{"run": "dense", "attn": "dense", "step": 113, "train_loss": 2.2350330352783203, "train_ppl": 9.346790620926038, "tokens_per_sec": 390852.07658553816}
+{"run": "dense", "attn": "dense", "step": 114, "train_loss": 2.2177505493164062, "train_ppl": 9.186642706392727, "tokens_per_sec": 407157.05766977713}
+{"run": "dense", "attn": "dense", "step": 115, "train_loss": 2.189206838607788, "train_ppl": 8.928128858475644, "tokens_per_sec": 253666.83585483537}
+{"run": "dense", "attn": "dense", "step": 116, "train_loss": 2.1838560104370117, "train_ppl": 8.880483559650067, "tokens_per_sec": 403321.5737200751}
+{"run": "dense", "attn": "dense", "step": 117, "train_loss": 2.249889850616455, "train_ppl": 9.486690825659613, "tokens_per_sec": 413305.8657206789}
+{"run": "dense", "attn": "dense", "step": 118, "train_loss": 2.204437255859375, "train_ppl": 9.065148772851263, "tokens_per_sec": 373489.8099974958}
+{"run": "dense", "attn": "dense", "step": 119, "train_loss": 2.2044763565063477, "train_ppl": 9.06550323296295, "tokens_per_sec": 404223.8231613004}
+{"run": "dense", "attn": "dense", "step": 120, "train_loss": 2.203528881072998, "train_ppl": 9.056917959169027, "tokens_per_sec": 414784.8100993825}
+{"run": "dense", "attn": "dense", "step": 121, "train_loss": 2.146331548690796, "train_ppl": 8.553422957095718, "tokens_per_sec": 257618.1640906244}
+{"run": "dense", "attn": "dense", "step": 122, "train_loss": 2.220282554626465, "train_ppl": 9.209932807393793, "tokens_per_sec": 417150.42265508574}
+{"run": "dense", "attn": "dense", "step": 123, "train_loss": 2.155329704284668, "train_ppl": 8.63073530032698, "tokens_per_sec": 322134.9493798833}
+{"run": "dense", "attn": "dense", "step": 124, "train_loss": 2.182429313659668, "train_ppl": 8.867822836028592, "tokens_per_sec": 404017.767325156}
+{"run": "dense", "attn": "dense", "step": 125, "train_loss": 2.210933208465576, "train_ppl": 9.124227227321725, "tokens_per_sec": 406450.01240066544}
+{"run": "dense", "attn": "dense", "step": 126, "train_loss": 2.243070363998413, "train_ppl": 9.422216555103763, "tokens_per_sec": 422572.9908194154}
+{"run": "dense", "attn": "dense", "step": 127, "train_loss": 2.1764943599700928, "train_ppl": 8.815348588312348, "tokens_per_sec": 257966.9983599627}
+{"run": "dense", "attn": "dense", "step": 128, "train_loss": 2.142263889312744, "train_ppl": 8.518701211980973, "tokens_per_sec": 419514.4693863043}
+{"run": "dense", "attn": "dense", "step": 129, "train_loss": 2.160473346710205, "train_ppl": 8.675243084516127, "tokens_per_sec": 313245.6408643874}
+{"run": "dense", "attn": "dense", "step": 130, "train_loss": 2.161377429962158, "train_ppl": 8.68308977299081, "tokens_per_sec": 400247.4967848176}
+{"run": "dense", "attn": "dense", "step": 131, "train_loss": 2.1962313652038574, "train_ppl": 8.991065528455975, "tokens_per_sec": 419844.1984256497}
+{"run": "dense", "attn": "dense", "step": 132, "train_loss": 2.1846911907196045, "train_ppl": 8.887903462465944, "tokens_per_sec": 259708.968701431}
+{"run": "dense", "attn": "dense", "step": 133, "train_loss": 2.154092788696289, "train_ppl": 8.620066408914132, "tokens_per_sec": 398211.1608117905}
+{"run": "dense", "attn": "dense", "step": 134, "train_loss": 2.1934964656829834, "train_ppl": 8.966509462143, "tokens_per_sec": 313653.41910070967}
+{"run": "dense", "attn": "dense", "step": 135, "train_loss": 2.2681994438171387, "train_ppl": 9.66198818999895, "tokens_per_sec": 384534.7917654671}
+{"run": "dense", "attn": "dense", "step": 136, "train_loss": 2.2251739501953125, "train_ppl": 9.255092589055115, "tokens_per_sec": 399427.8508083955}
+{"run": "dense", "attn": "dense", "step": 137, "train_loss": 2.191619396209717, "train_ppl": 8.94969448732496, "tokens_per_sec": 416825.07920225506}
+{"run": "dense", "attn": "dense", "step": 138, "train_loss": 2.1670498847961426, "train_ppl": 8.732484168841458, "tokens_per_sec": 261241.1505820663}
+{"run": "dense", "attn": "dense", "step": 139, "train_loss": 2.2015953063964844, "train_ppl": 9.03942265164853, "tokens_per_sec": 398928.6583948347}
+{"run": "dense", "attn": "dense", "step": 140, "train_loss": 2.187103033065796, "train_ppl": 8.909365555594384, "tokens_per_sec": 344800.53256078146}
+{"run": "dense", "attn": "dense", "step": 141, "train_loss": 2.1285228729248047, "train_ppl": 8.402446159537787, "tokens_per_sec": 408225.5860687536}
+{"run": "dense", "attn": "dense", "step": 142, "train_loss": 2.1168007850646973, "train_ppl": 8.304526977276684, "tokens_per_sec": 417030.142647896}
+{"run": "dense", "attn": "dense", "step": 143, "train_loss": 2.1129391193389893, "train_ppl": 8.272519510924042, "tokens_per_sec": 263255.99332448776}
+{"run": "dense", "attn": "dense", "step": 144, "train_loss": 2.2043557167053223, "train_ppl": 9.06440963842357, "tokens_per_sec": 404529.94529305346}
+{"run": "dense", "attn": "dense", "step": 145, "train_loss": 2.1002609729766846, "train_ppl": 8.168301340348274, "tokens_per_sec": 328108.69370188954}
+{"run": "dense", "attn": "dense", "step": 146, "train_loss": 2.114017963409424, "train_ppl": 8.281449085489145, "tokens_per_sec": 393776.6371319862}
+{"run": "dense", "attn": "dense", "step": 147, "train_loss": 2.197054862976074, "train_ppl": 8.9984727003647, "tokens_per_sec": 414456.0992369871}
+{"run": "dense", "attn": "dense", "step": 148, "train_loss": 2.1170949935913086, "train_ppl": 8.306970599372473, "tokens_per_sec": 422929.3807080971}
+{"run": "dense", "attn": "dense", "step": 149, "train_loss": 2.168682098388672, "train_ppl": 8.746749086727867, "tokens_per_sec": 266880.9359219668}
+{"run": "dense", "attn": "dense", "step": 150, "train_loss": 2.185898780822754, "train_ppl": 8.89864288983298, "tokens_per_sec": 368599.36559850955, "val_loss": 3.123478204011917, "val_ppl": 22.725285517520422}
+{"run": "dense", "attn": "dense", "step": 151, "train_loss": 2.186739444732666, "train_ppl": 8.90612680304478, "tokens_per_sec": 252636.77296184518}
+{"run": "dense", "attn": "dense", "step": 152, "train_loss": 2.1040358543395996, "train_ppl": 8.19919398018551, "tokens_per_sec": 398475.82998086524}
+{"run": "dense", "attn": "dense", "step": 153, "train_loss": 2.1902031898498535, "train_ppl": 8.937028843772545, "tokens_per_sec": 311613.2222667645}
+{"run": "dense", "attn": "dense", "step": 154, "train_loss": 2.2146477699279785, "train_ppl": 9.158182756060684, "tokens_per_sec": 386093.39841020026}
+{"run": "dense", "attn": "dense", "step": 155, "train_loss": 2.1043758392333984, "train_ppl": 8.20198205620511, "tokens_per_sec": 408836.78348616726}
+{"run": "dense", "attn": "dense", "step": 156, "train_loss": 2.1844305992126465, "train_ppl": 8.885587652062329, "tokens_per_sec": 423855.79634751193}
+{"run": "dense", "attn": "dense", "step": 157, "train_loss": 2.1458277702331543, "train_ppl": 8.549115012086892, "tokens_per_sec": 260833.57213028363}
+{"run": "dense", "attn": "dense", "step": 158, "train_loss": 2.0939526557922363, "train_ppl": 8.116935291641052, "tokens_per_sec": 399850.21236293233}
+{"run": "dense", "attn": "dense", "step": 159, "train_loss": 2.097397804260254, "train_ppl": 8.144947564338654, "tokens_per_sec": 301412.81368956045}
+{"run": "dense", "attn": "dense", "step": 160, "train_loss": 2.1296019554138184, "train_ppl": 8.41151798579757, "tokens_per_sec": 409531.8539035562}
+{"run": "dense", "attn": "dense", "step": 161, "train_loss": 2.097259998321533, "train_ppl": 8.143825219528386, "tokens_per_sec": 420771.4828932204}
+{"run": "dense", "attn": "dense", "step": 162, "train_loss": 2.0669493675231934, "train_ppl": 7.900684233226344, "tokens_per_sec": 258327.66139391187}
+{"run": "dense", "attn": "dense", "step": 163, "train_loss": 2.031724452972412, "train_ppl": 7.627227820293154, "tokens_per_sec": 405859.2762034819}
+{"run": "dense", "attn": "dense", "step": 164, "train_loss": 2.1440463066101074, "train_ppl": 8.53389863242128, "tokens_per_sec": 317339.013218467}
+{"run": "dense", "attn": "dense", "step": 165, "train_loss": 2.145642042160034, "train_ppl": 8.547527348870194, "tokens_per_sec": 393197.0761938163}
+{"run": "dense", "attn": "dense", "step": 166, "train_loss": 2.0788674354553223, "train_ppl": 7.995408468343456, "tokens_per_sec": 393593.79968158563}
+{"run": "dense", "attn": "dense", "step": 167, "train_loss": 2.0798096656799316, "train_ppl": 8.002945534128404, "tokens_per_sec": 393146.80616157514}
+{"run": "dense", "attn": "dense", "step": 168, "train_loss": 2.15472674369812, "train_ppl": 8.625532875694077, "tokens_per_sec": 291928.43532954855}
+{"run": "dense", "attn": "dense", "step": 169, "train_loss": 2.1041297912597656, "train_ppl": 8.199964223392424, "tokens_per_sec": 408273.1123722662}
+{"run": "dense", "attn": "dense", "step": 170, "train_loss": 2.0982329845428467, "train_ppl": 8.1517529053949, "tokens_per_sec": 312445.1733330377}
+{"run": "dense", "attn": "dense", "step": 171, "train_loss": 2.106635808944702, "train_ppl": 8.220539248672894, "tokens_per_sec": 410352.257781343}
+{"run": "dense", "attn": "dense", "step": 172, "train_loss": 2.0973193645477295, "train_ppl": 8.144308702049596, "tokens_per_sec": 408904.8617139697}
+{"run": "dense", "attn": "dense", "step": 173, "train_loss": 2.095024585723877, "train_ppl": 8.125640742516463, "tokens_per_sec": 259344.44107949646}
+{"run": "dense", "attn": "dense", "step": 174, "train_loss": 2.1099371910095215, "train_ppl": 8.24772323718754, "tokens_per_sec": 426067.50925698515}
+{"run": "dense", "attn": "dense", "step": 175, "train_loss": 2.1529269218444824, "train_ppl": 8.610022415344876, "tokens_per_sec": 377187.1050593937}
+{"run": "dense", "attn": "dense", "step": 176, "train_loss": 2.043832778930664, "train_ppl": 7.720142164290486, "tokens_per_sec": 367849.1243611177}
+{"run": "dense", "attn": "dense", "step": 177, "train_loss": 1.9679274559020996, "train_ppl": 7.15583033508063, "tokens_per_sec": 372826.89070992294}
+{"run": "dense", "attn": "dense", "step": 178, "train_loss": 2.097876787185669, "train_ppl": 8.148849789625409, "tokens_per_sec": 409041.086246432}
+{"run": "dense", "attn": "dense", "step": 179, "train_loss": 2.045083522796631, "train_ppl": 7.729804125806848, "tokens_per_sec": 268384.8187539334}
+{"run": "dense", "attn": "dense", "step": 180, "train_loss": 1.984812617301941, "train_ppl": 7.277683545699003, "tokens_per_sec": 406813.3287080679}
+{"run": "dense", "attn": "dense", "step": 181, "train_loss": 2.0178093910217285, "train_ppl": 7.521829485516004, "tokens_per_sec": 313761.5381625829}
+{"run": "dense", "attn": "dense", "step": 182, "train_loss": 2.1121597290039062, "train_ppl": 8.266074501085882, "tokens_per_sec": 398928.6583948347}
+{"run": "dense", "attn": "dense", "step": 183, "train_loss": 2.002695083618164, "train_ppl": 7.408997082215194, "tokens_per_sec": 412106.9288477954}
+{"run": "dense", "attn": "dense", "step": 184, "train_loss": 2.0823779106140137, "train_ppl": 8.023525474305814, "tokens_per_sec": 260308.62841770038}
+{"run": "dense", "attn": "dense", "step": 185, "train_loss": 1.9805645942687988, "train_ppl": 7.246833350930697, "tokens_per_sec": 406429.84718187264}
+{"run": "dense", "attn": "dense", "step": 186, "train_loss": 2.0041708946228027, "train_ppl": 7.419939434078058, "tokens_per_sec": 319156.42968274234}
+{"run": "dense", "attn": "dense", "step": 187, "train_loss": 2.0473227500915527, "train_ppl": 7.747132307818329, "tokens_per_sec": 394459.3864725724}
+{"run": "dense", "attn": "dense", "step": 188, "train_loss": 2.0866119861602783, "train_ppl": 8.05756970938266, "tokens_per_sec": 404370.1993235277}
+{"run": "dense", "attn": "dense", "step": 189, "train_loss": 2.04374361038208, "train_ppl": 7.719453801109463, "tokens_per_sec": 420375.57105700864}
+{"run": "dense", "attn": "dense", "step": 190, "train_loss": 1.9680891036987305, "train_ppl": 7.1569871527833575, "tokens_per_sec": 260877.89487477255}
+{"run": "dense", "attn": "dense", "step": 191, "train_loss": 2.0049548149108887, "train_ppl": 7.4257583556241356, "tokens_per_sec": 424060.4617330796}
+{"run": "dense", "attn": "dense", "step": 192, "train_loss": 1.9888523817062378, "train_ppl": 7.307143137473474, "tokens_per_sec": 320525.8627515366}
+{"run": "dense", "attn": "dense", "step": 193, "train_loss": 2.013241767883301, "train_ppl": 7.487550948430814, "tokens_per_sec": 412335.1012108411}
+{"run": "dense", "attn": "dense", "step": 194, "train_loss": 2.005117654800415, "train_ppl": 7.426967663753544, "tokens_per_sec": 420066.7183892896}
+{"run": "dense", "attn": "dense", "step": 195, "train_loss": 2.090949058532715, "train_ppl": 8.092591864270615, "tokens_per_sec": 257572.2856209051}
+{"run": "dense", "attn": "dense", "step": 196, "train_loss": 1.9894673824310303, "train_ppl": 7.311638417957875, "tokens_per_sec": 414071.9773539232}
+{"run": "dense", "attn": "dense", "step": 197, "train_loss": 2.0327301025390625, "train_ppl": 7.634901996764736, "tokens_per_sec": 320463.16941130895}
+{"run": "dense", "attn": "dense", "step": 198, "train_loss": 2.0096817016601562, "train_ppl": 7.46094216382635, "tokens_per_sec": 383742.2211605651}
+{"run": "dense", "attn": "dense", "step": 199, "train_loss": 1.9954191446304321, "train_ppl": 7.355285310227703, "tokens_per_sec": 409054.6483347116}
+{"run": "dense", "attn": "dense", "step": 200, "train_loss": 1.9031802415847778, "train_ppl": 6.707191048042298, "tokens_per_sec": 418935.3886132391, "val_loss": 3.336872845888138, "val_ppl": 28.13101898231404}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 1, "train_loss": 4.246891021728516, "train_ppl": 69.88779460269379, "tokens_per_sec": 33206.4580724749, "cache_hit": false, "graph_build_ms": 12.26425000000745}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 2, "train_loss": 3.532818078994751, "train_ppl": 34.22026727740446, "tokens_per_sec": 149965.21802527818, "cache_hit": true, "graph_build_ms": 0.003415999934077263}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 3, "train_loss": 3.6288604736328125, "train_ppl": 37.66986634439737, "tokens_per_sec": 132321.82943142005, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 4, "train_loss": 3.3297646045684814, "train_ppl": 27.93176591922048, "tokens_per_sec": 147566.37965284244, "cache_hit": true, "graph_build_ms": 0.002290999749675393}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 5, "train_loss": 3.116274833679199, "train_ppl": 22.562175047876423, "tokens_per_sec": 132539.47708952322, "cache_hit": true, "graph_build_ms": 0.002458999864757061}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 6, "train_loss": 3.1284961700439453, "train_ppl": 22.83960681863441, "tokens_per_sec": 154273.9999666472, "cache_hit": true, "graph_build_ms": 0.0012499999720603228}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 7, "train_loss": 3.044076919555664, "train_ppl": 20.99064620227519, "tokens_per_sec": 164384.67877123307, "cache_hit": true, "graph_build_ms": 0.0025409997906535864}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 8, "train_loss": 3.1086368560791016, "train_ppl": 22.390502111868354, "tokens_per_sec": 139819.8644967126, "cache_hit": true, "graph_build_ms": 0.0015840001869946718}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 9, "train_loss": 2.9264326095581055, "train_ppl": 18.660940751545407, "tokens_per_sec": 160718.84012297157, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 10, "train_loss": 3.5651133060455322, "train_ppl": 35.343457804853315, "tokens_per_sec": 134772.30849968927, "cache_hit": true, "graph_build_ms": 0.002041999949142337}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 11, "train_loss": 2.969813108444214, "train_ppl": 19.488277061242655, "tokens_per_sec": 144282.0895201781, "cache_hit": true, "graph_build_ms": 0.002875000238418579}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 12, "train_loss": 2.912959575653076, "train_ppl": 18.411207374902567, "tokens_per_sec": 132749.95948803885, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 13, "train_loss": 3.0846786499023438, "train_ppl": 21.86044085843079, "tokens_per_sec": 150235.66753064274, "cache_hit": true, "graph_build_ms": 0.0020840000361204147}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 14, "train_loss": 3.027017831802368, "train_ppl": 20.635601902794367, "tokens_per_sec": 132640.33937484023, "cache_hit": true, "graph_build_ms": 0.0022499999031424522}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 15, "train_loss": 2.99991512298584, "train_ppl": 20.08383219513296, "tokens_per_sec": 148776.83358855097, "cache_hit": true, "graph_build_ms": 0.0016670001205056906}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 16, "train_loss": 2.9692625999450684, "train_ppl": 19.47755155159972, "tokens_per_sec": 164928.52828558662, "cache_hit": true, "graph_build_ms": 0.002707999898120761}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 17, "train_loss": 2.9560463428497314, "train_ppl": 19.22182482011399, "tokens_per_sec": 135244.00713129312, "cache_hit": true, "graph_build_ms": 0.0010830000974237919}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 18, "train_loss": 2.8896701335906982, "train_ppl": 17.9873751919556, "tokens_per_sec": 157130.5265179734, "cache_hit": true, "graph_build_ms": 0.0034580000210553408}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 19, "train_loss": 2.992739200592041, "train_ppl": 19.94022803630739, "tokens_per_sec": 132884.1744408115, "cache_hit": true, "graph_build_ms": 0.0023330000694841146}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 20, "train_loss": 2.84436297416687, "train_ppl": 17.190604321154932, "tokens_per_sec": 141951.9417800338, "cache_hit": true, "graph_build_ms": 0.001834000227972865}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 21, "train_loss": 2.8835933208465576, "train_ppl": 17.87840072521702, "tokens_per_sec": 133254.54311251847, "cache_hit": true, "graph_build_ms": 0.0023330000694841146}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 22, "train_loss": 2.8000447750091553, "train_ppl": 16.445383096791154, "tokens_per_sec": 149377.290715292, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 23, "train_loss": 2.8274245262145996, "train_ppl": 16.901874386362984, "tokens_per_sec": 131534.29358466566, "cache_hit": true, "graph_build_ms": 0.0024999999441206455}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 24, "train_loss": 2.8237600326538086, "train_ppl": 16.840050921536324, "tokens_per_sec": 143725.18845700566, "cache_hit": true, "graph_build_ms": 0.0030830001924186945}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 25, "train_loss": 2.905423879623413, "train_ppl": 18.272987557936002, "tokens_per_sec": 158410.71970567535, "cache_hit": true, "graph_build_ms": 0.0032499998342245817}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 26, "train_loss": 2.7861170768737793, "train_ppl": 16.217924429995293, "tokens_per_sec": 135605.19712147475, "cache_hit": true, "graph_build_ms": 0.0016250000335276127}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 27, "train_loss": 2.7534821033477783, "train_ppl": 15.697196089007532, "tokens_per_sec": 159172.007112748, "cache_hit": true, "graph_build_ms": 0.0029159998521208763}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 28, "train_loss": 2.749175786972046, "train_ppl": 15.629744334970287, "tokens_per_sec": 130501.28551071839, "cache_hit": true, "graph_build_ms": 0.002374999923631549}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 29, "train_loss": 2.81191086769104, "train_ppl": 16.64168791904165, "tokens_per_sec": 156745.69006333436, "cache_hit": true, "graph_build_ms": 0.0034169999416917562}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 30, "train_loss": 2.706803321838379, "train_ppl": 14.981308466506949, "tokens_per_sec": 134744.2175783938, "cache_hit": true, "graph_build_ms": 0.002208000048995018}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 31, "train_loss": 2.713021755218506, "train_ppl": 15.074758991950796, "tokens_per_sec": 148517.89582819823, "cache_hit": true, "graph_build_ms": 0.001624999800696969}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 32, "train_loss": 2.6735548973083496, "train_ppl": 14.491393149707054, "tokens_per_sec": 131190.94085770941, "cache_hit": true, "graph_build_ms": 0.002416999777778983}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 33, "train_loss": 2.6880719661712646, "train_ppl": 14.703300114461065, "tokens_per_sec": 146977.72742395374, "cache_hit": true, "graph_build_ms": 0.002041999949142337}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 34, "train_loss": 2.700695514678955, "train_ppl": 14.890084396506607, "tokens_per_sec": 162245.65735380573, "cache_hit": true, "graph_build_ms": 0.0024580000899732113}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 35, "train_loss": 2.614130973815918, "train_ppl": 13.655344368288633, "tokens_per_sec": 140322.83570450306, "cache_hit": true, "graph_build_ms": 0.002041000174358487}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 36, "train_loss": 2.632800579071045, "train_ppl": 13.912678950256142, "tokens_per_sec": 154102.77571805046, "cache_hit": true, "graph_build_ms": 0.003082999959588051}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 37, "train_loss": 2.6351234912872314, "train_ppl": 13.945034447090027, "tokens_per_sec": 130159.1615222494, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 38, "train_loss": 2.643392562866211, "train_ppl": 14.06082501556498, "tokens_per_sec": 144519.642959214, "cache_hit": true, "graph_build_ms": 0.00266700005158782}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 39, "train_loss": 2.676962375640869, "train_ppl": 14.540856482630788, "tokens_per_sec": 131126.54864743887, "cache_hit": true, "graph_build_ms": 0.00266700005158782}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 40, "train_loss": 2.5432143211364746, "train_ppl": 12.720493077772202, "tokens_per_sec": 143866.53680963573, "cache_hit": true, "graph_build_ms": 0.0022079998161643744}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 41, "train_loss": 2.6786351203918457, "train_ppl": 14.56519997853807, "tokens_per_sec": 132894.95302703843, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 42, "train_loss": 2.605949878692627, "train_ppl": 13.544084431687288, "tokens_per_sec": 148736.33666183095, "cache_hit": true, "graph_build_ms": 0.0021669999696314335}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 43, "train_loss": 2.545957088470459, "train_ppl": 12.755430321120912, "tokens_per_sec": 132871.96657359594, "cache_hit": true, "graph_build_ms": 0.001875000074505806}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 44, "train_loss": 2.640186309814453, "train_ppl": 14.015814648321355, "tokens_per_sec": 147061.27342772426, "cache_hit": true, "graph_build_ms": 0.0027920000720769167}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 45, "train_loss": 2.519604444503784, "train_ppl": 12.423681436043736, "tokens_per_sec": 160164.76950569858, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 46, "train_loss": 2.6341593265533447, "train_ppl": 13.931595616327726, "tokens_per_sec": 132399.53732411918, "cache_hit": true, "graph_build_ms": 0.0018749998416751623}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 47, "train_loss": 2.4820919036865234, "train_ppl": 11.966270538986024, "tokens_per_sec": 151266.71098267197, "cache_hit": true, "graph_build_ms": 0.011666999896988273}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 48, "train_loss": 2.513840675354004, "train_ppl": 12.35228017212563, "tokens_per_sec": 131538.51766470898, "cache_hit": true, "graph_build_ms": 0.002208000048995018}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 49, "train_loss": 2.537292003631592, "train_ppl": 12.64538091751695, "tokens_per_sec": 147423.84744963545, "cache_hit": true, "graph_build_ms": 0.0024160000029951334}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 50, "train_loss": 2.525719165802002, "train_ppl": 12.499881519233343, "tokens_per_sec": 131590.64822207618, "cache_hit": true, "graph_build_ms": 0.0025420000310987234, "val_loss": 3.0703523755073547, "val_ppl": 21.549494851456863, "edge_utilization": {"cycle": 0.03293168172240257, "window": 0.8680246472358704, "landmark": 0.09904369711875916, "rewire": 0.0}}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 51, "train_loss": 2.5021438598632812, "train_ppl": 12.208639536751988, "tokens_per_sec": 164571.8047341308, "cache_hit": true, "graph_build_ms": 0.0012499999720603228}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 52, "train_loss": 2.5335636138916016, "train_ppl": 12.598321790941792, "tokens_per_sec": 145946.90895913308, "cache_hit": true, "graph_build_ms": 0.0017500000540167093}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 53, "train_loss": 2.5603504180908203, "train_ppl": 12.940351054255629, "tokens_per_sec": 158791.4974626049, "cache_hit": true, "graph_build_ms": 0.0032919999212026596}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 54, "train_loss": 2.4992055892944336, "train_ppl": 12.172819900177982, "tokens_per_sec": 132570.9468199821, "cache_hit": true, "graph_build_ms": 0.0025830003432929516}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 55, "train_loss": 2.5714430809020996, "train_ppl": 13.084693093877343, "tokens_per_sec": 146494.99284986415, "cache_hit": true, "graph_build_ms": 0.002374999923631549}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 56, "train_loss": 2.512362480163574, "train_ppl": 12.334034579580239, "tokens_per_sec": 132899.98938361346, "cache_hit": true, "graph_build_ms": 0.0022079998161643744}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 57, "train_loss": 2.4674015045166016, "train_ppl": 11.791766155987649, "tokens_per_sec": 149753.2289078656, "cache_hit": true, "graph_build_ms": 0.0024999999441206455}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 58, "train_loss": 2.484175205230713, "train_ppl": 11.991225874596875, "tokens_per_sec": 164596.0356797204, "cache_hit": true, "graph_build_ms": 0.00291600008495152}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 59, "train_loss": 2.4952521324157715, "train_ppl": 12.124790185871083, "tokens_per_sec": 135226.8972612308, "cache_hit": true, "graph_build_ms": 0.0013749999925494194}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 60, "train_loss": 2.3955507278442383, "train_ppl": 10.974240214791653, "tokens_per_sec": 164747.1902861875, "cache_hit": true, "graph_build_ms": 0.0025420000310987234}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 61, "train_loss": 2.443620204925537, "train_ppl": 11.514650774378756, "tokens_per_sec": 133239.354482255, "cache_hit": true, "graph_build_ms": 0.0013329999055713415}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 62, "train_loss": 2.4139504432678223, "train_ppl": 11.178032219740727, "tokens_per_sec": 152824.41608654874, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 63, "train_loss": 2.5266802310943604, "train_ppl": 12.511900496105724, "tokens_per_sec": 134092.8435803566, "cache_hit": true, "graph_build_ms": 0.0020000000949949026}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 64, "train_loss": 2.4209861755371094, "train_ppl": 11.256955176566368, "tokens_per_sec": 148208.9155185913, "cache_hit": true, "graph_build_ms": 0.0023330000694841146}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 65, "train_loss": 2.494365692138672, "train_ppl": 12.114047045778461, "tokens_per_sec": 165788.58620511473, "cache_hit": true, "graph_build_ms": 0.002458000322803855}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 66, "train_loss": 2.462855815887451, "train_ppl": 11.73828610257954, "tokens_per_sec": 139245.5393823025, "cache_hit": true, "graph_build_ms": 0.0016250000335276127}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 67, "train_loss": 2.4602789878845215, "train_ppl": 11.708077496151034, "tokens_per_sec": 158430.15519751274, "cache_hit": true, "graph_build_ms": 0.0029170000925660133}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 68, "train_loss": 2.403791904449463, "train_ppl": 11.065054561056987, "tokens_per_sec": 131341.6938815144, "cache_hit": true, "graph_build_ms": 0.0021669999696314335}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 69, "train_loss": 2.4212210178375244, "train_ppl": 11.259599096255641, "tokens_per_sec": 156736.6930682657, "cache_hit": true, "graph_build_ms": 0.005749999778345227}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 70, "train_loss": 2.333028793334961, "train_ppl": 10.309118484293215, "tokens_per_sec": 134726.48943637797, "cache_hit": true, "graph_build_ms": 0.0017499998211860657}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 71, "train_loss": 2.4273781776428223, "train_ppl": 11.329140115122865, "tokens_per_sec": 146393.7528727268, "cache_hit": true, "graph_build_ms": 0.0017910001333802938}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 72, "train_loss": 2.432002067565918, "train_ppl": 11.38164610935763, "tokens_per_sec": 132887.05431277998, "cache_hit": true, "graph_build_ms": 0.002208000048995018}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 73, "train_loss": 2.4196767807006836, "train_ppl": 11.242225023482078, "tokens_per_sec": 147866.49157636098, "cache_hit": true, "graph_build_ms": 0.001875000074505806}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 74, "train_loss": 2.49149227142334, "train_ppl": 12.079288254282005, "tokens_per_sec": 132755.69050475597, "cache_hit": true, "graph_build_ms": 0.0022499996703118086}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 75, "train_loss": 2.3910484313964844, "train_ppl": 10.92494199293602, "tokens_per_sec": 149019.51995588254, "cache_hit": true, "graph_build_ms": 0.0024999999441206455}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 76, "train_loss": 2.441831111907959, "train_ppl": 11.494068410450355, "tokens_per_sec": 165560.71890942016, "cache_hit": true, "graph_build_ms": 0.0020420001819729805}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 77, "train_loss": 2.3756744861602783, "train_ppl": 10.758267041716952, "tokens_per_sec": 134882.51522019683, "cache_hit": true, "graph_build_ms": 0.0012089998926967382}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 78, "train_loss": 2.3457560539245605, "train_ppl": 10.441163827013058, "tokens_per_sec": 156361.73125682227, "cache_hit": true, "graph_build_ms": 0.002874999772757292}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 79, "train_loss": 2.385573387145996, "train_ppl": 10.8652908972937, "tokens_per_sec": 134501.62354057317, "cache_hit": true, "graph_build_ms": 0.001875000074505806}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 80, "train_loss": 2.413790702819824, "train_ppl": 11.1762467784736, "tokens_per_sec": 147957.27213843144, "cache_hit": true, "graph_build_ms": 0.0011660000309348106}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 81, "train_loss": 2.410212755203247, "train_ppl": 11.136330205237671, "tokens_per_sec": 131058.026071865, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 82, "train_loss": 2.335484027862549, "train_ppl": 10.334460885983964, "tokens_per_sec": 150117.28645863436, "cache_hit": true, "graph_build_ms": 0.0032079999800771475}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 83, "train_loss": 2.3742613792419434, "train_ppl": 10.743075196509801, "tokens_per_sec": 131381.0081286656, "cache_hit": true, "graph_build_ms": 0.002041999949142337}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 84, "train_loss": 2.362834930419922, "train_ppl": 10.621018661968591, "tokens_per_sec": 145263.6805305782, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 85, "train_loss": 2.3851876258850098, "train_ppl": 10.861100297313712, "tokens_per_sec": 167373.81011698314, "cache_hit": true, "graph_build_ms": 0.0022080002818256617}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 86, "train_loss": 2.3513600826263428, "train_ppl": 10.499840668568977, "tokens_per_sec": 135019.61937946168, "cache_hit": true, "graph_build_ms": 0.0013329999055713415}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 87, "train_loss": 2.3899827003479004, "train_ppl": 10.913305145026643, "tokens_per_sec": 150957.3037033818, "cache_hit": true, "graph_build_ms": 0.0017920001409947872}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 88, "train_loss": 2.3873023986816406, "train_ppl": 10.884093360747226, "tokens_per_sec": 131702.7571653541, "cache_hit": true, "graph_build_ms": 0.0022090000566095114}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 89, "train_loss": 2.3277878761291504, "train_ppl": 10.255230582214555, "tokens_per_sec": 150261.37261666445, "cache_hit": true, "graph_build_ms": 0.0022089998237788677}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 90, "train_loss": 2.33945369720459, "train_ppl": 10.375566813018878, "tokens_per_sec": 131153.13447747158, "cache_hit": true, "graph_build_ms": 0.0024160000029951334}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 91, "train_loss": 2.265422821044922, "train_ppl": 9.635197704314093, "tokens_per_sec": 151847.1148648974, "cache_hit": true, "graph_build_ms": 0.0019169999286532402}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 92, "train_loss": 2.2666945457458496, "train_ppl": 9.64745881796106, "tokens_per_sec": 133053.9719674741, "cache_hit": true, "graph_build_ms": 0.0024170002434402704}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 93, "train_loss": 2.398876667022705, "train_ppl": 11.010800635441429, "tokens_per_sec": 152215.7801374329, "cache_hit": true, "graph_build_ms": 0.0024159997701644897}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 94, "train_loss": 2.2450287342071533, "train_ppl": 9.440686823213866, "tokens_per_sec": 163621.82012031888, "cache_hit": true, "graph_build_ms": 0.0026660000439733267}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 95, "train_loss": 2.2676053047180176, "train_ppl": 9.656249330049386, "tokens_per_sec": 141526.87317643958, "cache_hit": true, "graph_build_ms": 0.001999999862164259}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 96, "train_loss": 2.217763900756836, "train_ppl": 9.186765362124383, "tokens_per_sec": 144947.53790665296, "cache_hit": true, "graph_build_ms": 0.0025829998776316643}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 97, "train_loss": 2.3073649406433105, "train_ppl": 10.047912893436283, "tokens_per_sec": 133321.7544790242, "cache_hit": true, "graph_build_ms": 0.00266700005158782}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 98, "train_loss": 2.3220431804656982, "train_ppl": 10.196486299129523, "tokens_per_sec": 154499.9467391097, "cache_hit": true, "graph_build_ms": 0.0019589997828006744}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 99, "train_loss": 2.281527042388916, "train_ppl": 9.791621219659016, "tokens_per_sec": 132018.30722379094, "cache_hit": true, "graph_build_ms": 0.0024170000106096268}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 100, "train_loss": 2.3739089965820312, "train_ppl": 10.739290190020913, "tokens_per_sec": 151382.23512057558, "cache_hit": true, "graph_build_ms": 0.0017499998211860657, "val_loss": 3.134152501821518, "val_ppl": 22.969161268531323, "edge_utilization": {"cycle": 0.02783380262553692, "window": 0.8773480653762817, "landmark": 0.0948181003332138, "rewire": 0.0}}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 101, "train_loss": 2.354137420654297, "train_ppl": 10.529042808681218, "tokens_per_sec": 134722.05813276992, "cache_hit": true, "graph_build_ms": 0.0012079998850822449}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 102, "train_loss": 2.3368098735809326, "train_ppl": 10.348171874020334, "tokens_per_sec": 157034.14035745242, "cache_hit": true, "graph_build_ms": 0.0021249998826533556}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 103, "train_loss": 2.3593997955322266, "train_ppl": 10.58459662334324, "tokens_per_sec": 134433.18230981528, "cache_hit": true, "graph_build_ms": 0.00229199999012053}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 104, "train_loss": 2.260551929473877, "train_ppl": 9.58837981602463, "tokens_per_sec": 149310.1187198664, "cache_hit": true, "graph_build_ms": 0.0013339999131858349}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 105, "train_loss": 2.219491481781006, "train_ppl": 9.202649960652309, "tokens_per_sec": 133602.97475514814, "cache_hit": true, "graph_build_ms": 0.0023750001564621925}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 106, "train_loss": 2.252556800842285, "train_ppl": 9.512025125541772, "tokens_per_sec": 148252.71006392827, "cache_hit": true, "graph_build_ms": 0.0019580000080168247}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 107, "train_loss": 2.244483709335327, "train_ppl": 9.435542816021359, "tokens_per_sec": 165633.23818627474, "cache_hit": true, "graph_build_ms": 0.0020409999415278435}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 108, "train_loss": 2.277153491973877, "train_ppl": 9.748890581023455, "tokens_per_sec": 134201.20272688975, "cache_hit": true, "graph_build_ms": 0.001540999859571457}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 109, "train_loss": 2.214144229888916, "train_ppl": 9.153572405203496, "tokens_per_sec": 158240.3915714686, "cache_hit": true, "graph_build_ms": 0.0016670001205056906}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 110, "train_loss": 2.222128391265869, "train_ppl": 9.226948538114529, "tokens_per_sec": 132221.43371478256, "cache_hit": true, "graph_build_ms": 0.002208000048995018}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 111, "train_loss": 2.139397621154785, "train_ppl": 8.494319289206802, "tokens_per_sec": 146838.9825951239, "cache_hit": true, "graph_build_ms": 0.001624999800696969}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 112, "train_loss": 2.270120620727539, "train_ppl": 9.68056842085855, "tokens_per_sec": 134353.81000042052, "cache_hit": true, "graph_build_ms": 0.0019169999286532402}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 113, "train_loss": 2.3545022010803223, "train_ppl": 10.53288429801007, "tokens_per_sec": 145884.53182351592, "cache_hit": true, "graph_build_ms": 0.001375000225380063}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 114, "train_loss": 2.193896770477295, "train_ppl": 8.970099517379156, "tokens_per_sec": 166809.20382838606, "cache_hit": true, "graph_build_ms": 0.0023750001564621925}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 115, "train_loss": 2.3054449558258057, "train_ppl": 10.028639561406388, "tokens_per_sec": 125857.15606096487, "cache_hit": true, "graph_build_ms": 0.0009999996982514858}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 116, "train_loss": 2.2476401329040527, "train_ppl": 9.465372438445137, "tokens_per_sec": 163187.2509970661, "cache_hit": true, "graph_build_ms": 0.0022499999031424522}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 117, "train_loss": 2.315249443054199, "train_ppl": 10.127448825461535, "tokens_per_sec": 135021.84479502123, "cache_hit": true, "graph_build_ms": 0.001832999987527728}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 118, "train_loss": 2.2635607719421387, "train_ppl": 9.617273186418899, "tokens_per_sec": 147561.0634762588, "cache_hit": true, "graph_build_ms": 0.0014169998466968536}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 119, "train_loss": 2.213376045227051, "train_ppl": 9.146543471385773, "tokens_per_sec": 133109.45640020503, "cache_hit": true, "graph_build_ms": 0.0024999999441206455}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 120, "train_loss": 2.1528067588806152, "train_ppl": 8.608987871690646, "tokens_per_sec": 143396.4599825486, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 121, "train_loss": 2.194777011871338, "train_ppl": 8.977998846431197, "tokens_per_sec": 131926.88622030924, "cache_hit": true, "graph_build_ms": 0.0024170000106096268}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 122, "train_loss": 2.2265396118164062, "train_ppl": 9.267740548254151, "tokens_per_sec": 146103.9609618214, "cache_hit": true, "graph_build_ms": 0.0023750001564621925}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 123, "train_loss": 2.239132881164551, "train_ppl": 9.3851896833351, "tokens_per_sec": 131217.56962209035, "cache_hit": true, "graph_build_ms": 0.002374999923631549}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 124, "train_loss": 2.3524703979492188, "train_ppl": 10.511505277049467, "tokens_per_sec": 149002.34635411392, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 125, "train_loss": 2.290062665939331, "train_ppl": 9.875556522808754, "tokens_per_sec": 164992.7316217169, "cache_hit": true, "graph_build_ms": 0.002583000110462308}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 126, "train_loss": 2.1474242210388184, "train_ppl": 8.562774153808519, "tokens_per_sec": 149396.3599213604, "cache_hit": true, "graph_build_ms": 0.0017500000540167093}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 127, "train_loss": 2.33951997756958, "train_ppl": 10.376254532165113, "tokens_per_sec": 149755.94461028904, "cache_hit": true, "graph_build_ms": 0.0018339999951422215}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 128, "train_loss": 2.2035751342773438, "train_ppl": 9.057336880334283, "tokens_per_sec": 134809.2666078673, "cache_hit": true, "graph_build_ms": 0.0019590002484619617}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 129, "train_loss": 2.3154120445251465, "train_ppl": 10.129095697425772, "tokens_per_sec": 149847.26261904862, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 130, "train_loss": 2.2026941776275635, "train_ppl": 9.04936127277832, "tokens_per_sec": 132248.48249829674, "cache_hit": true, "graph_build_ms": 0.002374999923631549}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 131, "train_loss": 2.2422924041748047, "train_ppl": 9.414889299699267, "tokens_per_sec": 150586.37511156916, "cache_hit": true, "graph_build_ms": 0.0022090000566095114}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 132, "train_loss": 2.2199478149414062, "train_ppl": 9.206850393318376, "tokens_per_sec": 166059.64622371565, "cache_hit": true, "graph_build_ms": 0.0020830000285059214}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 133, "train_loss": 2.223795175552368, "train_ppl": 9.242340695089382, "tokens_per_sec": 130821.52596557731, "cache_hit": true, "graph_build_ms": 0.001624999800696969}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 134, "train_loss": 2.2673678398132324, "train_ppl": 9.653956581956022, "tokens_per_sec": 157225.0273984941, "cache_hit": true, "graph_build_ms": 0.0032919999212026596}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 135, "train_loss": 2.207228183746338, "train_ppl": 9.090484287712913, "tokens_per_sec": 132368.86756603478, "cache_hit": true, "graph_build_ms": 0.0027910000644624233}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 136, "train_loss": 2.198429822921753, "train_ppl": 9.01085374967288, "tokens_per_sec": 152627.95073775313, "cache_hit": true, "graph_build_ms": 0.0035829998087137938}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 137, "train_loss": 2.158827543258667, "train_ppl": 8.660977082242747, "tokens_per_sec": 132417.36037828756, "cache_hit": true, "graph_build_ms": 0.002625000197440386}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 138, "train_loss": 2.20824933052063, "train_ppl": 9.099771747542853, "tokens_per_sec": 143697.45623220954, "cache_hit": true, "graph_build_ms": 0.0023330000694841146}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 139, "train_loss": 2.181847095489502, "train_ppl": 8.86266133115041, "tokens_per_sec": 132643.20867976817, "cache_hit": true, "graph_build_ms": 0.0025420000310987234}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 140, "train_loss": 2.159282922744751, "train_ppl": 8.664922011687242, "tokens_per_sec": 149657.47583920305, "cache_hit": true, "graph_build_ms": 0.00216599996201694}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 141, "train_loss": 2.2128288745880127, "train_ppl": 9.141540120317776, "tokens_per_sec": 132048.09955182462, "cache_hit": true, "graph_build_ms": 0.002458000322803855}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 142, "train_loss": 2.1874492168426514, "train_ppl": 8.912450367336888, "tokens_per_sec": 159156.5696510828, "cache_hit": true, "graph_build_ms": 0.0024170000106096268}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 143, "train_loss": 2.221776008605957, "train_ppl": 9.223697694249939, "tokens_per_sec": 158432.18971189295, "cache_hit": true, "graph_build_ms": 0.003792000003159046}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 144, "train_loss": 2.2076196670532227, "train_ppl": 9.094043757254045, "tokens_per_sec": 138772.19135570814, "cache_hit": true, "graph_build_ms": 0.002624999964609742}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 145, "train_loss": 2.2304861545562744, "train_ppl": 9.304388350923233, "tokens_per_sec": 146761.8095939101, "cache_hit": true, "graph_build_ms": 0.0020409999415278435}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 146, "train_loss": 2.152754306793213, "train_ppl": 8.608536324148764, "tokens_per_sec": 134079.67527550313, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 147, "train_loss": 2.117971181869507, "train_ppl": 8.314252259225638, "tokens_per_sec": 148382.5074991321, "cache_hit": true, "graph_build_ms": 0.0018329997546970844}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 148, "train_loss": 2.1563267707824707, "train_ppl": 8.639345008859035, "tokens_per_sec": 131727.47591971967, "cache_hit": true, "graph_build_ms": 0.002749999985098839}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 149, "train_loss": 2.143402338027954, "train_ppl": 8.528404838923779, "tokens_per_sec": 152252.55725667512, "cache_hit": true, "graph_build_ms": 0.0020840000361204147}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 150, "train_loss": 2.1936140060424805, "train_ppl": 8.967563450830506, "tokens_per_sec": 164675.44463752958, "cache_hit": true, "graph_build_ms": 0.002709000138565898, "val_loss": 3.273959308862686, "val_ppl": 26.415720564706668, "edge_utilization": {"cycle": 0.037657395005226135, "window": 0.8870654106140137, "landmark": 0.07527721673250198, "rewire": 0.0}}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 151, "train_loss": 2.1422367095947266, "train_ppl": 8.518469679230668, "tokens_per_sec": 149621.00152894278, "cache_hit": true, "graph_build_ms": 0.0010420000180602074}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 152, "train_loss": 2.1766791343688965, "train_ppl": 8.816977589542226, "tokens_per_sec": 130859.14138025184, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 153, "train_loss": 2.181429862976074, "train_ppl": 8.858964311999483, "tokens_per_sec": 146159.57856799333, "cache_hit": true, "graph_build_ms": 0.002041999949142337}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 154, "train_loss": 2.2196083068847656, "train_ppl": 9.203725123990637, "tokens_per_sec": 134336.18443782025, "cache_hit": true, "graph_build_ms": 0.0023330003023147583}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 155, "train_loss": 2.17071533203125, "train_ppl": 8.764551363194963, "tokens_per_sec": 146847.76360990922, "cache_hit": true, "graph_build_ms": 0.0017499998211860657}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 156, "train_loss": 2.1619932651519775, "train_ppl": 8.68843877211127, "tokens_per_sec": 129667.44226538952, "cache_hit": true, "graph_build_ms": 0.0026660000439733267}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 157, "train_loss": 2.077819347381592, "train_ppl": 7.98703296598195, "tokens_per_sec": 142261.7393717179, "cache_hit": true, "graph_build_ms": 0.0027089999057352543}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 158, "train_loss": 2.0930299758911133, "train_ppl": 8.109449412654865, "tokens_per_sec": 164445.1581799762, "cache_hit": true, "graph_build_ms": 0.0019159999210387468}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 159, "train_loss": 2.165181875228882, "train_ppl": 8.716187031211632, "tokens_per_sec": 131952.3863200245, "cache_hit": true, "graph_build_ms": 0.0019580002408474684}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 160, "train_loss": 2.1464791297912598, "train_ppl": 8.554685373820591, "tokens_per_sec": 156747.68154460145, "cache_hit": true, "graph_build_ms": 0.0037499999161809683}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 161, "train_loss": 2.152176856994629, "train_ppl": 8.60356676155683, "tokens_per_sec": 132306.86976501712, "cache_hit": true, "graph_build_ms": 0.002250000135973096}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 162, "train_loss": 2.095797300338745, "train_ppl": 8.131921970359112, "tokens_per_sec": 145368.50134295068, "cache_hit": true, "graph_build_ms": 0.0025840001180768013}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 163, "train_loss": 2.045548915863037, "train_ppl": 7.73340236028342, "tokens_per_sec": 132822.43391765477, "cache_hit": true, "graph_build_ms": 0.0023750001564621925}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 164, "train_loss": 2.200655460357666, "train_ppl": 9.030930977134567, "tokens_per_sec": 151297.44205357053, "cache_hit": true, "graph_build_ms": 0.0022499999031424522}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 165, "train_loss": 2.1207425594329834, "train_ppl": 8.337326149857025, "tokens_per_sec": 131134.9447719004, "cache_hit": true, "graph_build_ms": 0.00254100002348423}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 166, "train_loss": 2.094668388366699, "train_ppl": 8.122746926174067, "tokens_per_sec": 151818.05081292323, "cache_hit": true, "graph_build_ms": 0.0018749998416751623}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 167, "train_loss": 2.069859504699707, "train_ppl": 7.923709795655876, "tokens_per_sec": 162378.59266395448, "cache_hit": true, "graph_build_ms": 0.00266700005158782}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 168, "train_loss": 2.0620388984680176, "train_ppl": 7.86198326550197, "tokens_per_sec": 132582.3784534578, "cache_hit": true, "graph_build_ms": 0.001708000199869275}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 169, "train_loss": 2.0991735458374023, "train_ppl": 8.159423735537958, "tokens_per_sec": 158977.40269617984, "cache_hit": true, "graph_build_ms": 0.0032919999212026596}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 170, "train_loss": 2.2248711585998535, "train_ppl": 9.252290649027307, "tokens_per_sec": 132114.83204372803, "cache_hit": true, "graph_build_ms": 0.0024999999441206455}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 171, "train_loss": 2.049787998199463, "train_ppl": 7.766254471836744, "tokens_per_sec": 152482.13062404958, "cache_hit": true, "graph_build_ms": 0.0028750000055879354}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 172, "train_loss": 2.1017038822174072, "train_ppl": 8.180095965073418, "tokens_per_sec": 133431.79140010048, "cache_hit": true, "graph_build_ms": 0.002290999749675393}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 173, "train_loss": 2.0609192848205566, "train_ppl": 7.853185807537797, "tokens_per_sec": 144517.11384714872, "cache_hit": true, "graph_build_ms": 0.0022089998237788677}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 174, "train_loss": 2.08793044090271, "train_ppl": 8.068200256786346, "tokens_per_sec": 131141.24257662127, "cache_hit": true, "graph_build_ms": 0.0027080001309514046}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 175, "train_loss": 2.062032699584961, "train_ppl": 7.861934530138166, "tokens_per_sec": 147155.50845333343, "cache_hit": true, "graph_build_ms": 0.002041999949142337}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 176, "train_loss": 2.1632049083709717, "train_ppl": 8.698972440268253, "tokens_per_sec": 163793.03725885492, "cache_hit": true, "graph_build_ms": 0.0029159998521208763}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 177, "train_loss": 2.103145122528076, "train_ppl": 8.19189394894619, "tokens_per_sec": 130804.81494652816, "cache_hit": true, "graph_build_ms": 0.0016250002663582563}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 178, "train_loss": 2.177128314971924, "train_ppl": 8.820938894456836, "tokens_per_sec": 160343.4355932139, "cache_hit": true, "graph_build_ms": 0.0035829998087137938}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 179, "train_loss": 2.1170403957366943, "train_ppl": 8.30651706898041, "tokens_per_sec": 135786.5075412924, "cache_hit": true, "graph_build_ms": 0.0014159998390823603}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 180, "train_loss": 2.065786838531494, "train_ppl": 7.891504795466033, "tokens_per_sec": 147012.01665425606, "cache_hit": true, "graph_build_ms": 0.0017499998211860657}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 181, "train_loss": 1.985121726989746, "train_ppl": 7.279933495910548, "tokens_per_sec": 132469.47024899907, "cache_hit": true, "graph_build_ms": 0.001999999862164259}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 182, "train_loss": 2.054919958114624, "train_ppl": 7.806213023621129, "tokens_per_sec": 146462.68305492913, "cache_hit": true, "graph_build_ms": 0.0013749999925494194}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 183, "train_loss": 2.0253982543945312, "train_ppl": 7.579128765004228, "tokens_per_sec": 166374.42825142777, "cache_hit": true, "graph_build_ms": 0.0018339999951422215}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 184, "train_loss": 2.0940756797790527, "train_ppl": 8.117933930808388, "tokens_per_sec": 142817.29428451785, "cache_hit": true, "graph_build_ms": 0.0020830000285059214}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 185, "train_loss": 2.040147542953491, "train_ppl": 7.691743977786604, "tokens_per_sec": 165729.31417852314, "cache_hit": true, "graph_build_ms": 0.00229199999012053}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 186, "train_loss": 2.018603801727295, "train_ppl": 7.527807281482922, "tokens_per_sec": 135121.31558784808, "cache_hit": true, "graph_build_ms": 0.0012920000590384007}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 187, "train_loss": 2.0470285415649414, "train_ppl": 7.744853370694387, "tokens_per_sec": 156751.68864298993, "cache_hit": true, "graph_build_ms": 0.002875000238418579}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 188, "train_loss": 2.0476717948913574, "train_ppl": 7.74983687604405, "tokens_per_sec": 134978.0799010451, "cache_hit": true, "graph_build_ms": 0.0019169999286532402}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 189, "train_loss": 2.104438304901123, "train_ppl": 8.202494414493149, "tokens_per_sec": 154688.62117086054, "cache_hit": true, "graph_build_ms": 0.0011250001844018698}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 190, "train_loss": 2.0590219497680664, "train_ppl": 7.838299809160344, "tokens_per_sec": 131644.91868851733, "cache_hit": true, "graph_build_ms": 0.002707999898120761}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 191, "train_loss": 2.0452749729156494, "train_ppl": 7.7312841393965925, "tokens_per_sec": 140687.51681322517, "cache_hit": true, "graph_build_ms": 0.0021669999696314335}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 192, "train_loss": 1.8927680253982544, "train_ppl": 6.637716643770914, "tokens_per_sec": 130042.0668339848, "cache_hit": true, "graph_build_ms": 0.0023750001564621925}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 193, "train_loss": 2.0097551345825195, "train_ppl": 7.461490062729686, "tokens_per_sec": 151699.02912941392, "cache_hit": true, "graph_build_ms": 0.002332999836653471}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 194, "train_loss": 2.0173797607421875, "train_ppl": 7.518598573909907, "tokens_per_sec": 160349.71270076634, "cache_hit": true, "graph_build_ms": 0.0027910000644624233}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 195, "train_loss": 2.061612129211426, "train_ppl": 7.858628728605937, "tokens_per_sec": 135098.28334017497, "cache_hit": true, "graph_build_ms": 0.0016670001205056906}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 196, "train_loss": 2.0318968296051025, "train_ppl": 7.628542689464683, "tokens_per_sec": 149473.60185250005, "cache_hit": true, "graph_build_ms": 0.0013749999925494194}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 197, "train_loss": 1.99700927734375, "train_ppl": 7.3669904939466555, "tokens_per_sec": 134748.66807134534, "cache_hit": true, "graph_build_ms": 0.0021250001154839993}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 198, "train_loss": 2.015543222427368, "train_ppl": 7.50480305143552, "tokens_per_sec": 151908.13829764898, "cache_hit": true, "graph_build_ms": 0.001540999859571457}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 199, "train_loss": 1.9934672117233276, "train_ppl": 7.340942289650413, "tokens_per_sec": 127429.89458222639, "cache_hit": true, "graph_build_ms": 0.0029170000925660133}
+{"run": "wayfinder", "attn": "wayfinder_sparse", "step": 200, "train_loss": 1.9718060493469238, "train_ppl": 7.183638785686332, "tokens_per_sec": 152305.41161982858, "cache_hit": true, "graph_build_ms": 0.00229199999012053, "val_loss": 3.455090254545212, "val_ppl": 31.661146115668288, "edge_utilization": {"cycle": 0.027305766940116882, "window": 0.9353638887405396, "landmark": 0.03733036667108536, "rewire": 0.0}}
