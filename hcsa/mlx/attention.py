@@ -13,14 +13,14 @@ import torch
 import mlx.core as mx
 import mlx.nn as nn
 
-from hcsa.graph_strategies import build_strategy
-from hcsa.graph.abi import WayfinderGraphABI, stack_head_abis, validate_graph_abi
+from hcsa.graph.abi import WayfinderGraphABI, validate_graph_abi
 from hcsa.mlx.graph_abi import (
     MLXGraphABI,
     causal_neighbor_mask,
     safe_neighbor_idx,
     to_mlx_graph_abi,
 )
+from hcsa.topology import Topology, TopologyGraph
 
 
 NEG_INF = mx.array(-1e30, dtype=mx.float32)
@@ -43,6 +43,8 @@ class _GraphCache:
     # permute path artifacts
     perm_mx: List[mx.array]  # H arrays, each [T]
     inv_perm: List[mx.array]  # H arrays, each [T]
+    all_perms: mx.array  # [H, T]
+    all_inv_perms: mx.array  # [H, T]
     pi_idx_clamped: List[mx.array]  # H arrays, each [T, W]
     valid_mask: List[mx.array]  # H arrays, each [T, W]
     causal_masks: List[mx.array]  # H arrays, each [T, W]
@@ -96,14 +98,30 @@ def _schedule_bias_to_vec(schedule_bias: Optional[Dict[str, float]]) -> np.ndarr
     return vec
 
 
-def stable_masked_softmax(scores_f32: mx.array, mask: mx.array, axis: int = -1) -> mx.array:
+def stable_masked_softmax(
+    scores_f32: mx.array,
+    mask: mx.array,
+    axis: int = -1,
+    *,
+    preserve_dtype: bool = False,
+) -> mx.array:
     """Numerically stable masked softmax that returns zeros on all-masked rows."""
-    masked = mx.where(mask, scores_f32, NEG_INF)
+    if preserve_dtype:
+        dtype = scores_f32.dtype
+        # float16 cannot represent -1e30; use a finite floor to avoid -inf rows.
+        neg_val = -1e4 if dtype == mx.float16 else -1e30
+        neg_inf = mx.array(neg_val, dtype=dtype)
+        eps = mx.array(1e-6 if dtype == mx.float16 else 1e-9, dtype=dtype)
+    else:
+        neg_inf = NEG_INF
+        eps = EPS
+
+    masked = mx.where(mask, scores_f32, neg_inf)
     row_max = mx.max(masked, axis=axis, keepdims=True)
     expv = mx.exp(masked - row_max)
     expv = mx.where(mask, expv, mx.zeros_like(expv))
     denom = mx.sum(expv, axis=axis, keepdims=True)
-    return expv / mx.maximum(denom, EPS)
+    return expv / mx.maximum(denom, eps)
 
 
 def dense_causal_attention(
@@ -115,6 +133,22 @@ def dense_causal_attention(
 ) -> Tuple[mx.array, mx.array | None]:
     """Dense causal attention for q/k/v of shape [B,H,T,dh]."""
     B, H, T, dh = q.shape
+
+    # Use MLX fused SDPA for production baseline comparisons.
+    # Keep explicit weights path for debug/introspection callers.
+    if (
+        not return_weights
+        and hasattr(mx, "fast")
+        and hasattr(mx.fast, "scaled_dot_product_attention")
+    ):
+        y = mx.fast.scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            scale=1.0 / math.sqrt(dh),
+            mask="causal",
+        ).astype(v.dtype)
+        return y, None
 
     scores = mx.matmul(q.astype(mx.float32), k.transpose(0, 1, 3, 2).astype(mx.float32))
     scores = scores / math.sqrt(dh)
@@ -394,104 +428,323 @@ def wayfinder_permute_window_attention_batched(
     *,
     all_perms: mx.array,
     all_inv_perms: mx.array,
-    all_pi_idx: mx.array,
-    all_valid: mx.array,
-    all_causal: mx.array,
+    all_pi_idx: Optional[mx.array] = None,
+    all_valid: Optional[mx.array] = None,
+    all_causal: Optional[mx.array] = None,
+    window: int = 64,
     edge_type_bias_scalar: Optional[float] = None,
     window_drop_prob: float = 0.0,
     training: bool = False,
+    head_chunk_size: Optional[int] = None,
+    query_chunk_size: int = 256,
+    prepermute_mode: Literal["auto", "off", "kv", "qkv", "on"] = "auto",
+    memory_budget_bytes: Optional[int] = None,
+    retro_backfill_enabled: bool = False,
+    retro_backfill_alpha: float = 0.0,
+    retro_backfill_training_only: bool = True,
+    retro_backfill_causal_only: bool = True,
+    log_progress: bool = False,
 ) -> Tuple[mx.array, mx.array | None]:
-    """Vectorized permute-window attention across all heads simultaneously.
-
-    Replaces the per-head Python loop with stacked tensor ops.
+    """Chunked permute-window attention across heads and query positions.
 
     Args:
-        q, k, v: [B, H, T, dh]
-        all_perms: [H, T] int32 — cycle permutations per head
-        all_inv_perms: [H, T] int32 — inverse permutations per head
-        all_pi_idx: [H, T, W] int32 — clamped window indices in permuted space
-        all_valid: [H, T, W] bool — valid window mask
-        all_causal: [H, T, W] bool — causal mask in permuted space
+        q: [B, Hq, T, dh]
+        k, v: [B, Hkv, T, dh] (Hkv may be < Hq for GQA)
+        all_perms: [Hq, T] int32 — cycle permutations per query head
+        all_inv_perms: [Hq, T] int32 — inverse permutations per query head
+        all_pi_idx/all_valid/all_causal: deprecated compatibility args; ignored
+        window: half-window size (W = 2*window + 1)
         edge_type_bias_scalar: cycle-neighbor bias (offsets ±1 from center)
         window_drop_prob: fraction of non-cycle window edges to drop during training
         training: whether in training mode
+        head_chunk_size: number of heads per chunk (None => all heads)
+        query_chunk_size: number of permuted query positions per chunk
+        prepermute_mode: pre-permute behavior per head chunk:
+            `off` = no pre-permute, `kv` = pre-permute K/V only,
+            `qkv`/`on` = pre-permute Q/K/V, `auto` = inference-time KV pre-permute
+            when query chunking is active
+        memory_budget_bytes: optional peak-memory budget for planner in `auto` mode
+        retro_backfill_enabled: enable optional future->past backfill in cycle order
+        retro_backfill_alpha: residual scale for retrocausal contribution
+        retro_backfill_training_only: apply retro backfill only when training=True (causal-safe default)
+        retro_backfill_causal_only: enforce original-index causality for backfill edges
+        log_progress: emit chunk-level progress prints
     Returns:
         y: [B, H, T, dh]
         weights: None (not supported in batched path)
     """
-    B, H, T, dh = q.shape
-    W = all_pi_idx.shape[-1]
+    B, Hq, T, dh = q.shape
+    Bk, Hkv, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Tk != T or Tv != T:
+        raise ValueError("k/v must share batch and sequence dims with q")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q/k/v head_dim must match")
+    if Hv != Hkv:
+        raise ValueError("k and v must have same head count")
+    if all_perms.shape != (Hq, T):
+        raise ValueError(f"all_perms must be shape ({Hq}, {T}), got {all_perms.shape}")
+    if all_inv_perms.shape != (Hq, T):
+        raise ValueError(f"all_inv_perms must be shape ({Hq}, {T}), got {all_inv_perms.shape}")
+    if Hq % Hkv != 0:
+        raise ValueError(f"Hq={Hq} must be divisible by Hkv={Hkv} for GQA")
 
-    # Permute Q/K/V into cycle order: [B, H, T, dh] -> gather along T axis
-    # perm_idx: [H, T] -> broadcast to [B, H, T, dh] for take_along_axis on axis=2
-    perm_idx = all_perms[None, :, :, None]  # [1, H, T, 1]
-    perm_idx = mx.broadcast_to(perm_idx, (B, H, T, dh))
+    if all_pi_idx is not None:
+        W_in = int(all_pi_idx.shape[-1])
+        if W_in > 0:
+            window = (W_in - 1) // 2
+    window = int(max(0, window))
 
-    q_pi = mx.take_along_axis(q, perm_idx, axis=2)  # [B, H, T, dh]
-    k_pi = mx.take_along_axis(k, perm_idx, axis=2)
-    v_pi = mx.take_along_axis(v, perm_idx, axis=2)
+    h_chunk = Hq if head_chunk_size is None else int(max(1, head_chunk_size))
+    h_chunk = min(h_chunk, Hq)
+    q_chunk = int(max(1, query_chunk_size))
+    q_chunk = min(q_chunk, T)
+    num_h_chunks = (Hq + h_chunk - 1) // h_chunk
 
-    # Gather window neighbors in permuted space: [H, T, W] -> [B, H, T, W, dh]
-    pi_expanded = all_pi_idx[None, :, :, :, None]  # [1, H, T, W, 1]
-    pi_expanded = mx.broadcast_to(pi_expanded, (B, H, T, W, dh))
+    # Causal-safe retro: disabled by default, training-only unless explicitly allowed
+    retro_active = (
+        bool(retro_backfill_enabled)
+        and float(retro_backfill_alpha) != 0.0
+        and (training or (not retro_backfill_training_only))
+    )
 
-    # Reshape k_pi/v_pi to [B, H, T, 1, dh] then gather along T via expanded indices
-    k_pi_exp = k_pi[:, :, :, None, :]  # [B, H, T, 1, dh]
-    k_pi_exp = mx.broadcast_to(k_pi_exp, (B, H, T, W, dh))
-    # Use advanced indexing: for each (b,h,t,w), pick k_pi[b,h, pi_idx[h,t,w], :]
-    # Flatten T and W dims for take_along_axis on axis=2
-    pi_flat = all_pi_idx[None, :, :, :]  # [1, H, T, W]
-    pi_flat = mx.broadcast_to(pi_flat, (B, H, T, W))
-    pi_flat = pi_flat.reshape(B, H, T * W, 1)  # [B, H, T*W, 1]
-    pi_flat = mx.broadcast_to(pi_flat, (B, H, T * W, dh))
+    kv_repeat = Hq // Hkv
+    q_to_kv_head = np.arange(Hq, dtype=np.int32) // kv_repeat
+    scale = 1.0 / math.sqrt(dh)
 
-    k_win = mx.take_along_axis(k_pi, pi_flat, axis=2).reshape(B, H, T, W, dh)
-    v_win = mx.take_along_axis(v_pi, pi_flat, axis=2).reshape(B, H, T, W, dh)
+    y_chunks: list[mx.array] = []
+    for chunk_idx, h0 in enumerate(range(0, Hq, h_chunk), start=1):
+        h1 = min(h0 + h_chunk, Hq)
+        hc = h1 - h0
+        if log_progress:
+            print(
+                f"      permute_batched: head_chunk {chunk_idx}/{num_h_chunks} heads[{h0}:{h1}] start",
+                flush=True,
+            )
 
-    # Compute attention scores: [B, H, T, W]
-    scores = mx.sum(
-        q_pi[:, :, :, None, :].astype(mx.float32) * k_win.astype(mx.float32),
-        axis=-1,
-    ) / math.sqrt(dh)
+        q_c = q[:, h0:h1, :, :]
+        kv_heads = q_to_kv_head[h0:h1]
+        if hc == 1:
+            kv_h = int(kv_heads[0])
+            k_c = k[:, kv_h : kv_h + 1, :, :]
+            v_c = v[:, kv_h : kv_h + 1, :, :]
+        elif np.all(kv_heads == kv_heads[0]):
+            # Keep shared-KV groups as broadcasted views to avoid materializing
+            # full [B, hc, T, dh] copies before query chunking.
+            kv_h = int(kv_heads[0])
+            k_base = k[:, kv_h : kv_h + 1, :, :]
+            v_base = v[:, kv_h : kv_h + 1, :, :]
+            k_c = mx.broadcast_to(k_base, (B, hc, T, dh))
+            v_c = mx.broadcast_to(v_base, (B, hc, T, dh))
+        else:
+            kv_idx = mx.array(kv_heads, dtype=mx.int32)
+            k_c = mx.take(k, kv_idx, axis=1)
+            v_c = mx.take(v, kv_idx, axis=1)
 
-    # Edge-type bias: offset ±1 from center = cycle neighbors
-    if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
-        center = W // 2
-        bias_vec = mx.zeros((W,), dtype=mx.float32)
-        if center > 0:
-            bias_vec = bias_vec.at[center - 1].add(edge_type_bias_scalar)
-        if center + 1 < W:
-            bias_vec = bias_vec.at[center + 1].add(edge_type_bias_scalar)
-        scores = scores + bias_vec.reshape(1, 1, 1, W)
+        perms_c = all_perms[h0:h1, :]
+        inv_c = all_inv_perms[h0:h1, :]
+        q_chunk_count = (T + q_chunk - 1) // q_chunk
+        prepermute_mode_l = str(prepermute_mode).lower()
+        if prepermute_mode_l in {"on", "always", "true", "qkv"}:
+            prepermute_q = True
+            prepermute_kv = True
+        elif prepermute_mode_l in {"kv"}:
+            prepermute_q = False
+            prepermute_kv = True
+        elif prepermute_mode_l in {"off", "never", "false"}:
+            prepermute_q = False
+            prepermute_kv = False
+        else:
+            kblk_worst = min(T, q_chunk + 2 * window)
+            qblk_worst = q_chunk
+            elem_bytes = int(np.dtype(np.asarray(mx.array(0, dtype=v.dtype)).dtype).itemsize)
+            chunk_elems = (qblk_worst + 2 * kblk_worst) * dh + (qblk_worst * kblk_worst)
 
-    # Combined mask: valid & causal — [H, T, W] broadcast to [B, H, T, W]
-    mask = all_valid & all_causal  # [H, T, W]
+            # Candidate plans evaluated with simple cost model:
+            # minimize moved elements, optionally under explicit peak-memory budget.
+            candidates = [
+                ("off", False, False),
+                ("kv", False, True),
+                ("qkv", True, True),
+            ]
+            scored: list[tuple[float, float, str, bool, bool]] = []
+            for name, cand_q, cand_kv in candidates:
+                moved_elems = float(
+                    T + (2 * T if cand_kv else (2 * q_chunk_count * kblk_worst))
+                )
+                extra_elems = float((T * dh if cand_q else 0) + (2 * T * dh if cand_kv else 0))
+                peak_bytes = float((chunk_elems + extra_elems) * B * hc * elem_bytes)
+                scored.append((moved_elems, peak_bytes, name, cand_q, cand_kv))
 
-    # Window-drop regularization
-    if training and window_drop_prob > 0.0:
-        center = W // 2
-        preserve = mx.zeros((T, W), dtype=mx.bool_)
-        preserve = preserve.at[:, center].add(True)
-        if center > 0:
-            preserve = preserve.at[:, center - 1].add(True)
-        if center + 1 < W:
-            preserve = preserve.at[:, center + 1].add(True)
-        drop_rand = mx.random.uniform(shape=(H, T, W)) < window_drop_prob
-        drop = drop_rand & (~preserve[None, :, :])
-        mask = mask & (~drop)
+            chosen: tuple[float, float, str, bool, bool]
+            if memory_budget_bytes is not None:
+                feasible = [s for s in scored if s[1] <= float(memory_budget_bytes)]
+                if feasible:
+                    chosen = min(feasible, key=lambda s: (s[0], s[1]))
+                else:
+                    chosen = min(scored, key=lambda s: (s[1], s[0]))
+            else:
+                chosen = min(scored, key=lambda s: (s[0], s[1]))
 
-    # Softmax over window dim
-    w = stable_masked_softmax(scores, mask[None, :, :, :], axis=-1)  # [B, H, T, W]
+            _moved, _peak, chosen_name, prepermute_q, prepermute_kv = chosen
+            if log_progress:
+                budget_str = (
+                    "none" if memory_budget_bytes is None else f"{int(memory_budget_bytes)}"
+                )
+                print(
+                    f"      permute_batched: planner mode={chosen_name} "
+                    f"budget_bytes={budget_str} moved={_moved:.0f} peak_bytes={_peak:.0f}",
+                    flush=True,
+                )
 
-    # Weighted sum: [B, H, T, W, 1] * [B, H, T, W, dh] -> sum over W -> [B, H, T, dh]
-    y_pi = mx.sum(w[:, :, :, :, None] * v_win.astype(mx.float32), axis=3)
+        q_pi_buf: Optional[mx.array] = None
+        k_pi_buf: Optional[mx.array] = None
+        v_pi_buf: Optional[mx.array] = None
+        if prepermute_q or prepermute_kv:
+            perm_gidx = mx.broadcast_to(perms_c[None, :, :, None], (B, hc, T, 1))
+            if prepermute_q:
+                q_pi_buf = mx.take_along_axis(q_c, perm_gidx, axis=2)
+                q_c = None
+            if prepermute_kv:
+                k_pi_buf = mx.take_along_axis(k_c, perm_gidx, axis=2)
+                v_pi_buf = mx.take_along_axis(v_c, perm_gidx, axis=2)
+                k_c = None
+                v_c = None
 
-    # Inverse permute back to original order
-    inv_idx = all_inv_perms[None, :, :, None]  # [1, H, T, 1]
-    inv_idx = mx.broadcast_to(inv_idx, (B, H, T, dh))
-    y = mx.take_along_axis(y_pi, inv_idx, axis=2).astype(v.dtype)
+        y_pi_chunks: list[mx.array] = []
+        for q_chunk_idx, s in enumerate(range(0, T, q_chunk), start=1):
+            e = min(T, s + q_chunk)
+            ks = max(0, s - window)
+            ke = min(T, e + window)
 
-    return y, None
+            if log_progress:
+                print(
+                    f"        permute_batched: heads[{h0}:{h1}] q_chunk {q_chunk_idx}/{q_chunk_count} "
+                    f"q[{s}:{e}] k[{ks}:{ke}]",
+                    flush=True,
+                )
+
+            q_idx = perms_c[:, s:e]  # [hc, Qblk]
+            k_idx = perms_c[:, ks:ke]  # [hc, Kblk]
+            if prepermute_q:
+                q_blk = q_pi_buf[:, :, s:e, :]  # type: ignore[index]
+            else:
+                q_gidx = mx.broadcast_to(q_idx[None, :, :, None], (B, hc, e - s, 1))
+                q_blk = mx.take_along_axis(q_c, q_gidx, axis=2)
+            if prepermute_kv:
+                k_blk = k_pi_buf[:, :, ks:ke, :]  # type: ignore[index]
+                v_blk = v_pi_buf[:, :, ks:ke, :]  # type: ignore[index]
+            else:
+                k_gidx = mx.broadcast_to(k_idx[None, :, :, None], (B, hc, ke - ks, 1))
+                k_blk = mx.take_along_axis(k_c, k_gidx, axis=2)
+                v_blk = mx.take_along_axis(v_c, k_gidx, axis=2)
+
+            q_pos = mx.arange(s, e, dtype=mx.int32).reshape(1, e - s, 1)
+            k_pos = mx.arange(ks, ke, dtype=mx.int32).reshape(1, 1, ke - ks)
+            rel = k_pos - q_pos  # [1, Qblk, Kblk]
+
+            in_window = (rel >= -window) & (rel <= window)
+            orig_q = q_idx
+            orig_k = k_idx
+            causal = orig_k[:, None, :] <= orig_q[:, :, None]
+            mask_eff = in_window & causal
+            use_fused_local_sdpa = (
+                hasattr(mx, "fast")
+                and hasattr(mx.fast, "scaled_dot_product_attention")
+                and (edge_type_bias_scalar is None or edge_type_bias_scalar == 0.0)
+                and (window_drop_prob <= 0.0 or (not training))
+            )
+            if training and window_drop_prob > 0.0:
+                preserve = (rel == 0) | (rel == -1) | (rel == 1)
+                drop_rand = mx.random.uniform(shape=(hc, e - s, ke - ks)) < window_drop_prob
+                drop = drop_rand & in_window & (~preserve)
+                mask_eff = mask_eff & (~drop)
+
+            if use_fused_local_sdpa:
+                y_blk = mx.fast.scaled_dot_product_attention(
+                    q_blk,
+                    k_blk,
+                    v_blk,
+                    scale=scale,
+                    mask=mask_eff[None, :, :, :],
+                ).astype(v.dtype)
+            else:
+                scores = mx.matmul(
+                    q_blk,
+                    k_blk.transpose(0, 1, 3, 2),
+                ) * scale
+
+                if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
+                    cycle_nb = (rel == -1) | (rel == 1)
+                    scores = scores + cycle_nb.astype(mx.float32) * float(edge_type_bias_scalar)
+
+                w = stable_masked_softmax(
+                    scores,
+                    mask_eff[None, :, :, :],
+                    axis=-1,
+                    preserve_dtype=True,
+                )
+                y_blk = mx.matmul(w, v_blk).astype(v.dtype)
+                scores = None
+                w = None
+            y_pi_chunks.append(y_blk)
+            q_blk = None
+            k_blk = None
+            v_blk = None
+            y_blk = None
+
+        if not y_pi_chunks:  # pragma: no cover
+            y_pi = mx.zeros((B, hc, T, dh), dtype=v.dtype)
+        elif len(y_pi_chunks) == 1:
+            y_pi = y_pi_chunks[0]
+        else:
+            y_pi = mx.concatenate(y_pi_chunks, axis=2)
+
+        if retro_active and T > 1:
+            # Simplified Hamiltonian-local retro backfill:
+            # In permuted cycle order, each position receives residual from successor (+1).
+            # This is O(T) and keeps extra memory bounded.
+            alpha = mx.array(retro_backfill_alpha, dtype=v.dtype)
+            tail = mx.zeros((B, hc, 1, dh), dtype=v.dtype)
+            retro_term = mx.concatenate([y_pi[:, :, 1:, :], tail], axis=2)
+            valid = mx.concatenate(
+                [
+                    mx.ones((1, 1, T - 1, 1), dtype=v.dtype),
+                    mx.zeros((1, 1, 1, 1), dtype=v.dtype),
+                ],
+                axis=2,
+            )
+
+            if retro_backfill_causal_only:
+                # Allow backfill only when successor is not in original future.
+                causal_ok = perms_c[:, 1:] <= perms_c[:, :-1]  # [hc, T-1]
+                causal_ok = mx.concatenate(
+                    [
+                        causal_ok,
+                        mx.zeros((hc, 1), dtype=mx.bool_),
+                    ],
+                    axis=1,
+                )  # [hc, T]
+                valid = valid * causal_ok[None, :, :, None].astype(v.dtype)
+
+            y_pi = y_pi + alpha * retro_term * valid
+
+        inv_idx = inv_c[None, :, :, None]
+        inv_idx = mx.broadcast_to(inv_idx, (B, hc, T, 1))
+        y_h = mx.take_along_axis(y_pi, inv_idx, axis=2).astype(v.dtype)
+        y_chunks.append(y_h)
+        mx.eval(y_h)
+        if log_progress:
+            print(
+                f"      permute_batched: head_chunk {chunk_idx}/{num_h_chunks} heads[{h0}:{h1}] done",
+                flush=True,
+            )
+
+    if not y_chunks:  # pragma: no cover
+        return mx.zeros((B, Hq, T, dh), dtype=v.dtype), None
+    if len(y_chunks) == 1:
+        return y_chunks[0], None
+    return mx.concatenate(y_chunks, axis=1), None
 
 
 class WayfinderAttentionMLX(nn.Module):
@@ -513,6 +766,12 @@ class WayfinderAttentionMLX(nn.Module):
         edge_bias: bool = False,
         window_drop: float = 0.0,
         compiled_graph_dir: Optional[str] = None,
+        retro_backfill_enabled: bool = False,
+        retro_backfill_alpha: float = 0.0,
+        retro_backfill_training_only: bool = True,
+        retro_backfill_causal_only: bool = True,
+        permute_head_chunk_size: Optional[int] = None,
+        permute_query_chunk_size: int = 256,
     ):
         super().__init__()
         if n_embd % n_heads != 0:
@@ -530,6 +789,14 @@ class WayfinderAttentionMLX(nn.Module):
         self.path = path
         self.window_drop_prob = float(window_drop)
         self.compiled_graph_dir = compiled_graph_dir
+        self.retro_backfill_enabled = bool(retro_backfill_enabled)
+        self.retro_backfill_alpha = float(retro_backfill_alpha)
+        self.retro_backfill_training_only = bool(retro_backfill_training_only)
+        self.retro_backfill_causal_only = bool(retro_backfill_causal_only)
+        self.permute_head_chunk_size = (
+            None if permute_head_chunk_size is None else int(max(1, permute_head_chunk_size))
+        )
+        self.permute_query_chunk_size = int(max(1, permute_query_chunk_size))
 
         self.qkv = nn.Linear(self.n_embd, 3 * self.n_embd, bias=False)
         self.out = nn.Linear(self.n_embd, self.n_embd, bias=False)
@@ -542,7 +809,15 @@ class WayfinderAttentionMLX(nn.Module):
         else:
             self.edge_type_bias = None
 
-        self._strategies = [self._make_strategy(h) for h in range(self.n_heads)]
+        self.topology = Topology(
+            n_heads=self.n_heads,
+            strategy=self.strategy,
+            num_cycles=self.num_cycles,
+            seed=self.seed,
+            window=self.window,
+            landmark_stride=self.landmark_stride,
+            enforce_hamiltonian=True,
+        )
 
         # Debug state — intentionally NOT stored as mx.array attributes
         # to avoid polluting the nn.Module parameter tree.
@@ -572,23 +847,10 @@ class WayfinderAttentionMLX(nn.Module):
         cache = _GRAPH_CACHE_STORE.get(id(self))
         return int(cache.persistent_bytes) if cache is not None else 0
 
-    def _make_strategy(self, head_idx: int):
-        if self.strategy == "random":
-            return build_strategy(
-                "random",
-                num_cycles=self.num_cycles,
-                seed=self.seed + 7919 * head_idx,
-            )
-        if self.strategy == "greedy":
-            return build_strategy("greedy", num_cycles=self.num_cycles)
-        if self.strategy == "online_insertion":
-            return build_strategy("online_insertion", seed=self.seed + 7919 * head_idx)
-        raise ValueError(f"Unknown strategy: {self.strategy}")
-
     @property
     def _cache_mode(self) -> str:
         """'static' for input-independent strategies, 'dynamic' otherwise."""
-        return "static" if self.strategy == "random" else "dynamic"
+        return self.topology.cache_mode
 
     def _cache_key_from_T(self, T: int) -> tuple:
         return (
@@ -664,6 +926,9 @@ class WayfinderAttentionMLX(nn.Module):
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
         for arr in perm_mx_list + inv_perm_list + pi_idx_clamped_list + valid_mask_list + causal_masks_list:
             persistent_bytes += _mx_nbytes(arr)
+        all_perms = mx.stack(perm_mx_list, axis=0)
+        all_inv_perms = mx.stack(inv_perm_list, axis=0)
+        persistent_bytes += _mx_nbytes(all_perms) + _mx_nbytes(all_inv_perms)
 
         return _GraphCache(
             mlx_graph=mlx_graph,
@@ -672,6 +937,8 @@ class WayfinderAttentionMLX(nn.Module):
             causal_mask=c_mask,
             perm_mx=perm_mx_list,
             inv_perm=inv_perm_list,
+            all_perms=all_perms,
+            all_inv_perms=all_inv_perms,
             pi_idx_clamped=pi_idx_clamped_list,
             valid_mask=valid_mask_list,
             causal_masks=causal_masks_list,
@@ -767,37 +1034,27 @@ class WayfinderAttentionMLX(nn.Module):
         """Build graph ABI on CPU from routing embeddings for this forward."""
         _B, T, _C = x.shape
 
-        r_np: np.ndarray | None = None
+        routing_by_head: list[torch.Tensor] | None = None
         if self.strategy in {"greedy", "online_insertion"}:
             r = self.Wr(x[0]).reshape(T, self.n_heads, self.routing_dim).transpose(1, 0, 2)
             mx.eval(r)
             r_np = np.asarray(r, dtype=np.float32)
+            routing_by_head = [torch.from_numpy(r_np[h]) for h in range(self.n_heads)]
 
-        head_abis: list[WayfinderGraphABI] = []
-        for h in range(self.n_heads):
-            r_h_torch = None
-            if r_np is not None:
-                r_h_torch = torch.from_numpy(r_np[h])
-
-            abi_h = self._strategies[h].build(
-                T=T,
-                r=r_h_torch,
-                head_idx=h,
-                window=self.window,
-                landmark_stride=self.landmark_stride,
-                include_self=True,
-            )
-            head_abis.append(abi_h)
-
-        abi = stack_head_abis(head_abis)
-        validate_graph_abi(
-            abi, expect_heads=self.n_heads, expect_tokens=T, enforce_hamiltonian=True
+        topo_graph = self.topology.construct(
+            {"T": int(T), "include_self": True},
+            routing_by_head=routing_by_head,
         )
+        abi = topo_graph.abi
         self.last_graph_abi = abi
         return to_mlx_graph_abi(abi, heads=self.n_heads, validate=False), abi
 
     def __call__(
-        self, x: mx.array, *, return_debug: bool = False
+        self,
+        x: mx.array,
+        *,
+        return_debug: bool = False,
+        topology_graph: Optional[TopologyGraph] = None,
     ) -> mx.array | tuple[mx.array, Dict[str, Any]]:
         t_total0 = _now_ms()
         B, T, C = x.shape
@@ -810,7 +1067,18 @@ class WayfinderAttentionMLX(nn.Module):
         v = v.reshape(B, T, self.n_heads, self.head_dim).transpose(0, 2, 1, 3)
 
         t_graph0 = _now_ms()
-        cache, cache_hit = self._get_or_build_cache(x)
+        if topology_graph is not None:
+            cache = self._build_cache(
+                to_mlx_graph_abi(topology_graph.abi, heads=self.n_heads, validate=False),
+                topology_graph.abi,
+                int(T),
+                cache_key=("injected", int(T), self.path),
+                source=topology_graph.source,
+                artifact_dir=topology_graph.artifact_dir,
+            )
+            cache_hit = False
+        else:
+            cache, cache_hit = self._get_or_build_cache(x)
         graph = cache.mlx_graph
         graph_ms = _now_ms() - t_graph0
 
@@ -865,18 +1133,25 @@ class WayfinderAttentionMLX(nn.Module):
                 window_drop_mask=wd_mask,
             )
         elif self.path == "permute":
-            y_h, w, permute_ms, _attn_inner = wayfinder_permute_window_attention(
+            t_perm0 = _now_ms()
+            y_h, w = wayfinder_permute_window_attention_batched(
                 q,
                 k,
                 v,
-                graph,
+                all_perms=cache.all_perms,
+                all_inv_perms=cache.all_inv_perms,
                 window=self.window,
-                return_weights=return_debug,
-                cache=cache,
                 edge_type_bias_scalar=etb_scalar,
                 window_drop_prob=effective_window_drop if is_training else 0.0,
                 training=is_training,
+                head_chunk_size=self.permute_head_chunk_size,
+                query_chunk_size=self.permute_query_chunk_size,
+                retro_backfill_enabled=self.retro_backfill_enabled,
+                retro_backfill_alpha=self.retro_backfill_alpha,
+                retro_backfill_training_only=self.retro_backfill_training_only,
+                retro_backfill_causal_only=self.retro_backfill_causal_only,
             )
+            permute_ms = _now_ms() - t_perm0
         else:
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0
