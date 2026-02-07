@@ -35,6 +35,54 @@ At 1k steps with scheduled cycle-push training, the perplexity gap closes to < +
 
 Full benchmark data: [`results/benchmarks/`](results/benchmarks/) | Training runs: [`runs/`](runs/)
 
+### Qwen3-4B Long Context (MLX, Apple M4 Max)
+
+Integration with `mlx-community/Qwen3-4B-4bit` (4-bit quantized, GQA 32Q/8KV heads, hidden=2560, 40k native context).
+
+**Baseline dense attention** (single transformer block, batch=1, bfloat16):
+
+| Context (T) | Attn tok/s | Attn Peak Mem | Block tok/s | Block Peak Mem |
+|---:|---:|---:|---:|---:|
+| 2,048 | 129,258 | 94 MB | 40,845 | 240 MB |
+| 8,192 | 77,977 | 374 MB | 34,342 | 798 MB |
+| 32,768 | 27,711 | 1,334 MB | 19,150 | 2,870 MB |
+
+**HHA-permute integration** (Level A: real Qwen Q/K/V, T=2048, per-head loop prototype):
+
+| Metric | Dense | HHA-Permute |
+|---|---:|---:|
+| Attn tok/s | 128,492 | 17.9 |
+| Attn Peak Mem | 114 MB | 4,018 MB |
+| Graph build (first) | -- | 1,684 ms |
+| Graph build (cached) | -- | 0.005 ms |
+| Cache hit rate | -- | 100% |
+
+**Level B full-swap smoke** (all 36 layers replaced, T=256): 7.4 tok/s, 3.9 GB peak.
+
+**Per-head profiling** (quick benchmark, 2 heads sampled):
+- T=2048: 0.10s first head, 0.01s second head, 539 MB peak per head, graph cache 110 MB
+- Theoretical memory ratio at T=32k: dense T^2 = 4 GB vs HHA T*W = 17 MB per head (**254x reduction**)
+
+**Graph properties** (T=2048, 32 heads): degree mean=81.4, max=98, shortcut rate=99.9%, reachability=2048/2048, edge mix: 78% window, 20% landmark, 1.2% cycle.
+
+**Status:** The per-head Python loop in the prototype permute path creates a severe throughput bottleneck (32 sequential head iterations with GPU sync points). A vectorized batched path (`wayfinder_permute_window_attention_batched`) is implemented but not yet wired into the Qwen integration. Completing this is the next step to unlock practical long-context benchmarks at T=8k/32k and LoRA training.
+
+Reproduce:
+```bash
+# Preprocess dataset (local codebase fallback)
+python3 scripts/preprocess_long_context_dataset.py \
+  --dataset local:/path/to/repo --seq-len 32768 --seed 42
+
+# Baseline benchmark
+python3 scripts/bench_qwen3_4b_baseline_mlx.py \
+  --model-path mlx-community/Qwen3-4B-4bit --seq-lens 2048 8192 32768
+
+# HHA benchmark (requires batched path fix for T>2048)
+python3 scripts/bench_qwen3_4b_hha_mlx.py \
+  --model-path mlx-community/Qwen3-4B-4bit --seq-lens 2048 \
+  --path permute --window 64 --landmark-stride 64 --full-swap
+```
+
 ## Background
 
 A Hamiltonian cycle visits every vertex in a graph exactly once and returns to the start. HCSA uses one or more such cycles over token positions as an undirected attention backbone, providing each token with O(1) long-range connections while guaranteeing that every position is reachable.

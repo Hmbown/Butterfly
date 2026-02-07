@@ -387,6 +387,113 @@ def wayfinder_permute_window_attention(
     return y, None, permute_ms, attention_ms
 
 
+def wayfinder_permute_window_attention_batched(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    all_pi_idx: mx.array,
+    all_valid: mx.array,
+    all_causal: mx.array,
+    edge_type_bias_scalar: Optional[float] = None,
+    window_drop_prob: float = 0.0,
+    training: bool = False,
+) -> Tuple[mx.array, mx.array | None]:
+    """Vectorized permute-window attention across all heads simultaneously.
+
+    Replaces the per-head Python loop with stacked tensor ops.
+
+    Args:
+        q, k, v: [B, H, T, dh]
+        all_perms: [H, T] int32 — cycle permutations per head
+        all_inv_perms: [H, T] int32 — inverse permutations per head
+        all_pi_idx: [H, T, W] int32 — clamped window indices in permuted space
+        all_valid: [H, T, W] bool — valid window mask
+        all_causal: [H, T, W] bool — causal mask in permuted space
+        edge_type_bias_scalar: cycle-neighbor bias (offsets ±1 from center)
+        window_drop_prob: fraction of non-cycle window edges to drop during training
+        training: whether in training mode
+    Returns:
+        y: [B, H, T, dh]
+        weights: None (not supported in batched path)
+    """
+    B, H, T, dh = q.shape
+    W = all_pi_idx.shape[-1]
+
+    # Permute Q/K/V into cycle order: [B, H, T, dh] -> gather along T axis
+    # perm_idx: [H, T] -> broadcast to [B, H, T, dh] for take_along_axis on axis=2
+    perm_idx = all_perms[None, :, :, None]  # [1, H, T, 1]
+    perm_idx = mx.broadcast_to(perm_idx, (B, H, T, dh))
+
+    q_pi = mx.take_along_axis(q, perm_idx, axis=2)  # [B, H, T, dh]
+    k_pi = mx.take_along_axis(k, perm_idx, axis=2)
+    v_pi = mx.take_along_axis(v, perm_idx, axis=2)
+
+    # Gather window neighbors in permuted space: [H, T, W] -> [B, H, T, W, dh]
+    pi_expanded = all_pi_idx[None, :, :, :, None]  # [1, H, T, W, 1]
+    pi_expanded = mx.broadcast_to(pi_expanded, (B, H, T, W, dh))
+
+    # Reshape k_pi/v_pi to [B, H, T, 1, dh] then gather along T via expanded indices
+    k_pi_exp = k_pi[:, :, :, None, :]  # [B, H, T, 1, dh]
+    k_pi_exp = mx.broadcast_to(k_pi_exp, (B, H, T, W, dh))
+    # Use advanced indexing: for each (b,h,t,w), pick k_pi[b,h, pi_idx[h,t,w], :]
+    # Flatten T and W dims for take_along_axis on axis=2
+    pi_flat = all_pi_idx[None, :, :, :]  # [1, H, T, W]
+    pi_flat = mx.broadcast_to(pi_flat, (B, H, T, W))
+    pi_flat = pi_flat.reshape(B, H, T * W, 1)  # [B, H, T*W, 1]
+    pi_flat = mx.broadcast_to(pi_flat, (B, H, T * W, dh))
+
+    k_win = mx.take_along_axis(k_pi, pi_flat, axis=2).reshape(B, H, T, W, dh)
+    v_win = mx.take_along_axis(v_pi, pi_flat, axis=2).reshape(B, H, T, W, dh)
+
+    # Compute attention scores: [B, H, T, W]
+    scores = mx.sum(
+        q_pi[:, :, :, None, :].astype(mx.float32) * k_win.astype(mx.float32),
+        axis=-1,
+    ) / math.sqrt(dh)
+
+    # Edge-type bias: offset ±1 from center = cycle neighbors
+    if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
+        center = W // 2
+        bias_vec = mx.zeros((W,), dtype=mx.float32)
+        if center > 0:
+            bias_vec = bias_vec.at[center - 1].add(edge_type_bias_scalar)
+        if center + 1 < W:
+            bias_vec = bias_vec.at[center + 1].add(edge_type_bias_scalar)
+        scores = scores + bias_vec.reshape(1, 1, 1, W)
+
+    # Combined mask: valid & causal — [H, T, W] broadcast to [B, H, T, W]
+    mask = all_valid & all_causal  # [H, T, W]
+
+    # Window-drop regularization
+    if training and window_drop_prob > 0.0:
+        center = W // 2
+        preserve = mx.zeros((T, W), dtype=mx.bool_)
+        preserve = preserve.at[:, center].add(True)
+        if center > 0:
+            preserve = preserve.at[:, center - 1].add(True)
+        if center + 1 < W:
+            preserve = preserve.at[:, center + 1].add(True)
+        drop_rand = mx.random.uniform(shape=(H, T, W)) < window_drop_prob
+        drop = drop_rand & (~preserve[None, :, :])
+        mask = mask & (~drop)
+
+    # Softmax over window dim
+    w = stable_masked_softmax(scores, mask[None, :, :, :], axis=-1)  # [B, H, T, W]
+
+    # Weighted sum: [B, H, T, W, 1] * [B, H, T, W, dh] -> sum over W -> [B, H, T, dh]
+    y_pi = mx.sum(w[:, :, :, :, None] * v_win.astype(mx.float32), axis=3)
+
+    # Inverse permute back to original order
+    inv_idx = all_inv_perms[None, :, :, None]  # [1, H, T, 1]
+    inv_idx = mx.broadcast_to(inv_idx, (B, H, T, dh))
+    y = mx.take_along_axis(y_pi, inv_idx, axis=2).astype(v.dtype)
+
+    return y, None
+
+
 class WayfinderAttentionMLX(nn.Module):
     """Wayfinder sparse attention in MLX with ABI-driven graph construction."""
 

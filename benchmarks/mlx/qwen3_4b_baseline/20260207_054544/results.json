@@ -1,0 +1,58 @@
+{
+  "created_at": "2026-02-07T05:45:53.947539+00:00",
+  "command": "scripts/bench_qwen3_4b_baseline_mlx.py --model-path mlx-community/Qwen3-4B-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3",
+  "model_path": "mlx-community/Qwen3-4B-4bit",
+  "tokenizer_name": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3-4B-4bit/snapshots/4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
+  "model_config": {
+    "model_type": "qwen3",
+    "num_attention_heads": 32,
+    "num_key_value_heads": 8,
+    "hidden_size": 2560,
+    "max_position_embeddings": 40960,
+    "rope_scaling": null
+  },
+  "results": [
+    {
+      "seq_len": 2048,
+      "batch": 1,
+      "attention": {
+        "tokens_per_sec": 129258.24826330278,
+        "latency_ms": 15.844249999645399,
+        "peak_memory_bytes": 98632228
+      },
+      "block": {
+        "tokens_per_sec": 40845.496186446144,
+        "latency_ms": 50.14016700033608,
+        "peak_memory_bytes": 251865636
+      }
+    },
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "attention": {
+        "tokens_per_sec": 77977.11895084963,
+        "latency_ms": 105.05645900002492,
+        "peak_memory_bytes": 392374820
+      },
+      "block": {
+        "tokens_per_sec": 34342.47053634556,
+        "latency_ms": 238.53845900021042,
+        "peak_memory_bytes": 836971044
+      }
+    },
+    {
+      "seq_len": 32768,
+      "batch": 1,
+      "attention": {
+        "tokens_per_sec": 27710.537146287785,
+        "latency_ms": 1182.510459000241,
+        "peak_memory_bytes": 1399007780
+      },
+      "block": {
+        "tokens_per_sec": 19150.135310509817,
+        "latency_ms": 1711.1106249999466,
+        "peak_memory_bytes": 3009620516
+      }
+    }
+  ]
+}
