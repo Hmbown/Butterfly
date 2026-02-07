@@ -8,9 +8,9 @@ from typing import Any, Dict, Literal, Optional
 import torch
 import torch.nn as nn
 
-from hcsa.graph.abi import WayfinderGraphABI, stack_head_abis, validate_graph_abi
-from hcsa.graph_strategies import build_strategy
-from hcsa.torch.attention_hha_permute import hha_permute_window_attention, recover_cycle_perms
+from hcsa.graph.abi import WayfinderGraphABI
+from hcsa.topology import Topology, TopologyGraph
+from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention, recover_cycle_perms
 from hcsa.torch.bench_utils import (
     AttentionProfile,
     causal_neighbor_mask,
@@ -135,7 +135,7 @@ def sparse_row_attention(
 
 
 class WayfinderAttentionTorch(nn.Module):
-    """PyTorch Wayfinder/HHA attention with shared graph ABI and cache semantics."""
+    """PyTorch Wayfinder attention with shared graph ABI and cache semantics."""
 
     def __init__(
         self,
@@ -182,7 +182,15 @@ class WayfinderAttentionTorch(nn.Module):
         else:
             self.register_parameter("edge_type_bias", None)
 
-        self._strategies = [self._make_strategy(h) for h in range(self.n_heads)]
+        self.topology = Topology(
+            n_heads=self.n_heads,
+            strategy=self.strategy,
+            num_cycles=self.num_cycles,
+            seed=self.seed,
+            window=self.window,
+            landmark_stride=self.landmark_stride,
+            enforce_hamiltonian=True,
+        )
 
         self.last_profile = AttentionProfile(path=path)
         self.last_graph_abi: Optional[WayfinderGraphABI] = None
@@ -218,20 +226,7 @@ class WayfinderAttentionTorch(nn.Module):
 
     @property
     def _cache_mode(self) -> str:
-        return "static" if self.strategy == "random" else "dynamic"
-
-    def _make_strategy(self, head_idx: int):
-        if self.strategy == "random":
-            return build_strategy(
-                "random",
-                num_cycles=self.num_cycles,
-                seed=self.seed + 7919 * head_idx,
-            )
-        if self.strategy == "greedy":
-            return build_strategy("greedy", num_cycles=self.num_cycles)
-        if self.strategy == "online_insertion":
-            return build_strategy("online_insertion", seed=self.seed + 7919 * head_idx)
-        raise ValueError(f"Unknown strategy: {self.strategy}")
+        return self.topology.cache_mode
 
     def _cache_key_from_t(self, t: int, device: torch.device) -> tuple:
         return (
@@ -318,26 +313,17 @@ class WayfinderAttentionTorch(nn.Module):
     def _build_graph_abi(self, x: torch.Tensor) -> WayfinderGraphABI:
         _b, t, _c = x.shape
 
-        r_tensor: torch.Tensor | None = None
+        routing_by_head: list[torch.Tensor] | None = None
         if self.strategy in {"greedy", "online_insertion"}:
             r_tensor = self.Wr(x[0]).reshape(t, self.n_heads, self.routing_dim).permute(1, 0, 2)
             r_tensor = r_tensor.detach().float().cpu()
+            routing_by_head = [r_tensor[h] for h in range(self.n_heads)]
 
-        head_abis: list[WayfinderGraphABI] = []
-        for h in range(self.n_heads):
-            r_h = None if r_tensor is None else r_tensor[h]
-            abi_h = self._strategies[h].build(
-                T=t,
-                r=r_h,
-                head_idx=h,
-                window=self.window,
-                landmark_stride=self.landmark_stride,
-                include_self=True,
-            )
-            head_abis.append(abi_h)
-
-        abi = stack_head_abis(head_abis)
-        validate_graph_abi(abi, expect_heads=self.n_heads, expect_tokens=t, enforce_hamiltonian=True)
+        topo_graph = self.topology.construct(
+            {"T": int(t), "include_self": True},
+            routing_by_head=routing_by_head,
+        )
+        abi = topo_graph.abi
         self.last_graph_abi = abi
         return abi
 
@@ -385,7 +371,13 @@ class WayfinderAttentionTorch(nn.Module):
             _GRAPH_CACHE_STORE[id(self)] = cache
         return cache, False
 
-    def forward(self, x: torch.Tensor, *, return_debug: bool = False):
+    def forward(
+        self,
+        x: torch.Tensor,
+        *,
+        return_debug: bool = False,
+        topology_graph: Optional[TopologyGraph] = None,
+    ):
         t_total0 = now_ms()
         b, t, c = x.shape
 
@@ -397,7 +389,18 @@ class WayfinderAttentionTorch(nn.Module):
         v = v.view(b, t, self.n_heads, self.head_dim).transpose(1, 2)
 
         t_graph0 = now_ms()
-        cache, cache_hit = self._get_or_build_cache(x)
+        if topology_graph is not None:
+            cache = self._build_cache(
+                topology_graph.abi,
+                t=int(t),
+                device=x.device,
+                cache_key=("injected", int(t), self.path, str(x.device)),
+                source=topology_graph.source,
+                artifact_dir=topology_graph.artifact_dir,
+            )
+            cache_hit = False
+        else:
+            cache, cache_hit = self._get_or_build_cache(x)
         graph_ms = now_ms() - t_graph0
 
         is_training = self.training
@@ -445,7 +448,7 @@ class WayfinderAttentionTorch(nn.Module):
                 window_drop_mask=wd_mask,
             )
         elif self.path == "permute":
-            y_h, w, permute_ms, _attn_inner = hha_permute_window_attention(
+            y_h, w, permute_ms, _attn_inner = wayfinder_permute_window_attention(
                 q,
                 k,
                 v,

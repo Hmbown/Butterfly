@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.torch.attention_hha_permute import hha_permute_window_attention
-from hcsa.torch.attention_hha_sparse import sparse_row_attention
+from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
+from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 def test_torch_sparse_masks_future_neighbors(device: torch.device) -> None:
@@ -45,7 +45,7 @@ def test_torch_permute_enforces_original_causality(device: torch.device) -> None
     for i in range(t):
         neigh[0, i] = torch.arange(t, device=device)
 
-    y1, _w1, _pm1, _am1 = hha_permute_window_attention(
+    y1, _w1, _pm1, _am1 = wayfinder_permute_window_attention(
         q,
         k,
         v,
@@ -59,7 +59,7 @@ def test_torch_permute_enforces_original_causality(device: torch.device) -> None
     # Perturb future original positions only; output at position 0 must stay unchanged.
     v2 = v.clone()
     v2[:, :, 1:, :] += 1000.0
-    y2, _w2, _pm2, _am2 = hha_permute_window_attention(
+    y2, _w2, _pm2, _am2 = wayfinder_permute_window_attention(
         q,
         k,
         v2,

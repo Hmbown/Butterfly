@@ -13,7 +13,7 @@ import torch
 
 from hcsa.compiler import compile_graph_spec
 from hcsa.torch.attention_dense import DenseCausalAttentionTorch
-from hcsa.torch.attention_hha_sparse import WayfinderAttentionTorch
+from hcsa.torch.attention_wayfinder_sparse import WayfinderAttentionTorch
 from hcsa.torch.bench_utils import largest_intermediate_bytes, sync_device
 
 
@@ -64,7 +64,7 @@ def _build_attn(
     if mode == "dense":
         return DenseCausalAttentionTorch(embd, heads, dropout=0.0)
 
-    path = "sparse" if mode == "hha_sparse" else "permute"
+    path = "sparse" if mode == "wayfinder_sparse" else "permute"
     return WayfinderAttentionTorch(
         embd,
         heads,
@@ -243,13 +243,13 @@ def _make_readme(payload: Dict[str, Any]) -> str:
     lines.append("## Notes")
     lines.append("")
     lines.append("- `graph_build_ms_cached` should be near zero for static/random strategy on cache hits.")
-    lines.append("- `hha_sparse` is the correctness/reference path; `hha_permute` is the fast path.")
+    lines.append("- `wayfinder_sparse` is the correctness/reference path; `wayfinder_permute` is the fast path.")
     lines.append("")
     return "\n".join(lines)
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Torch CUDA scaling benchmark for Wayfinder/HHA attention")
+    p = argparse.ArgumentParser(description="Torch CUDA scaling benchmark for Wayfinder attention")
     p.add_argument("--seq-lens", type=str, default="256,512,1024,2048,4096")
     p.add_argument("--batch", type=int, default=1)
     p.add_argument("--heads", type=int, default=16)
@@ -293,7 +293,7 @@ def main() -> None:
             compiled_dirs[t] = str(result["artifact"]["artifact_dir"])
 
     rows: list[Dict[str, Any]] = []
-    modes = ["dense", "hha_sparse", "hha_permute"]
+    modes = ["dense", "wayfinder_sparse", "wayfinder_permute"]
     for t in seq_lens:
         for mode in modes:
             row = _bench_attention_mode(

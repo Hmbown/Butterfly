@@ -11,7 +11,7 @@ from typing import Any, Dict, Tuple
 import torch
 
 from hcsa.torch.attention_dense import dense_causal_attention
-from hcsa.torch.attention_hha_permute import hha_permute_window_attention
+from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
 from hcsa.torch.bench_utils import sync_device
 
 
@@ -176,7 +176,7 @@ def main() -> None:
     )
 
     perm_s, perm_mem = _bench(
-        lambda: hha_permute_window_attention(
+        lambda: wayfinder_permute_window_attention(
             q,
             k,
             v,

@@ -12,11 +12,11 @@ import mlx.core as mx
 import mlx.nn as nn
 from mlx_lm.models.base import scaled_dot_product_attention
 
-from hcsa.graph.abi import WayfinderGraphABI, graph_metrics, stack_head_abis, validate_graph_abi
-from hcsa.graph_strategies import build_strategy
+from hcsa.graph.abi import WayfinderGraphABI, graph_metrics, validate_graph_abi
 from hcsa.mlx.attention import (
     AttentionProfile,
     sparse_gather_attention,
+    stable_masked_softmax,
     wayfinder_permute_window_attention_batched,
 )
 from hcsa.mlx.graph_abi import (
@@ -25,14 +25,16 @@ from hcsa.mlx.graph_abi import (
     safe_neighbor_idx,
     to_mlx_graph_abi,
 )
+from hcsa.topology import Topology
 
 
 _NEG_EPS = mx.array(1e-9, dtype=mx.float32)
 _QWEN_GRAPH_CACHE_STORE: Dict[int, "_QwenGraphCache"] = {}
+_QWEN_GRAPH_CACHE_BY_KEY: Dict[tuple, "_QwenGraphCache"] = {}
 
 
 @dataclass
-class QwenHHAConfig:
+class QwenWayfinderConfig:
     path: Literal["sparse", "permute"] = "permute"
     strategy: Literal["random", "greedy", "online_insertion"] = "random"
     window: int = 64
@@ -42,25 +44,29 @@ class QwenHHAConfig:
     edge_bias: bool = True
     window_drop: float = 0.0
     compiled_graph_dir: Optional[str] = None
+    permute_head_chunk_size: int = 8
+    query_chunk_size: int = 256
+    permute_stream_o_proj: bool = False
+    permute_log_chunks: bool = False
+    compute_edge_utilization_proxy: bool = True
+    compute_graph_metrics: bool = True
+    retro_backfill_enabled: bool = False
+    retro_backfill_alpha: float = 0.0
+    retro_backfill_training_only: bool = True
+    retro_backfill_causal_only: bool = True
 
 
 @dataclass(frozen=True)
 class _QwenGraphCache:
     mlx_graph: MLXGraphABI
-    numpy_abi: WayfinderGraphABI
+    numpy_abi: Optional[WayfinderGraphABI]
     safe_idx: mx.array
     causal_mask: mx.array
     perm_mx: List[mx.array]
     inv_perm: List[mx.array]
-    pi_idx_clamped: List[mx.array]
-    valid_mask: List[mx.array]
-    causal_masks: List[mx.array]
     # Stacked tensors for vectorized batched permute path
     perm_mx_stacked: mx.array  # [H, T]
     inv_perm_stacked: mx.array  # [H, T]
-    pi_idx_stacked: mx.array  # [H, T, W]
-    valid_mask_stacked: mx.array  # [H, T, W]
-    causal_mask_stacked: mx.array  # [H, T, W]
     cache_key: tuple
     source: str = "runtime"
     artifact_dir: str | None = None
@@ -135,6 +141,8 @@ class _QwenGraphRuntime:
         seed: int,
         path: str,
         compiled_graph_dir: Optional[str],
+        store_numpy_abi: bool,
+        store_graph_tensors: bool,
     ):
         self.n_heads = int(n_heads)
         self.window = int(window)
@@ -144,27 +152,25 @@ class _QwenGraphRuntime:
         self.seed = int(seed)
         self.path = str(path)
         self.compiled_graph_dir = compiled_graph_dir
-        self._strategies = [self._make_strategy(h) for h in range(self.n_heads)]
-
-    def _make_strategy(self, head_idx: int):
-        if self.strategy == "random":
-            return build_strategy(
-                "random",
-                num_cycles=self.num_cycles,
-                seed=self.seed + 7919 * head_idx,
-            )
-        if self.strategy == "greedy":
-            return build_strategy("greedy", num_cycles=self.num_cycles)
-        if self.strategy == "online_insertion":
-            return build_strategy("online_insertion", seed=self.seed + 7919 * head_idx)
-        raise ValueError(f"Unknown strategy: {self.strategy}")
+        self.store_numpy_abi = bool(store_numpy_abi)
+        self.store_graph_tensors = bool(store_graph_tensors)
+        self.topology = Topology(
+            n_heads=self.n_heads,
+            strategy=self.strategy,
+            num_cycles=self.num_cycles,
+            seed=self.seed,
+            window=self.window,
+            landmark_stride=self.landmark_stride,
+            enforce_hamiltonian=True,
+        )
 
     @property
     def cache_mode(self) -> str:
-        return "static" if self.strategy == "random" else "dynamic"
+        return self.topology.cache_mode
 
     def cache_key(self, T: int) -> tuple:
         return (
+            int(self.n_heads),
             int(T),
             self.strategy,
             self.num_cycles,
@@ -181,26 +187,7 @@ class _QwenGraphRuntime:
                 "Qwen full-swap currently supports strategy='random' only for deterministic "
                 "input-independent caching."
             )
-
-        head_abis: list[WayfinderGraphABI] = []
-        for h in range(self.n_heads):
-            abi_h = self._strategies[h].build(
-                T=T,
-                r=None,
-                head_idx=h,
-                window=self.window,
-                landmark_stride=self.landmark_stride,
-                include_self=True,
-            )
-            head_abis.append(abi_h)
-
-        abi = stack_head_abis(head_abis)
-        validate_graph_abi(
-            abi,
-            expect_heads=self.n_heads,
-            expect_tokens=T,
-            enforce_hamiltonian=True,
-        )
+        abi = self.topology.construct({"T": int(T), "include_self": True}).abi
         mlx_graph = to_mlx_graph_abi(abi, heads=self.n_heads, validate=False)
         return mlx_graph, abi
 
@@ -214,18 +201,27 @@ class _QwenGraphRuntime:
         source: str = "runtime",
         artifact_dir: str | None = None,
     ) -> _QwenGraphCache:
-        s_idx = safe_neighbor_idx(mlx_graph.neigh_idx, T)
-        c_mask = causal_neighbor_mask(mlx_graph.neigh_idx, T)
+        if self.path == "sparse":
+            s_idx = safe_neighbor_idx(mlx_graph.neigh_idx, T)
+            c_mask = causal_neighbor_mask(mlx_graph.neigh_idx, T)
+        else:
+            # Permute path does not consume sparse-row artifacts.
+            s_idx = mx.zeros((self.n_heads, T, 0), dtype=mx.int32)
+            c_mask = mx.zeros((self.n_heads, T, 0), dtype=mx.bool_)
+
+        if self.store_graph_tensors:
+            cache_graph = mlx_graph
+        else:
+            cache_graph = MLXGraphABI(
+                neigh_idx=mx.zeros((self.n_heads, T, 0), dtype=mx.int32),
+                edge_type=mx.zeros((self.n_heads, T, 0), dtype=mx.uint8),
+                meta=dict(mlx_graph.meta),
+            )
 
         perm_mx_list: List[mx.array] = []
         inv_perm_list: List[mx.array] = []
-        pi_idx_clamped_list: List[mx.array] = []
-        valid_mask_list: List[mx.array] = []
-        causal_masks_list: List[mx.array] = []
 
         cycle_perms = mlx_graph.meta.get("cycle_perms", [])
-        W = 2 * self.window + 1
-        offsets = mx.arange(-self.window, self.window + 1, dtype=mx.int32)
 
         for h in range(self.n_heads):
             perm = None
@@ -237,57 +233,33 @@ class _QwenGraphRuntime:
                 perm = cycle_perms[h]
 
             if perm is None:
-                p_mx = mx.zeros((T,), dtype=mx.int32)
-                ip = mx.zeros((T,), dtype=mx.int32)
-                pi_clamped = mx.zeros((T, W), dtype=mx.int32)
-                valid = mx.zeros((T, W), dtype=mx.bool_)
-                causal_h = mx.zeros((T, W), dtype=mx.bool_)
+                p_mx = mx.arange(T, dtype=mx.int32)
+                ip = p_mx
             else:
                 perm_arr = np.asarray(perm, dtype=np.int32)
                 p_mx = mx.array(perm_arr, dtype=mx.int32)
                 ip = mx.argsort(p_mx)
-                pi_idx = mx.arange(T, dtype=mx.int32).reshape(T, 1) + offsets.reshape(1, W)
-                valid = (pi_idx >= 0) & (pi_idx < T)
-                pi_clamped = mx.clip(pi_idx, 0, T - 1)
-                orig_idx = p_mx
-                neigh_orig = orig_idx[pi_clamped]
-                query_orig = orig_idx.reshape(T, 1)
-                causal_h = neigh_orig <= query_orig
 
             perm_mx_list.append(p_mx)
             inv_perm_list.append(ip)
-            pi_idx_clamped_list.append(pi_clamped)
-            valid_mask_list.append(valid)
-            causal_masks_list.append(causal_h)
 
         # Stack per-head lists into [H, ...] tensors for vectorized path
         perm_stacked = mx.stack(perm_mx_list, axis=0)  # [H, T]
         inv_stacked = mx.stack(inv_perm_list, axis=0)  # [H, T]
-        pi_stacked = mx.stack(pi_idx_clamped_list, axis=0)  # [H, T, W]
-        valid_stacked = mx.stack(valid_mask_list, axis=0)  # [H, T, W]
-        causal_stacked = mx.stack(causal_masks_list, axis=0)  # [H, T, W]
 
-        persistent_bytes = _mx_nbytes(mlx_graph.neigh_idx) + _mx_nbytes(mlx_graph.edge_type)
+        persistent_bytes = _mx_nbytes(cache_graph.neigh_idx) + _mx_nbytes(cache_graph.edge_type)
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
         persistent_bytes += _mx_nbytes(perm_stacked) + _mx_nbytes(inv_stacked)
-        persistent_bytes += _mx_nbytes(pi_stacked) + _mx_nbytes(valid_stacked)
-        persistent_bytes += _mx_nbytes(causal_stacked)
 
         return _QwenGraphCache(
-            mlx_graph=mlx_graph,
-            numpy_abi=numpy_abi,
+            mlx_graph=cache_graph,
+            numpy_abi=numpy_abi if self.store_numpy_abi else None,
             safe_idx=s_idx,
             causal_mask=c_mask,
             perm_mx=perm_mx_list,
             inv_perm=inv_perm_list,
-            pi_idx_clamped=pi_idx_clamped_list,
-            valid_mask=valid_mask_list,
-            causal_masks=causal_masks_list,
             perm_mx_stacked=perm_stacked,
             inv_perm_stacked=inv_stacked,
-            pi_idx_stacked=pi_stacked,
-            valid_mask_stacked=valid_stacked,
-            causal_mask_stacked=causal_stacked,
             cache_key=cache_key,
             source=source,
             artifact_dir=artifact_dir,
@@ -350,17 +322,24 @@ class _QwenGraphRuntime:
         existing = _QWEN_GRAPH_CACHE_STORE.get(owner_id)
         if self.cache_mode == "static" and existing is not None and existing.cache_key == key:
             return existing, True
+        if self.cache_mode == "static":
+            shared = _QWEN_GRAPH_CACHE_BY_KEY.get(key)
+            if shared is not None:
+                _QWEN_GRAPH_CACHE_STORE[owner_id] = shared
+                return shared, True
 
         compiled = self._load_compiled_cache(T, key)
         if compiled is not None:
             if self.cache_mode == "static":
                 _QWEN_GRAPH_CACHE_STORE[owner_id] = compiled
+                _QWEN_GRAPH_CACHE_BY_KEY[key] = compiled
             return compiled, False
 
         mlx_graph, numpy_abi = self._build_graph_abi(T)
         built = self._build_cache(mlx_graph, numpy_abi, T, cache_key=key, source="runtime")
         if self.cache_mode == "static":
             _QWEN_GRAPH_CACHE_STORE[owner_id] = built
+            _QWEN_GRAPH_CACHE_BY_KEY[key] = built
         return built, False
 
 
@@ -403,7 +382,7 @@ def _edge_utilization_proxy(
 class QwenWayfinderAttention(nn.Module):
     """Qwen attention module with HCSA sparse/permute backend."""
 
-    def __init__(self, base_attn: nn.Module, cfg: QwenHHAConfig):
+    def __init__(self, base_attn: nn.Module, cfg: QwenWayfinderConfig):
         super().__init__()
 
         self.n_heads = int(base_attn.n_heads)
@@ -420,6 +399,14 @@ class QwenWayfinderAttention(nn.Module):
         self.rope = base_attn.rope
 
         self.path = cfg.path
+        self.permute_head_chunk_size = int(max(1, cfg.permute_head_chunk_size))
+        self.query_chunk_size = int(max(1, cfg.query_chunk_size))
+        self.permute_stream_o_proj = bool(cfg.permute_stream_o_proj)
+        self.permute_log_chunks = bool(cfg.permute_log_chunks)
+        self.retro_backfill_enabled = bool(cfg.retro_backfill_enabled)
+        self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
+        self.retro_backfill_training_only = bool(cfg.retro_backfill_training_only)
+        self.retro_backfill_causal_only = bool(cfg.retro_backfill_causal_only)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -431,6 +418,12 @@ class QwenWayfinderAttention(nn.Module):
             seed=cfg.seed,
             path=cfg.path,
             compiled_graph_dir=cfg.compiled_graph_dir,
+            store_numpy_abi=bool(cfg.compute_graph_metrics),
+            store_graph_tensors=bool(
+                cfg.path == "sparse"
+                or cfg.compute_edge_utilization_proxy
+                or cfg.compute_graph_metrics
+            ),
         )
 
         self._runtime_window_drop_override: Optional[float] = None
@@ -445,6 +438,155 @@ class QwenWayfinderAttention(nn.Module):
             "landmark": 0.0,
             "rewire": 0.0,
         }
+        self._o_proj_chunk_cache: Dict[tuple[int, int], nn.Module] = {}
+        # Timed benchmarks can disable expensive runtime instrumentation.
+        self.compute_edge_utilization_proxy: bool = bool(cfg.compute_edge_utilization_proxy)
+        self.compute_graph_metrics: bool = bool(cfg.compute_graph_metrics)
+
+    def _effective_permute_chunking(self, T: int) -> tuple[int, int]:
+        """Token-aware chunking policy for permute path memory control."""
+        h_chunk = int(max(1, self.permute_head_chunk_size))
+        q_chunk = int(max(1, self.query_chunk_size))
+        if T >= 8192:
+            h_chunk = min(h_chunk, 2)
+            q_chunk = min(q_chunk, 384)
+        elif T >= 4096:
+            h_chunk = min(h_chunk, 2)
+            q_chunk = min(q_chunk, 384)
+        return h_chunk, q_chunk
+
+    def _o_proj_part(self, x_btF: mx.array, f0: int, f1: int) -> mx.array:
+        """Apply output projection to a feature slice [f0:f1] and return [B,T,D]."""
+        if (
+            isinstance(self.o_proj, nn.QuantizedLinear)
+            and self.permute_stream_o_proj
+        ):
+            key = (int(f0), int(f1))
+            layer = self._o_proj_chunk_cache.get(key)
+            if layer is None:
+                params = self.o_proj.parameters()
+                bits = int(self.o_proj.bits)
+                group_size = int(self.o_proj.group_size)
+                packed = 32 // bits
+                if (
+                    f0 % packed != 0
+                    or f1 % packed != 0
+                    or f0 % group_size != 0
+                    or f1 % group_size != 0
+                ):
+                    raise ValueError(
+                        f"o_proj slice [{f0}:{f1}] must align to packed/group boundaries"
+                    )
+                w = params["weight"][:, f0 // packed : f1 // packed]
+                s = params["scales"][:, f0 // group_size : f1 // group_size]
+                b = params["biases"][:, f0 // group_size : f1 // group_size]
+                layer = nn.QuantizedLinear(
+                    input_dims=f1 - f0,
+                    output_dims=int(w.shape[0]),
+                    bias=False,
+                    group_size=group_size,
+                    bits=bits,
+                    mode=self.o_proj.mode,
+                )
+                layer.update({"weight": w, "scales": s, "biases": b})
+                self._o_proj_chunk_cache[key] = layer
+            return layer(x_btF)
+
+        # Fallback for non-quantized linear projections.
+        if not hasattr(self.o_proj, "weight"):
+            raise ValueError("Unsupported o_proj type for streamed projection")
+        w = self.o_proj.weight[:, f0:f1]
+        return mx.matmul(x_btF, w.transpose(1, 0))
+
+    def _permute_attention_project_streamed(
+        self,
+        *,
+        queries: mx.array,
+        keys: mx.array,
+        values: mx.array,
+        perms: mx.array,
+        window: int,
+        q_chunk: int,
+        edge_type_bias_scalar: Optional[float],
+        window_drop_prob: float,
+        training: bool,
+        log_progress: bool,
+    ) -> mx.array:
+        """Stream permute attention per head/chunk directly into projected hidden output."""
+        B, _Hq, T, dh = queries.shape
+        if isinstance(self.o_proj, nn.QuantizedLinear):
+            out_dim = int(self.o_proj.parameters()["weight"].shape[0])
+        else:
+            out_dim = int(self.o_proj.weight.shape[0])
+
+        out = mx.zeros((B, T, out_dim), dtype=queries.dtype)
+        kv_repeat = self.n_heads // self.n_kv_heads
+        scale = float(self.scale)
+
+        for h in range(self.n_heads):
+            kv_h = h // kv_repeat
+            perm_h = perms[h : h + 1, :]  # [1, T]
+            q_h = queries[:, h : h + 1, :, :]
+            k_h = keys[:, kv_h : kv_h + 1, :, :]
+            v_h = values[:, kv_h : kv_h + 1, :, :]
+            f0 = h * self.head_dim
+            f1 = f0 + self.head_dim
+
+            q_chunk_count = (T + q_chunk - 1) // q_chunk
+            for q_chunk_idx, s in enumerate(range(0, T, q_chunk), start=1):
+                e = min(T, s + q_chunk)
+                ks = max(0, s - window)
+                ke = min(T, e + window)
+                if log_progress:
+                    print(
+                        f"      permute_stream: head {h + 1}/{self.n_heads} "
+                        f"q_chunk {q_chunk_idx}/{q_chunk_count} q[{s}:{e}] k[{ks}:{ke}]",
+                        flush=True,
+                    )
+
+                q_idx = perm_h[:, s:e]  # [1, Q]
+                k_idx = perm_h[:, ks:ke]  # [1, K]
+                q_gidx = mx.broadcast_to(q_idx[None, :, :, None], (B, 1, e - s, 1))
+                k_gidx = mx.broadcast_to(k_idx[None, :, :, None], (B, 1, ke - ks, 1))
+
+                q_blk = mx.take_along_axis(q_h, q_gidx, axis=2)
+                k_blk = mx.take_along_axis(k_h, k_gidx, axis=2)
+                v_blk = mx.take_along_axis(v_h, k_gidx, axis=2)
+
+                q_pos = mx.arange(s, e, dtype=mx.int32).reshape(1, e - s, 1)
+                k_pos = mx.arange(ks, ke, dtype=mx.int32).reshape(1, 1, ke - ks)
+                rel = k_pos - q_pos  # [1, Q, K]
+                in_window = (rel >= -window) & (rel <= window)
+                causal = k_idx[:, None, :] <= q_idx[:, :, None]
+                mask_eff = in_window & causal
+
+                scores = mx.matmul(q_blk, k_blk.transpose(0, 1, 3, 2)) * scale
+
+                if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
+                    cycle_nb = ((rel == -1) | (rel == 1)).astype(scores.dtype)
+                    bias = mx.array(edge_type_bias_scalar, dtype=scores.dtype)
+                    scores = scores + cycle_nb * bias
+
+                if training and window_drop_prob > 0.0:
+                    preserve = (rel == 0) | (rel == -1) | (rel == 1)
+                    drop_rand = mx.random.uniform(shape=(1, e - s, ke - ks)) < window_drop_prob
+                    drop = drop_rand & in_window & (~preserve)
+                    mask_eff = mask_eff & (~drop)
+
+                w = stable_masked_softmax(
+                    scores,
+                    mask_eff[None, :, :, :],
+                    axis=-1,
+                    preserve_dtype=True,
+                )
+                y_blk = mx.matmul(w, v_blk).astype(values.dtype)  # [B, 1, Q, dh]
+                part = self._o_proj_part(y_blk.reshape(B, e - s, dh), f0, f1)  # [B, Q, D]
+                out = out.at[:, q_idx[0], :].add(part)
+                mx.eval(out)
+
+        if getattr(self.o_proj, "bias", None) is not None:
+            out = out + self.o_proj.bias
+        return out
 
     def set_runtime_controls(
         self,
@@ -505,15 +647,23 @@ class QwenWayfinderAttention(nn.Module):
             )
             return out
 
-        keys = _repeat_kv_to_q_heads(keys, self.n_heads)
-        values = _repeat_kv_to_q_heads(values, self.n_heads)
-
         T = int(keys.shape[2])
         t_graph0 = _now_ms()
+        if self.permute_log_chunks:
+            print(f"    qwen_wayfinder: requesting graph cache for T={T}", flush=True)
         graph_cache, cache_hit = self.graph_runtime.get_or_build_cache(id(self), T)
         graph_ms = _now_ms() - t_graph0
-        self.last_graph_abi = graph_cache.numpy_abi
-        self.last_graph_metrics = graph_metrics(graph_cache.numpy_abi)
+        if self.permute_log_chunks:
+            print(
+                "    qwen_wayfinder: graph cache ready "
+                f"(hit={bool(cache_hit)}, source={graph_cache.source}, {graph_ms:.1f} ms)",
+                flush=True,
+            )
+        # Graph metrics are static for a cached ABI; avoid recomputing each forward.
+        if graph_cache.numpy_abi is not None and self.last_graph_abi is not graph_cache.numpy_abi:
+            self.last_graph_abi = graph_cache.numpy_abi
+            if self.compute_graph_metrics:
+                self.last_graph_metrics = graph_metrics(graph_cache.numpy_abi)
 
         is_training = bool(self.training)
         effective_window_drop = (
@@ -549,11 +699,14 @@ class QwenWayfinderAttention(nn.Module):
 
         t_attn0 = _now_ms()
         permute_ms = 0.0
+        out_stream: Optional[mx.array] = None
         if self.path == "sparse":
+            keys_q = _repeat_kv_to_q_heads(keys, self.n_heads)
+            values_q = _repeat_kv_to_q_heads(values, self.n_heads)
             y_h, _w = sparse_gather_attention(
                 queries,
-                keys,
-                values,
+                keys_q,
+                values_q,
                 graph_cache.mlx_graph,
                 return_weights=False,
                 precomputed_safe_idx=graph_cache.safe_idx,
@@ -564,32 +717,60 @@ class QwenWayfinderAttention(nn.Module):
             )
             keep_mask = graph_cache.causal_mask if wd_mask is None else (graph_cache.causal_mask & wd_mask)
         elif self.path == "permute":
-            y_h, _w = wayfinder_permute_window_attention_batched(
-                queries,
-                keys,
-                values,
-                all_perms=graph_cache.perm_mx_stacked,
-                all_inv_perms=graph_cache.inv_perm_stacked,
-                all_pi_idx=graph_cache.pi_idx_stacked,
-                all_valid=graph_cache.valid_mask_stacked,
-                all_causal=graph_cache.causal_mask_stacked,
-                edge_type_bias_scalar=etb_scalar,
-                window_drop_prob=effective_window_drop if is_training else 0.0,
-                training=is_training,
-            )
-            keep_mask = graph_cache.causal_mask
+            h_chunk_eff, q_chunk_eff = self._effective_permute_chunking(T)
+            streamable = self.permute_stream_o_proj and h_chunk_eff == 1
+            if streamable:
+                out_stream = self._permute_attention_project_streamed(
+                    queries=queries,
+                    keys=keys,
+                    values=values,
+                    perms=graph_cache.perm_mx_stacked,
+                    window=self.graph_runtime.window,
+                    q_chunk=q_chunk_eff,
+                    edge_type_bias_scalar=etb_scalar,
+                    window_drop_prob=effective_window_drop if is_training else 0.0,
+                    training=is_training,
+                    log_progress=self.permute_log_chunks,
+                )
+            else:
+                y_h, _w = wayfinder_permute_window_attention_batched(
+                    queries,
+                    keys,
+                    values,
+                    all_perms=graph_cache.perm_mx_stacked,
+                    all_inv_perms=graph_cache.inv_perm_stacked,
+                    window=self.graph_runtime.window,
+                    edge_type_bias_scalar=etb_scalar,
+                    window_drop_prob=effective_window_drop if is_training else 0.0,
+                    training=is_training,
+                    head_chunk_size=h_chunk_eff,
+                    query_chunk_size=q_chunk_eff,
+                    retro_backfill_enabled=self.retro_backfill_enabled,
+                    retro_backfill_alpha=self.retro_backfill_alpha,
+                    retro_backfill_training_only=self.retro_backfill_training_only,
+                    retro_backfill_causal_only=self.retro_backfill_causal_only,
+                    log_progress=self.permute_log_chunks,
+                )
+            if self.compute_edge_utilization_proxy:
+                keep_mask = causal_neighbor_mask(graph_cache.mlx_graph.neigh_idx, T)
+            else:
+                keep_mask = graph_cache.causal_mask
         else:
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0
 
-        self.last_edge_utilization_proxy = _edge_utilization_proxy(
-            graph_cache.mlx_graph.edge_type,
-            keep_mask,
-        )
+        if self.compute_edge_utilization_proxy:
+            self.last_edge_utilization_proxy = _edge_utilization_proxy(
+                graph_cache.mlx_graph.edge_type,
+                keep_mask,
+            )
 
-        out = self.o_proj(
-            y_h.transpose(0, 2, 1, 3).reshape(y_h.shape[0], y_h.shape[2], -1)
-        )
+        if out_stream is not None:
+            out = out_stream
+        else:
+            out = self.o_proj(
+                y_h.transpose(0, 2, 1, 3).reshape(y_h.shape[0], y_h.shape[2], -1)
+            )
         total_ms = _now_ms() - t_total0
         self.last_profile = AttentionProfile(
             graph_build_ms=float(graph_ms),
@@ -605,6 +786,8 @@ class QwenWayfinderAttention(nn.Module):
                 "cache_source": graph_cache.source,
                 "cache_persistent_bytes": int(graph_cache.persistent_bytes),
                 "window_drop_effective": float(effective_window_drop),
+                "permute_head_chunk_effective": int(h_chunk_eff) if self.path == "permute" else None,
+                "permute_query_chunk_effective": int(q_chunk_eff) if self.path == "permute" else None,
             },
         )
         return out
@@ -613,7 +796,7 @@ class QwenWayfinderAttention(nn.Module):
 def swap_qwen_attention_with_wayfinder(
     model: nn.Module,
     *,
-    cfg: QwenHHAConfig,
+    cfg: QwenWayfinderConfig,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> List[int]:
     """Replace Qwen attention blocks with HCSA-backed attention modules.
@@ -634,4 +817,3 @@ def swap_qwen_attention_with_wayfinder(
         layer.self_attn = QwenWayfinderAttention(base_attn, cfg)
         replaced.append(i)
     return replaced
-

@@ -214,7 +214,7 @@ def permute_window_attention_single(
     return y_h, None, permute_ms, attention_ms
 
 
-def hha_permute_window_attention(
+def wayfinder_permute_window_attention(
     q: torch.Tensor,
     k: torch.Tensor,
     v: torch.Tensor,

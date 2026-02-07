@@ -12,7 +12,7 @@ Date: 2026-02-07 (UTC)
 ```bash
 . .venv312/bin/activate
 python scripts/lint_mlx.py
-pytest -q tests_mlx
+pytest -q tests/mlx
 ```
 
 ### 2) Compiler flow (`.wf` -> cache artifacts)
@@ -23,7 +23,7 @@ python scripts/wayc.py compile configs/graph_specs/default.wf --T 2048 --H 4 --o
 python scripts/wayc.py dump configs/graph_specs/default.wf --format json
 ```
 
-### 3) Definitive scaling bench (dense vs hha_sparse vs hha_permute)
+### 3) Definitive scaling bench (dense vs wayfinder_sparse vs wayfinder_permute)
 ```bash
 . .venv312/bin/activate
 python scripts/bench_mlx_wayfinder_scale.py \
@@ -81,7 +81,7 @@ python scripts/run_mlx_ablation_cycle_push.py \
 Source: `benchmarks/mlx/scale_20260207_045933/results.json`
 
 ### Attention throughput (tok/s)
-| T | dense | hha_sparse | hha_permute |
+| T | dense | wayfinder_sparse | wayfinder_permute |
 |---:|---:|---:|---:|
 | 256 | 1,254,902.0 | 440,020.0 | 487,648.1 |
 | 512 | 2,131,481.6 | 738,184.3 | 526,134.3 |
@@ -90,7 +90,7 @@ Source: `benchmarks/mlx/scale_20260207_045933/results.json`
 | 4096 | 241,769.7 | 250,698.8 | 592,406.0 |
 
 ### Attention peak memory
-| T | dense | hha_sparse | hha_permute |
+| T | dense | wayfinder_sparse | wayfinder_permute |
 |---:|---:|---:|---:|
 | 2048 | 547.5MB | 476.0MB | 343.2MB |
 | 4096 | 2.1GB | 1.5GB | 710.1MB |
@@ -99,20 +99,20 @@ Source: `benchmarks/mlx/scale_20260207_045933/results.json`
 | mode | tok/s | peak memory |
 |---|---:|---:|
 | dense | 468,808.6 | 567.3MB |
-| hha_sparse | 394,936.3 | 502.2MB |
-| hha_permute | 545,368.3 | 369.5MB |
+| wayfinder_sparse | 394,936.3 | 502.2MB |
+| wayfinder_permute | 545,368.3 | 369.5MB |
 
 ### Graph build first vs cached (attention path)
 | T | mode | first build ms | cached build ms |
 |---:|---|---:|---:|
-| 2048 | hha_sparse | 195.9354 | 0.0052 |
-| 2048 | hha_permute | 194.0505 | 0.0040 |
-| 4096 | hha_sparse | 566.8686 | 0.0048 |
-| 4096 | hha_permute | 500.6850 | 0.0046 |
+| 2048 | wayfinder_sparse | 195.9354 | 0.0052 |
+| 2048 | wayfinder_permute | 194.0505 | 0.0040 |
+| 4096 | wayfinder_sparse | 566.8686 | 0.0048 |
+| 4096 | wayfinder_permute | 500.6850 | 0.0046 |
 
 Conclusion:
 - Cached graph build is effectively zero (microseconds range) on reuse.
-- Long-context crossover is clear: at T>=2048, hha_permute exceeds dense throughput and materially reduces memory.
+- Long-context crossover is clear: at T>=2048, wayfinder_permute exceeds dense throughput and materially reduces memory.
 
 ## Quality Closing (P2)
 
@@ -205,12 +205,12 @@ Integrated into runtime:
 
 ## Tests as Type-System Checks
 Added MLX/compiler tests:
-- `tests_mlx/test_wayc_compile.py`
-- `tests_mlx/test_graph_ir_invariants.py`
-- `tests_mlx/test_cache_key_stability.py`
+- `tests/mlx/test_wayc_compile.py`
+- `tests/mlx/test_graph_ir_invariants.py`
+- `tests/mlx/test_cache_key_stability.py`
 
 Validation status:
-- `pytest -q tests_mlx` passes.
+- `pytest -q tests/mlx` passes.
 
 ## Plots
 - `docs/assets/attention_on_edges_heatmap.png`

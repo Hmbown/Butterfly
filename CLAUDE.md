@@ -6,9 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 HCSA (Hamiltonian Cycle Sparse Attention) — a research framework for **sparse attention in language models using Hamiltonian cycles**. Replaces dense causal self-attention with sparse attention graphs induced by Hamiltonian cycles over token positions.
 
-Two backends:
-- **PyTorch** (`hcsa/`) — core attention, cycles, model, training
+Three backends:
+- **PyTorch Core** (`hcsa/`) — core attention, cycles, model, training
+- **PyTorch Backend** (`hcsa/torch/`) — dedicated PyTorch/CUDA backend with Wayfinder attention
 - **MLX** (`hcsa/mlx/`) — Apple Silicon optimized, uses a unified Graph ABI abstraction
+
+Internal codename "Wayfinder" refers to the sparse attention runtime (graph ABI, attention modes, cache directories). Public name is "HCSA".
 
 ## Commands
 
@@ -48,6 +51,7 @@ python -m hcsa.generate --ckpt runs/<run>/ckpt.pt --prompt "To be" --max-new 50
 # Benchmark
 python scripts/bench.py --device auto --seq-lens 128 256 512 1024
 python scripts/bench_mlx_wayfinder_scale.py   # MLX scaling benchmark
+python scripts/bench_torch_wayfinder_scale.py  # PyTorch/CUDA scaling benchmark
 ```
 
 ## Architecture
@@ -80,12 +84,24 @@ Implementation builds a padded index tensor `neigh_idx: [T, D]` (with `-1` paddi
 - `data.py` / `data_mmap.py` — data loading (TinyShakespeare, HuggingFace datasets)
 - `tokenizers.py` — character and BPE tokenizers
 
+### PyTorch Backend (`hcsa/torch/`)
+
+- `model.py` — `GPTTorch` with attention modes: `dense`, `wayfinder_sparse`, `wayfinder_permute`
+- `attention_wayfinder_sparse.py` — sparse-row gather reference path, `WayfinderAttentionTorch` module
+- `attention_wayfinder_permute.py` — permute-window fast path, `wayfinder_permute_window_attention()`
+- `attention_dense.py` — dense causal baseline
+- `bench_utils.py` — timing, mask/softmax utilities, graph normalization
+
 ### MLX Backend (`hcsa/mlx/`)
 
 - `model.py` — `GPTMLX` with three attention modes: `dense`, `wayfinder_sparse` (reference gather path), `wayfinder_permute` (fast contiguous path)
-- `attention.py` — `dense_causal_attention()`, `sparse_gather_attention()`, `permute_window_attention()`
+- `attention.py` — `dense_causal_attention()`, `sparse_gather_attention()`, `wayfinder_permute_window_attention_batched()`
 - `graph_abi.py` — MLX-specific graph conversions
 - `metrics.py` — graph metrics (shortcut_rate, reachability_proxy, edge utilization)
+
+### Integrations (`hcsa/integrations/`)
+
+- `qwen_mlx.py` — `QwenWayfinderConfig`, `QwenWayfinderAttention`, `swap_qwen_attention_with_wayfinder()` for Qwen3 models on MLX
 
 ### Graph ABI (`hcsa/graph/`)
 

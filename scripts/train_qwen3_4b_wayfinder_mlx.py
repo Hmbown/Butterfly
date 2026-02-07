@@ -24,7 +24,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from hcsa.compiler import compile_graph_spec
-from hcsa.integrations.qwen_mlx import QwenHHAConfig, QwenWayfinderAttention, swap_qwen_attention_with_wayfinder
+from hcsa.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention, swap_qwen_attention_with_wayfinder
 
 
 def _reset_peak_memory() -> None:
@@ -93,7 +93,7 @@ def _compute_loss(model: nn.Module, tokens: mx.array) -> mx.array:
     return mx.mean(nn.losses.cross_entropy(logits_flat, y_flat))
 
 
-def _collect_hha_modules(model: nn.Module) -> List[QwenWayfinderAttention]:
+def _collect_wayfinder_modules(model: nn.Module) -> List[QwenWayfinderAttention]:
     out: list[QwenWayfinderAttention] = []
     for layer in getattr(model, "layers", []):
         attn = getattr(layer, "self_attn", None)
@@ -102,7 +102,7 @@ def _collect_hha_modules(model: nn.Module) -> List[QwenWayfinderAttention]:
     return out
 
 
-def _set_hha_runtime_controls(
+def _set_wayfinder_runtime_controls(
     modules: List[QwenWayfinderAttention],
     *,
     window_drop: float,
@@ -164,7 +164,7 @@ def main() -> None:
     p.add_argument("--run-dir", type=Path, default=None)
     p.add_argument("--resume-adapter-file", type=Path, default=None)
 
-    p.add_argument("--hha-mode", type=str, default="permute", choices=["none", "sparse", "permute"])
+    p.add_argument("--wayfinder-mode", type=str, default="permute", choices=["none", "sparse", "permute"])
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument("--num-cycles", type=int, default=1)
@@ -212,7 +212,7 @@ def main() -> None:
     )
 
     compiled_graph_dir: Optional[str] = None
-    if args.hha_mode != "none" and args.graph_spec is not None and args.graph_spec.exists():
+    if args.wayfinder_mode != "none" and args.graph_spec is not None and args.graph_spec.exists():
         compiled = compile_graph_spec(
             args.graph_spec,
             T=int(args.seq_len),
@@ -222,14 +222,14 @@ def main() -> None:
         compiled_graph_dir = str(compiled["artifact"]["artifact_dir"])
 
     replaced_layers: List[int] = []
-    if args.hha_mode != "none":
+    if args.wayfinder_mode != "none":
         all_layers = list(range(len(model.layers)))
         if args.swap_last_n_layers > 0:
             layer_indices = all_layers[-int(args.swap_last_n_layers) :]
         else:
             layer_indices = all_layers
-        hha_cfg = QwenHHAConfig(
-            path=args.hha_mode,  # type: ignore[arg-type]
+        wf_cfg = QwenWayfinderConfig(
+            path=args.wayfinder_mode,  # type: ignore[arg-type]
             strategy="random",
             window=int(args.window),
             landmark_stride=None if int(args.landmark_stride) <= 0 else int(args.landmark_stride),
@@ -241,7 +241,7 @@ def main() -> None:
         )
         replaced_layers = swap_qwen_attention_with_wayfinder(
             model,
-            cfg=hha_cfg,
+            cfg=wf_cfg,
             layer_indices=layer_indices,
         )
 
@@ -294,7 +294,7 @@ def main() -> None:
     }
     (run_dir / "config.json").write_text(json.dumps(config_payload, indent=2), encoding="utf-8")
 
-    hha_modules = _collect_hha_modules(model)
+    wf_modules = _collect_wayfinder_modules(model)
     cache_hits = 0
     cache_events = 0
     graph_build_vals: list[float] = []
@@ -333,9 +333,9 @@ def main() -> None:
                 int(args.edge_bias_warmup_steps),
             ),
         }
-        if hha_modules:
-            _set_hha_runtime_controls(
-                hha_modules,
+        if wf_modules:
+            _set_wayfinder_runtime_controls(
+                wf_modules,
                 window_drop=window_drop,
                 schedule_bias=edge_bias,
             )
@@ -378,11 +378,11 @@ def main() -> None:
         shortcut = 0.0
         step_graph_build = 0.0
         step_cache_hit = 0.0
-        if hha_modules:
+        if wf_modules:
             gb_vals: list[float] = []
             hit_vals: list[float] = []
             cyc = win = lmk = rew = 0.0
-            for mod in hha_modules:
+            for mod in wf_modules:
                 prof = mod.last_profile.to_dict()
                 gb = float(prof.get("graph_build_ms", 0.0))
                 hit = float(1.0 if bool(prof.get("cache_hit", False)) else 0.0)
@@ -393,7 +393,7 @@ def main() -> None:
                 lmk += float(mod.last_edge_utilization_proxy.get("landmark", 0.0))
                 rew += float(mod.last_edge_utilization_proxy.get("rewire", 0.0))
 
-            nmods = float(len(hha_modules))
+            nmods = float(len(wf_modules))
             step_graph_build = float(np.mean(gb_vals)) if gb_vals else 0.0
             step_cache_hit = float(np.mean(hit_vals)) if hit_vals else 0.0
             edge_util_avg = {
@@ -406,8 +406,8 @@ def main() -> None:
             cache_events += len(hit_vals)
             cache_hits += int(sum(1 for h in hit_vals if h > 0.5))
             graph_build_vals.extend(gb_vals)
-            reachability = float(hha_modules[0].last_graph_metrics.get("reachability_proxy", 0.0))
-            shortcut = float(hha_modules[0].last_graph_metrics.get("shortcut_rate", 0.0))
+            reachability = float(wf_modules[0].last_graph_metrics.get("reachability_proxy", 0.0))
+            shortcut = float(wf_modules[0].last_graph_metrics.get("shortcut_rate", 0.0))
 
         rec: Dict[str, Any] = {
             "step": int(step),

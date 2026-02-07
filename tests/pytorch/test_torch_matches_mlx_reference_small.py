@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import torch
 
-from hcsa.torch.attention_hha_sparse import sparse_row_attention
+from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 # MLX is optional for this test file. We always verify against a shared numpy reference.

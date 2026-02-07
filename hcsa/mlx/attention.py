@@ -557,7 +557,7 @@ def wayfinder_permute_window_attention_batched(
         else:
             kblk_worst = min(T, q_chunk + 2 * window)
             qblk_worst = q_chunk
-            elem_bytes = int(np.dtype(np.asarray(mx.array(0, dtype=v.dtype)).dtype).itemsize)
+            elem_bytes = int(v.itemsize)
             chunk_elems = (qblk_worst + 2 * kblk_worst) * dh + (qblk_worst * kblk_worst)
 
             # Candidate plans evaluated with simple cost model:

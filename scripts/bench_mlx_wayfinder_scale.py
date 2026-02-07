@@ -75,7 +75,7 @@ def _build_attn(
     if mode == "dense":
         return DenseCausalAttentionMLX(embd, heads, dropout=0.0)
 
-    path = "sparse" if mode == "hha_sparse" else "permute"
+    path = "sparse" if mode == "wayfinder_sparse" else "permute"
     return WayfinderAttentionMLX(
         embd,
         heads,
@@ -114,6 +114,8 @@ def _bench_attention_mode(
         strategy=strategy,
         compiled_graph_dir=compiled_graph_dir,
     )
+    if hasattr(attn, "eval"):
+        attn.eval()
     x = mx.random.normal((B, T, C), dtype=mx.float16)
 
     graph_first = 0.0
@@ -220,7 +222,7 @@ def _bench_block_mode(
     attn_mode = (
         "dense"
         if mode == "dense"
-        else ("wayfinder_sparse" if mode == "hha_sparse" else "wayfinder_permute")
+        else ("wayfinder_sparse" if mode == "wayfinder_sparse" else "wayfinder_permute")
     )
     cfg = GPTConfigMLX(
         vocab_size=256,
@@ -237,6 +239,8 @@ def _bench_block_mode(
         compiled_graph_dir=compiled_graph_dir,
     )
     model = GPTMLX(cfg)
+    if hasattr(model, "eval"):
+        model.eval()
     idx = mx.random.randint(0, cfg.vocab_size, shape=(B, T), dtype=mx.int32)
 
     for _ in range(max(1, warmup)):
@@ -353,7 +357,7 @@ def main() -> None:
     args = p.parse_args()
 
     seq_lens = [t for t in args.seq_lens if (t != 4096 or not args.skip_4096)]
-    modes = ["dense", "hha_sparse", "hha_permute"]
+    modes = ["dense", "wayfinder_sparse", "wayfinder_permute"]
 
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     out_dir = args.out_dir or Path("benchmarks/mlx") / f"scale_{stamp}"

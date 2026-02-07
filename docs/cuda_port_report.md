@@ -10,8 +10,8 @@ Implemented components:
   - Dense causal baseline using `torch.nn.functional.scaled_dot_product_attention(..., is_causal=True)`.
   - Manual masked-matmul fallback for environments where SDPA backend is unavailable.
 
-- `hcsa/torch/attention_hha_sparse.py`
-  - HHA sparse-row reference path:
+- `hcsa/torch/attention_wayfinder_sparse.py`
+  - Wayfinder sparse-row reference path:
     - accepts graph ABI neighbor index and edge types,
     - gathers K/V by neighbor index,
     - computes logits in FP32,
@@ -22,8 +22,8 @@ Implemented components:
     - `graph_build_ms`, `attention_ms`, `permute_ms`, `cache_hit`, `cache_source`, `cache_persistent_bytes`.
   - Supports loading compiled graph artifacts from `wayc` output (`neighborindex.npz` + `meta.json`).
 
-- `hcsa/torch/attention_hha_permute.py`
-  - HHA permute-window fast path:
+- `hcsa/torch/attention_wayfinder_permute.py`
+  - Wayfinder permute-window fast path:
     - permute to cycle order,
     - local window attention in permuted space,
     - original-position causal enforcement,
@@ -50,7 +50,7 @@ The torch backend uses the same ABI structures and compiler artifacts:
 
 ## Parity & Correctness Tests
 
-Added under `tests_torch/`:
+Added under `tests/pytorch/`:
 
 - `test_torch_causality.py`
   - sparse-row masks future neighbors,
@@ -73,7 +73,7 @@ Added under `tests_torch/`:
 
 Validation run in this environment:
 
-- Command: `PYTHONPATH=. .venv312/bin/python -m pytest -q tests_torch`
+- Command: `PYTHONPATH=. .venv312/bin/python -m pytest -q tests/pytorch`
 - Result: `9 passed`
 - Note: CUDA device was not available in this environment (`torch.cuda.is_available() == False`), so CUDA execution was not validated here.
 
@@ -82,7 +82,7 @@ Validation run in this environment:
 Added CUDA-focused benchmark script:
 
 - `scripts/bench_torch_wayfinder_scale.py`
-  - Compares: `dense` vs `hha_sparse` (reference) vs `hha_permute` (fast path)
+  - Compares: `dense` vs `wayfinder_sparse` (reference) vs `wayfinder_permute` (fast path)
   - Reports per mode and sequence length:
     - `tokens_per_sec`, `attention_ms`, `graph_build_ms_first`, `graph_build_ms_cached`,
     - cache hit rate,
@@ -106,7 +106,7 @@ Smoke run (CPU only in this environment):
 Implemented:
 
 - `scripts/qwen3_torch_attention_microbench.py`
-  - Runs dense causal attention vs HHA-permute on Qwen3-shaped tensors.
+  - Runs dense causal attention vs Wayfinder-permute on Qwen3-shaped tensors.
   - Two modes:
     - synthetic/config-shaped QKV (default),
     - real HF QKV extraction (`--load-model`) when model weights are available.

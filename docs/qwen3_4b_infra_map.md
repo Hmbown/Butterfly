@@ -34,7 +34,7 @@
 
 ## Dataset
 
-- **Primary**: Local codebase at `/Volumes/VIXinSSD/wayfinder` (self-referential)
+- **Primary**: Local codebase at `<repo>/` (self-referential)
 - **Fallback logic**: Script tries `hf:<dataset_id>` first, falls back to `local:<path>` on failure
 - **Packing**: Fixed-length non-overlapping at 32768 tokens per sequence
 - **Split**: 95% train / 5% val (deterministic seed=42)
@@ -52,11 +52,11 @@
 - **Batch size**: 1
 - **Precision**: bfloat16
 
-## HHA Application
+## HCSA Application
 
 ### Level A (Mandatory) -- Attention Microbenchmark
 - Extract real Q/K/V from Qwen3 attention layer using `extract_qkv_from_qwen_attention()`
-- Run HHA attention (sparse or permute path) on extracted Q/K/V
+- Run Wayfinder attention (sparse or permute path) on extracted Q/K/V
 - Compare output MAE against dense baseline
 - Measure: tok/s, peak memory, graph build time, cache hit rate
 
@@ -65,7 +65,7 @@
 - Smoke test: short-context forward pass through full model
 - Used in training loop for actual loss optimization
 
-### HHA Settings
+### HCSA Settings
 - **Path**: `permute` (fast contiguous window path)
 - **Strategy**: `random` (deterministic, input-independent -> enables static caching)
 - **Window**: 64
@@ -91,7 +91,7 @@
 | Env check | `runs/mlx/qwen_env_check_full.json` |
 | Model fetch | `runs/mlx/qwen3_fetch_or_convert_full.json` |
 | Baseline bench | `benchmarks/mlx/qwen3_4b_baseline/<timestamp>/` |
-| HHA bench | `benchmarks/mlx/qwen3_4b_hha/<timestamp>/` |
+| HCSA bench | `benchmarks/mlx/qwen3_4b_wayfinder/<timestamp>/` |
 | Dataset | `datasets/qwen3_4b/local__volumes_vixinssd_wayfinder/` |
 | Training run | `runs/mlx/qwen3_4b_wayfinder_<timestamp>/` |
 | Graph spec | `configs/graph_specs/qwen3_4b_long.wf` |

@@ -23,6 +23,28 @@ from hcsa.mlx.metrics import edge_utilization_by_type
 from hcsa.mlx.model import GPTConfigMLX, GPTMLX
 
 
+def _parse_bool(text: str) -> bool:
+    val = str(text).strip().lower()
+    if val in {"1", "true", "t", "yes", "y", "on"}:
+        return True
+    if val in {"0", "false", "f", "no", "n", "off"}:
+        return False
+    raise argparse.ArgumentTypeError(f"Expected boolean value, got: {text!r}")
+
+
+def _reset_peak_memory() -> None:
+    if hasattr(mx, "reset_peak_memory"):
+        mx.reset_peak_memory()
+    else:
+        mx.metal.reset_peak_memory()
+
+
+def _peak_memory() -> int:
+    if hasattr(mx, "get_peak_memory"):
+        return int(mx.get_peak_memory())
+    return int(mx.metal.get_peak_memory())
+
+
 def _jsonable(obj: Any) -> Any:
     if isinstance(obj, Path):
         return str(obj)
@@ -110,6 +132,7 @@ def train_one(
 ) -> Dict[str, Any]:
     model = GPTMLX(cfg)
     opt = optim.AdamW(learning_rate=lr, weight_decay=0.01)
+    _reset_peak_memory()
 
     def loss_fn(m: GPTMLX, xb: mx.array, yb: mx.array) -> mx.array:
         out = m(xb, targets=yb)
@@ -207,6 +230,7 @@ def train_one(
         "final_train_ppl": float(math.exp(min(train_losses[-1], 20.0))),
         "avg_tokens_per_sec": float(np.mean(token_rates)),
         "last_tokens_per_sec": float(token_rates[-1]),
+        "peak_memory_bytes": int(_peak_memory()),
     }
 
     eval_points = [r for r in step_records if "val_loss" in r]
@@ -279,6 +303,11 @@ def main() -> None:
     p.add_argument("--edge-bias", action="store_true", help="Enable learnable edge-type bias")
     p.add_argument("--graph-spec", type=Path, default=None)
     p.add_argument("--graph-cache-root", type=Path, default=Path(".cache/wayfinder"))
+    p.add_argument("--out-dir", type=Path, default=None)
+    p.add_argument("--retro-backfill-enabled", type=_parse_bool, default=False)
+    p.add_argument("--retro-backfill-alpha", type=float, default=0.0)
+    p.add_argument("--retro-backfill-training-only", type=_parse_bool, default=True)
+    p.add_argument("--retro-backfill-causal-only", type=_parse_bool, default=True)
     args = p.parse_args()
 
     np.random.seed(args.seed)
@@ -288,7 +317,7 @@ def main() -> None:
     train_data, val_data, tok = build_data(text)
 
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    run_dir = Path("runs/mlx") / stamp
+    run_dir = args.out_dir or (Path("runs/mlx") / stamp)
     run_dir.mkdir(parents=True, exist_ok=True)
 
     compiled_graph_dir: str | None = None
@@ -317,6 +346,10 @@ def main() -> None:
         edge_bias=args.edge_bias,
         graph_spec=None if args.graph_spec is None else str(args.graph_spec),
         compiled_graph_dir=compiled_graph_dir,
+        retro_backfill_enabled=bool(args.retro_backfill_enabled),
+        retro_backfill_alpha=float(args.retro_backfill_alpha),
+        retro_backfill_training_only=bool(args.retro_backfill_training_only),
+        retro_backfill_causal_only=bool(args.retro_backfill_causal_only),
     )
 
     config_payload = {

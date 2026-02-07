@@ -2,7 +2,7 @@
   "created_at": "2026-02-07T05:45:53.947539+00:00",
   "command": "scripts/bench_qwen3_4b_baseline_mlx.py --model-path mlx-community/Qwen3-4B-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3",
   "model_path": "mlx-community/Qwen3-4B-4bit",
-  "tokenizer_name": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3-4B-4bit/snapshots/4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
+  "tokenizer_name": "<cache>/hub/models--mlx-community--Qwen3-4B-4bit/snapshots/4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25",
   "model_config": {
     "model_type": "qwen3",
     "num_attention_heads": 32,

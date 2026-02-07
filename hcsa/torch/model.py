@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from hcsa.torch.attention_dense import DenseCausalAttentionTorch
-from hcsa.torch.attention_hha_sparse import WayfinderAttentionTorch
+from hcsa.torch.attention_wayfinder_sparse import WayfinderAttentionTorch
 
 
 AttnMode = Literal["dense", "wayfinder_sparse", "wayfinder_permute"]

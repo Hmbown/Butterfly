@@ -34,6 +34,10 @@ class GPTConfigMLX:
     edge_bias: bool = False
     graph_spec: Optional[str] = None
     compiled_graph_dir: Optional[str] = None
+    retro_backfill_enabled: bool = False
+    retro_backfill_alpha: float = 0.0
+    retro_backfill_training_only: bool = True
+    retro_backfill_causal_only: bool = True
 
 
 class DenseCausalAttentionMLX(nn.Module):
@@ -107,6 +111,10 @@ class BlockMLX(nn.Module):
                 edge_bias=cfg.edge_bias,
                 window_drop=cfg.window_drop,
                 compiled_graph_dir=cfg.compiled_graph_dir,
+                retro_backfill_enabled=cfg.retro_backfill_enabled,
+                retro_backfill_alpha=cfg.retro_backfill_alpha,
+                retro_backfill_training_only=cfg.retro_backfill_training_only,
+                retro_backfill_causal_only=cfg.retro_backfill_causal_only,
             )
         else:
             raise ValueError(f"Unknown attention type: {cfg.attn}")

@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 
 from hcsa.torch.attention_dense import dense_causal_attention
-from hcsa.torch.attention_hha_permute import hha_permute_window_attention
+from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
 
 
 def test_permute_inverse_roundtrip(device: torch.device) -> None:
@@ -31,7 +31,7 @@ def test_full_window_permute_matches_dense(device: torch.device) -> None:
     neigh = neigh[:, 0].contiguous()  # [H,T,T]
     edge = torch.full((h, t, t), 2, device=device, dtype=torch.uint8)
 
-    y_perm, _w, _pms, _ams = hha_permute_window_attention(
+    y_perm, _w, _pms, _ams = wayfinder_permute_window_attention(
         q,
         k,
         v,

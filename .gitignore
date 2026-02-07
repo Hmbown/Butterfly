@@ -19,9 +19,37 @@ runs/mlx/*/checkpoints/
 
 # Packaging artifacts
 *.egg-info/
+dist/
+build/
 
 # Benchmark scratch
 .benchmarks/
 
 # PDF papers (local reference only)
 *.pdf
+
+# Dataset caches (large, user-specific)
+datasets/
+
+# Temporary graph artifacts
+graphs/
+
+# Debug logs
+*.log
+firebase*.log
+
+# Internal agent/handoff prompts (not for public consumption)
+AGENTS.md
+glm/
+docs/HANDOFF_PROMPT.md
+
+# Environment-specific diagnostics
+runs/mlx/qwen_env_check.json
+runs/mlx/qwen_env_check_full.json
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
