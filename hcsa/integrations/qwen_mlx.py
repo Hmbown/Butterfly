@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
@@ -17,7 +17,7 @@ from hcsa.graph_strategies import build_strategy
 from hcsa.mlx.attention import (
     AttentionProfile,
     sparse_gather_attention,
-    wayfinder_permute_window_attention,
+    wayfinder_permute_window_attention_batched,
 )
 from hcsa.mlx.graph_abi import (
     MLXGraphABI,
@@ -55,6 +55,12 @@ class _QwenGraphCache:
     pi_idx_clamped: List[mx.array]
     valid_mask: List[mx.array]
     causal_masks: List[mx.array]
+    # Stacked tensors for vectorized batched permute path
+    perm_mx_stacked: mx.array  # [H, T]
+    inv_perm_stacked: mx.array  # [H, T]
+    pi_idx_stacked: mx.array  # [H, T, W]
+    valid_mask_stacked: mx.array  # [H, T, W]
+    causal_mask_stacked: mx.array  # [H, T, W]
     cache_key: tuple
     source: str = "runtime"
     artifact_dir: str | None = None
@@ -254,16 +260,18 @@ class _QwenGraphRuntime:
             valid_mask_list.append(valid)
             causal_masks_list.append(causal_h)
 
+        # Stack per-head lists into [H, ...] tensors for vectorized path
+        perm_stacked = mx.stack(perm_mx_list, axis=0)  # [H, T]
+        inv_stacked = mx.stack(inv_perm_list, axis=0)  # [H, T]
+        pi_stacked = mx.stack(pi_idx_clamped_list, axis=0)  # [H, T, W]
+        valid_stacked = mx.stack(valid_mask_list, axis=0)  # [H, T, W]
+        causal_stacked = mx.stack(causal_masks_list, axis=0)  # [H, T, W]
+
         persistent_bytes = _mx_nbytes(mlx_graph.neigh_idx) + _mx_nbytes(mlx_graph.edge_type)
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
-        for arr in (
-            perm_mx_list
-            + inv_perm_list
-            + pi_idx_clamped_list
-            + valid_mask_list
-            + causal_masks_list
-        ):
-            persistent_bytes += _mx_nbytes(arr)
+        persistent_bytes += _mx_nbytes(perm_stacked) + _mx_nbytes(inv_stacked)
+        persistent_bytes += _mx_nbytes(pi_stacked) + _mx_nbytes(valid_stacked)
+        persistent_bytes += _mx_nbytes(causal_stacked)
 
         return _QwenGraphCache(
             mlx_graph=mlx_graph,
@@ -275,6 +283,11 @@ class _QwenGraphRuntime:
             pi_idx_clamped=pi_idx_clamped_list,
             valid_mask=valid_mask_list,
             causal_masks=causal_masks_list,
+            perm_mx_stacked=perm_stacked,
+            inv_perm_stacked=inv_stacked,
+            pi_idx_stacked=pi_stacked,
+            valid_mask_stacked=valid_stacked,
+            causal_mask_stacked=causal_stacked,
             cache_key=cache_key,
             source=source,
             artifact_dir=artifact_dir,
@@ -370,17 +383,20 @@ def _edge_utilization_proxy(
     keep = keep_mask.astype(mx.float32)
     total = mx.maximum(mx.sum(keep), _NEG_EPS)
 
-    def frac(code: int) -> float:
-        m = (edge_type == int(code)).astype(mx.float32)
-        val = mx.sum(keep * m) / total
-        mx.eval(val)
-        return float(val.item())
+    # Vectorized: compute all 4 fractions in one eval
+    codes = mx.array([1, 2, 3, 4], dtype=mx.int32)  # CYCLE, WINDOW, LANDMARK, REWIRE
+    # edge_type [...] == codes[i] for each code — broadcast [*shape, 1] vs [4]
+    et_flat = edge_type.reshape(-1)[:, None]  # [N, 1]
+    keep_flat = keep.reshape(-1)[:, None]  # [N, 1]
+    matches = (et_flat == codes[None, :]).astype(mx.float32)  # [N, 4]
+    fracs = mx.sum(keep_flat * matches, axis=0) / total  # [4]
+    mx.eval(fracs)
 
     return {
-        "cycle": frac(1),
-        "window": frac(2),
-        "landmark": frac(3),
-        "rewire": frac(4),
+        "cycle": float(fracs[0].item()),
+        "window": float(fracs[1].item()),
+        "landmark": float(fracs[2].item()),
+        "rewire": float(fracs[3].item()),
     }
 
 
@@ -548,14 +564,15 @@ class QwenWayfinderAttention(nn.Module):
             )
             keep_mask = graph_cache.causal_mask if wd_mask is None else (graph_cache.causal_mask & wd_mask)
         elif self.path == "permute":
-            y_h, _w, permute_ms, _attn_inner = wayfinder_permute_window_attention(
+            y_h, _w = wayfinder_permute_window_attention_batched(
                 queries,
                 keys,
                 values,
-                graph_cache.mlx_graph,
-                window=self.graph_runtime.window,
-                return_weights=False,
-                cache=graph_cache,
+                all_perms=graph_cache.perm_mx_stacked,
+                all_inv_perms=graph_cache.inv_perm_stacked,
+                all_pi_idx=graph_cache.pi_idx_stacked,
+                all_valid=graph_cache.valid_mask_stacked,
+                all_causal=graph_cache.causal_mask_stacked,
                 edge_type_bias_scalar=etb_scalar,
                 window_drop_prob=effective_window_drop if is_training else 0.0,
                 training=is_training,
