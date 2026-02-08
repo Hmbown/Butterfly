@@ -16,29 +16,33 @@ O(T) attention with graph-theoretic connectivity guarantees.
 
 ---
 
-Standard self-attention scales as O(T^2) in both compute and memory. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w + k) neighbors while guaranteeing every position remains reachable.
+Standard self-attention scales as O(T²) in both compute and memory. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w + k) neighbors while guaranteeing every position remains reachable.
+
+> **On reachability vs. effective receptive field:** A single Hamiltonian cycle guarantees connectivity but has diameter O(T) — information cannot cross 256K tokens in ~61 layers via cycle edges alone. HCSA addresses this three ways: (1) **landmarks act as aggregation hubs** (every token attends to O(T/stride) landmark positions, providing O(1)-hop shortcuts), (2) **cycle resampling across layers** gives each layer a different long-range shortcut topology, and (3) **multi-head diversity** (each head can use an independent cycle) creates a union-of-cycles with expander-like properties and much smaller effective diameter.
 
 ## North Star: Kimi K2.5 on One Mac Studio
 
-The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2) at 4-bit on a single Mac Studio M4 Ultra (512 GB)** — a 1.04-trillion-parameter MoE model running at its full 256K context length.
+The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2) at 4-bit on a single Mac Studio (M3 Ultra, 512 GB)** — a 1.04-trillion-parameter MoE model running at its full 256K context length.
 
 This is a hard problem on two fronts:
 
 1. **The model barely fits.** At 4-bit, all 384 experts total ~520 GB — already over the 512 GB budget before KV cache and activations. MoE helps (only 32B params active per token), so with expert offloading you keep the attention layers + hot experts resident and page cold experts from SSD. But memory headroom is razor-thin.
 
-2. **Dense attention at 256K is a dealbreaker.** Even with MLA compressing KV cache ~10x, dense O(T^2) attention at 256K context takes both too much memory and too much compute for practical generation on consumer hardware. This is where HCSA comes in.
+2. **Dense attention at 256K is a dealbreaker.** Even with MLA compressing KV cache ~10×, dense O(T²) attention at 256K context is a **compute wall** — the arithmetic cost scales quadratically and dominates generation time on consumer hardware. (Modern SDPA/FlashAttention kernels avoid materializing the full T×T matrix at inference, so the memory issue is primarily a **training activation cost**, but the compute is still O(T²) either way.) This is where HCSA comes in.
 
-**What HCSA does:** replaces O(T^2) attention with O(T * W) where W=64 — a ~4,000x compute reduction per layer. This makes 256K context practical instead of theoretical, and frees memory headroom that the model weights desperately need.
+**What HCSA does:** replaces O(T²) attention compute with O(T·W) where W=64 — a **~4,000× attention compute reduction** per layer at 256K context (T/W ≈ 256,000/64 ≈ 4,000). This makes 256K context practical instead of theoretical, and frees memory headroom that the model weights desperately need.
 
 | Component | Size | Notes |
 |---|---|---|
 | Model weights (4-bit) | ~520 GB | All 384 experts; exceeds 512 GB alone |
 | Active expert weights | ~41 GB | 9 active experts + non-MoE layers |
 | KV cache at 256K (MLA) | ~16 GB | MLA compresses ~10x vs standard |
-| Attention intermediates (dense) | O(T^2) per layer | The memory/compute wall |
-| **Attention intermediates (HCSA)** | **O(T * W) per layer** | **Makes 256K feasible** |
+| Attention intermediates (dense) | O(T²) per layer | The compute wall |
+| **Attention intermediates (HCSA)** | **O(T·W) per layer** | **Makes 256K feasible** |
 
 The path: expert offloading handles the weight budget, HCSA handles the attention budget. Apple Silicon unified memory + NVMe makes expert paging viable; HCSA makes long-context generation fast enough to be usable.
+
+> **Assumptions to validate:** Expert paging depends on **expert locality** — a high cache hit-rate among the 384 experts so that cold-expert loads from SSD are infrequent. If routing is too diffuse (every token activates a different set of experts), random I/O thrash per layer per token will dominate latency. We expect locality to be high based on natural-language token distributions, but this must be measured empirically with real routing traces before the full Kimi K2.5-on-one-box claim is solid.
 
 ## How It Works
 
@@ -110,6 +114,14 @@ Retro backfill improves perplexity 12% at 8% throughput cost. Training-only by d
 | Kimi K2.5 integration | Target |
 
 Full benchmark artifacts in [`benchmarks/mlx/`](benchmarks/mlx/) and [`notes/LAB_NOTEBOOK.md`](notes/LAB_NOTEBOOK.md).
+
+### Claim Hygiene
+
+| Status | Claim |
+|---|---|
+| ✅ Demonstrated | We reduce **attention compute** from O(T²) to O(T·W). |
+| ✅ Demonstrated | We show end-to-end wins on GLM-4.7-Flash long-context benchmarks on Apple Silicon. |
+| ⚠️ To validate | Full Kimi K2.5-on-one-box requires (a) expert locality sufficient for SSD paging and (b) sparse pattern with small effective diameter under causality at ~61 layers. |
 
 ## Quickstart
 
