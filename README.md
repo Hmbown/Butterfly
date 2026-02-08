@@ -43,6 +43,28 @@ This is a hard problem on two fronts:
 | Attention intermediates (dense) | O(T²) per layer | The compute wall |
 | **Attention intermediates (HCSA)** | **O(T·W) per layer** | **Makes 256K feasible** |
 
+<details><summary><b>How we got these numbers</b> (from <a href="https://huggingface.co/moonshotai/Kimi-K2.5/blob/main/config.json">config.json</a>)</summary>
+
+**Model weights — ~520 GB at 4-bit**
+
+The [Kimi K2.5 paper](https://arxiv.org/abs/2602.02276) reports 1.04T total parameters. At INT4 (0.5 bytes/param): 1.04T × 0.5 = **520 GB**. This is the theoretical minimum; real quantized formats add per-group scale overhead (e.g., group_size=32 adds ~12.5%, pushing to ~585 GB). Kimi's [native INT4](https://huggingface.co/moonshotai/Kimi-K2-Thinking#4-native-int4-quantization) only quantizes routed experts (keeping attention at BF16), making the native checkpoint even larger (~594 GB). The 520 GB figure represents a uniform-4-bit lower bound.
+
+Where the 1.04T comes from: 60 MoE layers × 384 routed experts × 3 matrices × 7168 × 2048 (SwiGLU) = **1.015T** in experts alone. Add 61 layers of MLA attention (~6.2B), shared experts (~2.6B), embeddings + LM head (~2.3B), dense-layer MLP (~0.4B) → **~1.026T** text params + 400M vision encoder ≈ 1.04T.
+
+**Active per token — ~16 GB**
+
+Kimi K2.5 activates 32B params per token (8 routed + 1 shared expert per layer, plus all attention layers). At 4-bit: 32B × 0.5 = **16 GB**. This is what must be resident in fast memory; cold experts can be paged from SSD.
+
+**KV cache — ~16 GB at 256K context**
+
+MLA stores a compressed latent **c_kv** of dimension kv_lora_rank=512 per token per layer (plus optionally qk_rope_head_dim=64 for RoPE keys, often recomputed instead of cached):
+
+- MLA: 61 layers × 256K tokens × 512 × 2 bytes = **16.0 GB**
+- Standard MHA (no MLA): 61 layers × 256K tokens × 64 heads × 112 head_dim × 2 (K+V) × 2 bytes = **~450 GB** ← impossible
+- Compression ratio: 450 / 16 ≈ **28×** (we say ~25× conservatively including RoPE overhead)
+
+</details>
+
 The path: expert offloading handles the weight budget, HCSA handles the attention budget. Apple Silicon unified memory + NVMe makes expert paging viable; HCSA makes long-context generation fast enough to be usable.
 
 <details><summary><b>Assumptions to validate</b></summary>
