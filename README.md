@@ -133,6 +133,35 @@ Command:
 | 4,096 | 422,338 | 426,723 | **1.010x** | 237.1 MB | 225.9 MB | **-4.8%** |
 | 8,192 | 321,248 | 444,108 | **1.382x** | 446.3 MB | 423.5 MB | **-5.1%** |
 
+### GLM-4.7-Flash Long-Context Chunked Prefill (current primary objective)
+
+Source runs:
+- Monolithic baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/`
+- Chunked dense controls: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_chunked_dense_control_65k_matched/` and `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_chunked_dense_control_65k_matched_repeat/`
+- Tuned HCSA long-context runs:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k/`
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k_repeat/`
+
+Settings:
+- `seq_len=65536`, `chunk_size=4096`, `decode_len=0`, retro off.
+- Tuned reproducible HCSA config: `threshold=49152`, `query_chunk_size=384`, `head_chunk_size=2`.
+
+| Configuration | Prefill sec | Prefill tok/s | Peak memory |
+|---|---:|---:|---:|
+| Monolithic dense baseline | 126.69 | 517.30 | 44.89 GB |
+| Chunked dense control (median of 2) | 705.95 | 94.02 | 33.16 GB |
+| HCSA tuned (median of 2) | **484.48** | **135.27** | **29.59 GB** |
+
+HCSA tuned vs chunked dense control median:
+- `-221.47s` prefill latency
+- `+41.26 tok/s` throughput
+- `10.77%` lower peak memory
+
+HCSA tuned vs monolithic baseline:
+- still slower in absolute prefill (`+357.79s`) but with `34.09%` lower peak memory
+
+Exploratory note: `threshold=45056` produced one very fast run but failed reproducibility (high variance on repeat), so `49152` is kept as the current reproducible default.
+
 ### Fairness Correction
 
 Dense baseline uses MLX fused SDPA (`mx.fast.scaled_dot_product_attention`), which avoids materializing T×T attention weights (memory ~O(T)) but compute remains ~O(T²). HCSA permute-window does O(T·W) compute via chunked local-window attention in permuted space.

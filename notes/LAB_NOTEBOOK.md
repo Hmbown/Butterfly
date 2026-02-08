@@ -982,3 +982,336 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
   - Retro/backfill disabled for inference
   - Same model/path/window/chunk as prior chunked baseline reference
   - Baseline comparison retained via `--baseline-path`
+
+### EXP-20260208-GLM-HYBRID-THRESHOLD-SWEEP (planned)
+- Question: With active-row matmul + adaptive graph reuse in place, what dense/permute crossover threshold minimizes 32k chunked prefill latency while preserving memory reduction?
+- Hypothesis: A hybrid gate (`dense` for early low-K chunks, `permute` for later high-K chunks) will beat always-permute latency at 32k while keeping a meaningful memory reduction; expected best threshold in the `8k..24k` range.
+- Change set:
+  - `hcsa/mlx/attention.py`: active-row kernel uses batched `mx.matmul` for score/value aggregation
+  - `hcsa/integrations/glm_mlx.py`: configurable `active_dense_threshold` gate for active mode
+  - `scripts/bench_glm_chunked_prefill_mlx.py`: per-chunk profile sample includes mode/length fields
+- Baseline run paths:
+  - Chunked always-permute (adaptive graph): `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_permute_adaptive_graph_matmul_32k/results.json`
+  - Chunked stock dense: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_chunked_dense_control_32k_adaptive_cmp/results.json`
+- Command:
+  - `for t in 0 4096 8192 16384 24576 32768; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_matmul_32k; done`
+- Controls:
+  - Same model/seq/chunk/window/batch/seed, retro off
+  - Same chunking loop across all thresholds
+  - Compare absolute + delta + percentage vs named baselines
+
+### EXP-20260208-GLM-HYBRID-THRESHOLD-SWEEP (result)
+- Question: With active-row matmul + adaptive graph reuse in place, what dense/permute crossover threshold minimizes 32k chunked prefill latency while preserving memory reduction?
+- Commands:
+  - `for t in 0 4096 8192 16384 32768; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_matmul_32k_v3; done`
+- Key results (`T=32768`, `chunk=4096`, prefill-only):
+  - `threshold=0` (always Hamiltonian active-permute): `267.87 s`, `122.33 tok/s`, peak `22,314,797,052 B`, memory reduction vs monolithic `22.86%`, chunk-path mix `permute=8, dense=0`.
+  - `threshold=4096`: `245.80 s`, `133.31 tok/s`, peak `22,310,307,836 B`, memory reduction `22.88%`, chunk-path mix `permute=7, dense=1`.
+  - `threshold=8192`: `228.55 s`, `143.38 tok/s`, peak `22,310,307,836 B`, memory reduction `22.88%`, chunk-path mix `permute=6, dense=2`.
+  - `threshold=16384`: `197.32 s`, `166.07 tok/s`, peak `22,446,619,216 B`, memory reduction `22.41%`, chunk-path mix `permute=4, dense=4`.
+  - `threshold=32768` (always dense in active mode): `164.15 s`, `199.62 tok/s`, peak `26,018,070,576 B`, memory reduction `10.06%`, chunk-path mix `permute=0, dense=8`.
+- Comparison discipline:
+  - Absolute metric + delta + percent were computed against monolithic baseline via script output.
+  - Memory reduction sign convention preserved: `100 * (1 - wayfinder / baseline)`.
+- Interpretation:
+  - `attention_ms` for Hamiltonian chunks correlates with current `k_len/seq_len` (chunks 1..7 correlation with `seq_len` is strongly positive), while `graph_seq_len` was fixed for reused-graph runs.
+  - Graph construction amortization is working (`cache_hit=true` after first active chunk, near-zero `graph_build_ms`), but remaining gap is active attention kernel constant factor.
+  - Hybrid gating provides a controllable latency/memory Pareto frontier at 32k.
+- Decision: Keep hybrid gate + matmul optimization.
+- Next action:
+  - Use `active_dense_threshold=16384` as a working default for follow-up (retains ~22% memory reduction with major latency improvement vs always-permute).
+  - Re-run at `T=65536` with thresholds `{16384, 32768}` to locate long-context crossover where Hamiltonian path becomes net-latency favorable.
+
+### EXP-20260208-GLM-HYBRID-THRESHOLD-TRIANGULATION-65536 (planned)
+- Question: At `T=65536`, where is the practical crossover between dense and Hamiltonian active-permute, and does adding a `49152` threshold point triangulate that transition?
+- Hypothesis: At 65k, mixed thresholds should reveal a later-chunk crossover where Hamiltonian chunks become competitive/faster while preserving a stronger memory reduction than always-dense chunked control.
+- Change set:
+  - Measurement-only run using existing hybrid gate + active-row matmul + adaptive graph reuse.
+- Command:
+  - `for t in 16384 32768 49152; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_matmul_65k; done`
+- Controls:
+  - Same model/chunk/window/batch/seed, retro off.
+  - Compare against:
+    - always-permute 32k/65k reference runs,
+    - chunked dense control (threshold high / `--no-swap` reference),
+    - monolithic baseline via `--baseline-path`.
+
+### EXP-20260208-GLM-CHUNK-CROSSOVER-EXTRACTION-32K (result)
+- Question: From existing 32k sweep data, at what `k_len` does Hamiltonian chunk time approach dense chunk time, and does `attention_ms` track `k_len` or `graph_seq_len`?
+- Hypothesis: `attention_ms` in active-permute tracks live cache length (`k_len`) and not `graph_seq_len`; chunk wall time crossover should appear near the tail chunk.
+- Change set:
+  - Analysis-only (no code changes).
+- Command:
+  - `python3 - <<'PY' ... compare chunk_reports from threshold=0 vs threshold=32768, compute per-chunk delta and correlations ... PY`
+- Controls:
+  - Same model/sequence/chunk (`T=32768`, `chunk=4096`) across both runs.
+  - Same benchmark harness and fixed adaptive graph reuse config (`graph_seq_len=32768`).
+- Metrics:
+  - Per-chunk `permute_sec - dense_sec` by `k_len`:
+    - `4096`: `+33.37 s`
+    - `8192`: `+18.87 s`
+    - `12288`: `+15.75 s`
+    - `16384`: `+13.81 s`
+    - `20480`: `+10.43 s`
+    - `24576`: `+7.61 s`
+    - `28672`: `+3.71 s`
+    - `32768`: `+0.18 s`
+  - Correlations:
+    - `corr(k_len, permute_attention_ms) = 0.9671`
+    - `corr(k_len, dense_chunk_sec) = 0.7469`
+    - `permute graph_seq_len unique = [32768]`
+    - `cache_hit` pattern for permute run: `[False, True, True, True, True, True, True, True]`
+- Interpretation:
+  - Graph-build amortization is working (single miss then stable hits).
+  - Remaining active-permute cost scales with live cache/query workload, not graph rebuild.
+  - At `T=32768`, dense remains faster across all chunks, but gap collapses at the tail (`k_len=32768`), consistent with an approaching crossover regime.
+- Decision: Keep hybrid strategy; keep pressure on reducing active-kernel constant factor.
+- Next action:
+  - Complete `T=65536` triangulation (`16384/32768/49152`) and extract the first chunk index where `permute_sec <= dense_sec`.
+
+### EXP-20260208-GLM-HYBRID-THRESHOLD-TRIANGULATION-65536 (status)
+- Status: Completed (this block preserves launch metadata).
+- Start time (UTC): `2026-02-08T04:56:08Z`
+- Command:
+  - `for t in 16384 32768 49152; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_matmul_65k; done`
+- Immediate objective:
+  - Quantify latency/memory tradeoff at 65k and identify the practical dense↔Hamiltonian crossover zone for a production default threshold.
+
+### EXP-20260208-GLM-HYBRID-THRESHOLD-TRIANGULATION-65536 (result)
+- Question: At `T=65536`, where is the practical dense↔Hamiltonian crossover, and what threshold gives the best measured latency/memory tradeoff?
+- Commands:
+  - `for t in 16384 32768 49152; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_matmul_65k; done`
+- Baseline (`T=65536`, monolithic stock from `baseline-path`):
+  - `126.689 s`, `517.296 tok/s`, peak `44,890,891,940 B`.
+- Key results (`T=65536`, `chunk=4096`, prefill-only):
+  - `threshold=16384`: `959.900 s`, `68.274 tok/s`, peak `24,143,352,764 B`, delta vs baseline: `+833.211 s` (`+657.68%`), `-449.023 tok/s` (`-86.80%`), peak memory `-20,747,539,176 B` (`-46.22%`). Path mix: `permute=12`, `dense=4`.
+  - `threshold=32768`: `923.290 s`, `70.981 tok/s`, peak `26,018,201,648 B`, delta vs baseline: `+796.600 s` (`+628.78%`), `-446.315 tok/s` (`-86.28%`), peak memory `-18,872,690,292 B` (`-42.04%`). Path mix: `permute=8`, `dense=8`.
+  - `threshold=49152`: `890.700 s`, `73.578 tok/s`, peak `29,589,653,008 B`, delta vs baseline: `+764.010 s` (`+603.06%`), `-443.718 tok/s` (`-85.78%`), peak memory `-15,301,238,932 B` (`-34.09%`). Path mix: `permute=4`, `dense=12`.
+- Comparison discipline:
+  - Absolute metrics and deltas are listed against the named baseline run.
+  - Memory reduction sign convention preserved: `100 * (1 - wayfinder / baseline)`.
+- Additional crossover signal (tentative, cross-run pairing):
+  - Comparing same `k_len` chunks where threshold policy differs between `32768` and `49152`:
+    - `k_len=36864`: permute slower by `+24.25 s`
+    - `k_len=40960`: permute faster by `-27.39 s`
+    - `k_len=45056`: permute faster by `-15.13 s`
+    - `k_len=49152`: permute faster by `-7.65 s`
+  - This suggests a potential crossover band around `k_len ~= 40k` (needs repeat verification due run-to-run variance).
+- Interpretation:
+  - At 65k, raising threshold (more dense early chunks) monotonically improves latency but sacrifices memory savings.
+  - Even the fastest tested point (`49152`) is still far from monolithic baseline latency.
+  - Current bottleneck remains active-kernel constant factor and/or high-K chunk compute, not graph build amortization.
+- Decision: Keep direction (hybrid + Hamiltonian) but prioritize kernel-level constant-factor reduction over additional threshold-only tuning.
+- Next action:
+  - Add a matched `--no-swap` chunked dense control at `T=65536` (same chunking) to isolate chunking/KV growth cost from Wayfinder-specific overhead.
+  - Implement active-path vectorization (remove Python per-head loop/eval barriers), then rerun `16384/32768/49152`.
+
+### EXP-20260208-GLM-ACTIVE-HEAD-CHUNK-VECTORIZATION (planned)
+- Question: Does vectorizing active-query attention across head chunks reduce the constant-factor latency gap without breaking chunked prefill correctness?
+- Hypothesis: Removing per-head Python loops in `wayfinder_permute_window_attention_active_batched` will materially reduce chunk wall time at the same memory profile, especially for mixed thresholds.
+- Change set:
+  - `hcsa/mlx/attention.py`: vectorize active-row path over `hc` heads per chunk; keep profiling semantics unchanged.
+- Command (smoke):
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 0 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_vec_heads_smoke_8k`
+- Controls:
+  - Retro/backfill disabled; same model/chunk/window/kv-step as prior runs.
+- Success criteria:
+  - Run completes without shape/causality errors.
+  - Prefill latency is not worse than pre-vectorization smoke at comparable settings.
+
+### EXP-20260208-GLM-ACTIVE-HEAD-CHUNK-VECTORIZATION (result: smoke)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 0 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_vec_heads_smoke_8k_fix1`
+- Metrics (`prefill-only`):
+  - `sec=111.190`, `tok/s=73.676`, `peak=22,175,554,348 B`, `ok=true`.
+  - chunk timing: `chunk0=71.881s`, `chunk1=39.284s`.
+- Decision: Proceed to 32k mixed-threshold rerun for apples-to-apples impact check.
+- Next action:
+  - Run `T=32768`, `chunk=4096`, `active_dense_threshold=16384` with same controls as prior sweep and compare against `20260208_glm_hybrid_thresh16384_matmul_32k_v3`.
+
+### EXP-20260208-GLM-CHUNKED-DENSE-CONTROL-65K-MATCHED (result)
+- Question: How much latency at `T=65536` is from chunking/KV growth itself, independent of Wayfinder/Hamiltonian path?
+- Commands:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --no-swap --path permute --window 64 --landmark-stride 0 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_chunked_dense_control_65k_matched`
+  - Repeat command with out-dir `.../20260208_glm_chunked_dense_control_65k_matched_repeat`.
+- Baseline (`T=65536`, monolithic stock): `126.689 s`, `517.296 tok/s`, peak `44,890,891,940 B`.
+- Results (`prefill-only`):
+  - Run A: `785.103 s`, `83.474 tok/s`, peak `33,161,104,180 B`.
+    - Delta vs baseline: `+658.413 s` (`+519.71%`), `-433.822 tok/s` (`-83.86%`), peak memory `-11,729,787,760 B` (`-26.13%`).
+  - Run B: `626.799 s`, `104.557 tok/s`, peak `33,161,104,180 B`.
+    - Delta vs baseline: `+500.109 s` (`+394.75%`), `-412.740 tok/s` (`-79.79%`), peak memory `-11,729,787,760 B` (`-26.13%`).
+- Variance summary:
+  - Median prefill sec: `705.951 s` (std `79.152 s`).
+  - Median tok/s: `94.016` (std `10.541`).
+- Interpretation:
+  - Chunking/KV-growth overhead at 65k is itself severe and high variance on this setup.
+  - Wayfinder runs (`890.7..959.9 s`) are slower than chunked dense control, but the control confirms the majority of the absolute gap vs monolithic baseline is not Wayfinder-only.
+- Decision: Keep as fairness control baseline for all future 65k decisions.
+- Next action:
+  - Use median/replicated reporting for 65k comparisons; avoid single-run conclusions.
+
+### EXP-20260208-GLM-ACTIVE-HEAD-CHUNK-VECTORIZATION-32K (result: failed; reverted)
+- Question: Does active-path head-chunk vectorization improve 32k mixed-threshold latency?
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 16384 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh16384_vec_heads_32k`
+- Comparison vs pre-vectorization reference (`20260208_glm_hybrid_thresh16384_matmul_32k_v3`):
+  - New: `943.046 s`, `34.747 tok/s`, peak `23,531,751,416 B`
+  - Old: `197.318 s`, `166.067 tok/s`, peak `22,446,619,216 B`
+  - Delta: `+745.728 s`, `-131.320 tok/s`, peak `+1,085,132,200 B`
+- Interpretation:
+  - Vectorized head-chunk implementation introduced a major performance regression.
+  - Likely cause: high-cost gather/broadcast pattern in vectorized path outweighs Python-loop savings.
+- Decision: Revert vectorized active-path loop (done) and continue with safer optimizations.
+- Next action:
+  - Target lower-risk improvements: adaptive query-chunk tuning and conditional fused/local path experiments, then re-benchmark 32k before returning to 65k.
+
+### EXP-20260208-GLM-QUERY-CHUNK-SWEEP-32K (planned)
+- Question: Can tuning `query_chunk_size` recover latency at 32k mixed threshold without changing kernel semantics?
+- Hypothesis: Larger query chunks (`256` or `384`) may reduce Python/dispatch overhead enough to improve total prefill at acceptable memory cost.
+- Change set:
+  - `scripts/bench_glm_chunked_prefill_mlx.py`: add `--query-chunk-size` CLI control and pass through to `GLMWayfinderConfig.query_chunk_size`.
+- Command:
+  - `for q in 256 384; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 16384 --query-chunk-size $q --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh16384_qchunk${q}_32k; done`
+- Controls:
+  - Same model/seq/chunk/threshold/window/kv-step/retro-off as the 32k reference run.
+- Success criteria:
+  - Beat or match `197.318 s` from `20260208_glm_hybrid_thresh16384_matmul_32k_v3` while preserving comparable memory.
+
+### EXP-20260208-GLM-QUERY-CHUNK-SWEEP-32K-Q512 (planned)
+- Question: Does increasing query chunk size to `512` improve 32k mixed-threshold latency beyond the `q=384` result?
+- Hypothesis: `q=512` may further reduce dispatch overhead, but could start increasing kernel memory pressure; outcome uncertain.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 16384 --query-chunk-size 512 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh16384_qchunk512_32k`
+- Controls:
+  - Same model/chunk/threshold/window/kv-step/retro-off, compare against `q=384` and prior 32k reference.
+
+### EXP-20260208-GLM-HEAD-CHUNK-TUNING-32K (planned)
+- Question: Can increasing `permute_head_chunk_size` reduce active-path overhead at 32k mixed threshold?
+- Hypothesis: Increasing head chunk size from `2` to `4` lowers synchronization/dispatch overhead and improves runtime, at modest memory risk.
+- Change set:
+  - `scripts/bench_glm_chunked_prefill_mlx.py`: add `--head-chunk-size` CLI control and wire to `GLMWayfinderConfig.permute_head_chunk_size`.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 16384 --query-chunk-size 384 --head-chunk-size 4 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh16384_q384_h4_32k`
+- Controls:
+  - Compare against `q=384,h=2` run: `20260208_glm_hybrid_thresh16384_qchunk384_32k`.
+
+### EXP-20260208-GLM-QUERY-CHUNK-SWEEP-32K (result)
+- Question: Can query chunk tuning improve 32k mixed-threshold runtime?
+- Commands:
+  - `q=256` run: `.../20260208_glm_hybrid_thresh16384_qchunk256_32k`
+  - `q=384` run: `.../20260208_glm_hybrid_thresh16384_qchunk384_32k`
+  - `q=512` run: `.../20260208_glm_hybrid_thresh16384_qchunk512_32k`
+- Reference (`q=192,h=2`): `197.318 s`, `166.067 tok/s`, peak `22,446,619,216 B`.
+- Results:
+  - `q=256,h=2`: `195.345 s`, `167.745 tok/s`, peak `22,446,619,216 B`.
+    - Delta vs reference: `-1.973 s`, `+1.678 tok/s`.
+  - `q=384,h=2`: `193.848 s`, `169.039 tok/s`, peak `22,446,619,216 B`.
+    - Delta vs reference: `-3.470 s`, `+2.973 tok/s`.
+  - `q=512,h=2`: `193.906 s`, `168.989 tok/s`, peak `22,446,619,216 B`.
+    - Delta vs reference: `-3.412 s`, `+2.922 tok/s`.
+- Interpretation:
+  - Query-chunk tuning gives a small but repeatable latency gain (~1.7-1.8%) with no memory penalty.
+  - Best point observed: `q=384` (very close to `q=512`).
+- Decision: Keep tuned query chunk (`q=384`) for follow-on runs.
+- Next action:
+  - Validate 65k impact using best tuned setting (`q=384`) at latency-favoring threshold (`49152`).
+
+### EXP-20260208-GLM-HEAD-CHUNK-TUNING-32K (result)
+- Question: Does increasing head chunk size from `2` to `4` help at 32k mixed threshold?
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 16384 --query-chunk-size 384 --head-chunk-size 4 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh16384_q384_h4_32k`
+- Result:
+  - `q=384,h=4`: `193.977 s`, `168.928 tok/s`, peak `22,446,619,216 B`.
+  - Compared to `q=384,h=2`: slightly slower (`+0.129 s`, `-0.111 tok/s`).
+- Decision: Keep `head_chunk_size=2`.
+- Next action:
+  - Carry forward `q=384,h=2` as current tuned configuration.
+
+### EXP-20260208-GLM-65K-TUNED-Q384-TH49152 (planned)
+- Question: Does the 32k-tuned setting (`q=384,h=2`) improve 65k latency at the best prior threshold (`49152`)?
+- Hypothesis: Query-chunk tuning should carry over partially and reduce total runtime versus prior `threshold=49152` result (`890.700 s`).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 49152 --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k`
+- Controls:
+  - Compare against prior `threshold=49152` run: `20260208_glm_hybrid_thresh49152_matmul_65k`.
+
+### EXP-20260208-GLM-65K-TUNED-Q384-TH49152-REPEAT (planned)
+- Question: Is the large 65k tuned gain (`483.5s`) reproducible under the same controls?
+- Hypothesis: A repeat run should stay in the same performance regime and remain faster than chunked dense controls.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 49152 --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k_repeat`
+
+### EXP-20260208-GLM-65K-TUNED-Q384-TH49152 (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 49152 --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k`
+- Metrics (`prefill-only`):
+  - `sec=483.501`, `tok/s=135.545`, peak `29,589,653,008 B`.
+- Delta vs prior `threshold=49152` run (`20260208_glm_hybrid_thresh49152_matmul_65k`):
+  - `-407.199 s`, `+61.967 tok/s`, same peak memory.
+- Delta vs chunked dense controls:
+  - vs run A (`785.103 s`): `-301.602 s`, `+52.070 tok/s`.
+  - vs run B (`626.799 s`): `-143.298 s`, `+30.988 tok/s`.
+- Interpretation:
+  - Tuned query-chunk configuration creates a clear positive benchmark versus chunked dense control at 65k while preserving strong memory advantage.
+
+### EXP-20260208-GLM-65K-TUNED-Q384-TH49152-REPEAT (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 49152 --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh49152_q384_h2_65k_repeat`
+- Metrics (`prefill-only`):
+  - `sec=485.454`, `tok/s=134.999`, peak `29,589,653,008 B`.
+- Pair summary (A/B tuned runs):
+  - Median: `484.477 s`, `135.272 tok/s`, peak `29,589,653,008 B`.
+  - Stddev: `0.977 s`, `0.273 tok/s`.
+- Comparison discipline:
+  - vs prior `threshold=49152` (`890.700 s`, `73.578 tok/s`): median delta `-406.223 s`, `+61.694 tok/s`.
+  - vs chunked dense control median (`705.951 s`, `94.016 tok/s`, peak `33,161,104,180 B`): median delta `-221.474 s`, `+41.257 tok/s`, and `10.77%` lower peak memory.
+  - vs monolithic baseline (`126.689 s`, `517.296 tok/s`): still slower in absolute latency (`+357.788 s`) but with `34.09%` peak-memory reduction.
+- Decision: Keep tuned config as current best-known for 65k chunked regime.
+- Next action:
+  - Promote tuned params (`query_chunk_size=384`, `head_chunk_size=2`, `threshold=49152`) as current benchmark default for long-context chunked runs.
+  - Re-run 65k dense control once under same machine state window for a tighter paired comparison, then attempt threshold re-tuning around this tuned query chunk.
+
+### EXP-20260208-GLM-65K-THRESHOLD-RETUNE-Q384H2 (planned)
+- Question: Around the tuned setting (`q=384,h=2`), does threshold `45056` or `53248` outperform `49152` at 65k?
+- Hypothesis: A nearby threshold may further improve latency while maintaining a memory advantage over chunked dense control.
+- Command:
+  - `for t in 45056 53248; do PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold $t --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh${t}_q384_h2_65k; done`
+- Controls:
+  - Compare against current best: `20260208_glm_hybrid_thresh49152_q384_h2_65k(_repeat)`.
+
+### EXP-20260208-GLM-65K-BEST-TH45056-REPEAT (planned)
+- Question: Is the new best setting (`threshold=45056`, `q=384`, `h=2`) reproducible?
+- Hypothesis: Repeat remains near the observed `464.7s` regime and keeps advantage over `49152` tuned median.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 45056 --query-chunk-size 384 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_hybrid_thresh45056_q384_h2_65k_repeat`
+
+### EXP-20260208-GLM-65K-THRESHOLD-RETUNE-Q384H2 (result)
+- Command:
+  - `for t in 45056 53248; do ... --active-dense-threshold $t --query-chunk-size 384 --head-chunk-size 2 ... ; done`
+- Results:
+  - `threshold=45056`: `464.723 s`, `141.022 tok/s`, peak `28,696,790,168 B`.
+    - vs tuned `49152` run A (`483.501 s`, `135.545 tok/s`): `-18.778 s`, `+5.477 tok/s`, lower peak by `892,862,840 B`.
+    - path mix: `permute=5`, `dense=11`.
+  - `threshold=53248`: `638.096 s`, `102.706 tok/s`, peak `30,482,515,848 B`.
+    - vs tuned `49152` run A: `+154.596 s`, `-32.839 tok/s`, higher peak by `892,862,840 B`.
+    - path mix: `permute=3`, `dense=13`.
+- Interpretation:
+  - `45056` looked promising on single run, `53248` is clearly worse.
+  - Need a repeat for `45056` before promotion because this regime has known high variance.
+- Decision: Run repeat at `45056` before changing default.
+
+### EXP-20260208-GLM-65K-BEST-TH45056-REPEAT (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py ... --active-dense-threshold 45056 --query-chunk-size 384 --head-chunk-size 2 ... --out-dir .../20260208_glm_hybrid_thresh45056_q384_h2_65k_repeat`
+- Metrics (`prefill-only`):
+  - Repeat run: `658.550 s`, `99.515 tok/s`, peak `28,696,790,168 B`.
+- Pair summary (`45056`):
+  - Runs: `464.723 s` and `658.550 s`.
+  - Median: `561.637 s`, `120.269 tok/s`.
+  - Stddev: `96.914 s`, `20.753 tok/s`.
+- Stability comparison:
+  - Tuned `49152` pair median/std: `484.477 s ± 0.977 s`, `135.272 tok/s ± 0.273`.
+  - `45056` pair shows high variance and lower median performance than stable `49152`.
+- Decision: Keep `threshold=49152` as reproducible long-context default.
+- Next action:
+  - Use `threshold=49152`, `query_chunk_size=384`, `head_chunk_size=2` as the promoted benchmark config in README/roadmap.

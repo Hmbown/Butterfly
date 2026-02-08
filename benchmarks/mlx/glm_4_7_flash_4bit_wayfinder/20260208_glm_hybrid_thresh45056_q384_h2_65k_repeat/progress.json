@@ -1,0 +1,13 @@
+{
+  "completed_cases": 1,
+  "total_cases": 1,
+  "elapsed_sec": 658.5620210000052,
+  "updated_at": "2026-02-08T07:42:04.024378+00:00",
+  "last_case": {
+    "cache_mode": "normal",
+    "chunk_size": 4096,
+    "seq_len": 65536,
+    "case_elapsed_sec": 658.5512140409992,
+    "ok": true
+  }
+}

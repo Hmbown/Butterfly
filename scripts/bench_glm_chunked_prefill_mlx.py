@@ -97,6 +97,12 @@ def _sample_wayfinder_profile(sample_layer: Optional[GLMWayfinderAttention]) -> 
         "graph_build_ms": float(profile.graph_build_ms),
         "attention_ms": float(profile.attention_ms),
         "cache_hit": (bool(cache_hit) if cache_hit is not None else None),
+        "seq_len": notes.get("seq_len"),
+        "q_len": notes.get("q_len"),
+        "graph_seq_len": notes.get("graph_seq_len"),
+        "active_query_mode": notes.get("active_query_mode"),
+        "active_dense_threshold": notes.get("active_dense_threshold"),
+        "active_dense_triggered": notes.get("active_dense_triggered"),
     }
 
 
@@ -269,14 +275,17 @@ def _run_chunked_prefill(
         mx.eval(logits)
         chunk_sec = time.perf_counter() - t_chunk0
         profile_sample = _sample_wayfinder_profile(sample_layer)
+        cache_state = _cache_state(cache)
+        k_len = int(cache_state.get("offset_max", end))
         _clear_workspace()
         chunk_report: Dict[str, Any] = {
             "chunk_index": int(chunk_index),
             "start": int(start),
             "end": int(end),
             "tokens": int(end - start),
+            "k_len": k_len,
             "sec": float(chunk_sec),
-            "cache_state": _cache_state(cache),
+            "cache_state": cache_state,
             "peak_memory_bytes_after_chunk": int(_peak_memory()),
         }
         if profile_sample is not None:
@@ -452,6 +461,24 @@ def main() -> None:
     parser.add_argument("--path", type=str, choices=["sparse", "permute"], default="permute")
     parser.add_argument("--window", type=int, default=64)
     parser.add_argument("--landmark-stride", type=int, default=0)
+    parser.add_argument(
+        "--head-chunk-size",
+        type=int,
+        default=2,
+        help="Wayfinder permute head chunk size.",
+    )
+    parser.add_argument(
+        "--query-chunk-size",
+        type=int,
+        default=192,
+        help="Wayfinder active/permute query chunk size.",
+    )
+    parser.add_argument(
+        "--active-dense-threshold",
+        type=int,
+        default=0,
+        help="Use dense fallback in active mode when K_len <= threshold (<=0 disables).",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-swap", action="store_true", default=False,
                         help="Run with stock GLM attention (no Wayfinder swap) for chunked baseline")
@@ -493,8 +520,8 @@ def main() -> None:
         edge_bias=True,
         window_drop=0.0,
         compiled_graph_dir=None,
-        permute_head_chunk_size=2,
-        query_chunk_size=192,
+        permute_head_chunk_size=int(max(1, args.head_chunk_size)),
+        query_chunk_size=int(max(1, args.query_chunk_size)),
         permute_prepermute_mode="auto",
         permute_log_chunks=False,
         compute_edge_utilization_proxy=False,
@@ -504,6 +531,9 @@ def main() -> None:
         retro_backfill_training_only=True,
         retro_backfill_causal_only=True,
         permute_memory_budget_bytes=None,
+        active_dense_threshold=(
+            None if int(args.active_dense_threshold) <= 0 else int(args.active_dense_threshold)
+        ),
     )
 
     if args.no_swap:

@@ -66,6 +66,7 @@ class GLMWayfinderConfig:
     retro_backfill_training_only: bool = True
     retro_backfill_causal_only: bool = True
     permute_memory_budget_bytes: Optional[int] = None
+    active_dense_threshold: Optional[int] = None
 
 
 def extract_qkv_from_glm_attention(
@@ -153,6 +154,11 @@ class GLMWayfinderAttention(nn.Module):
             None
             if cfg.permute_memory_budget_bytes is None
             else int(max(0, cfg.permute_memory_budget_bytes))
+        )
+        self.active_dense_threshold = (
+            None
+            if cfg.active_dense_threshold is None
+            else int(max(0, cfg.active_dense_threshold))
         )
         self.retro_backfill_enabled = bool(cfg.retro_backfill_enabled)
         self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
@@ -279,18 +285,32 @@ class GLMWayfinderAttention(nn.Module):
         queries, keys, values = extract_qkv_from_glm_attention(self, x, cache=cache)
         q_len = int(queries.shape[2])
         k_len = int(keys.shape[2])
-        use_active_permute = self.path == "permute" and cache is not None and q_len <= k_len
+        active_mode = self.path == "permute" and cache is not None and q_len <= k_len
+        force_dense_active = (
+            active_mode
+            and self.active_dense_threshold is not None
+            and k_len <= self.active_dense_threshold
+        )
+        use_active_permute = active_mode and not force_dense_active
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
-        if q_len != k_len and not use_active_permute:
+        if force_dense_active or (q_len != k_len and not use_active_permute):
+            t_attn0 = _now_ms()
             out = self._dense_fallback(queries, keys, values, mask, cache)
+            attn_ms = _now_ms() - t_attn0
             self.last_profile = AttentionProfile(
                 graph_build_ms=0.0,
                 permute_ms=0.0,
-                attention_ms=0.0,
+                attention_ms=float(attn_ms),
                 total_ms=_now_ms() - t_total0,
                 path=f"{self.path}_dense_fallback",
-                notes={"cache_hit": True, "cache_source": "dense_fallback"},
+                notes={
+                    "cache_hit": True,
+                    "cache_source": "dense_fallback",
+                    "k_len": int(k_len),
+                    "active_dense_threshold": self.active_dense_threshold,
+                    "active_dense_triggered": bool(force_dense_active),
+                },
             )
             return out
 
@@ -375,10 +395,6 @@ class GLMWayfinderAttention(nn.Module):
             q_chunk_eff = None
         elif self.path == "permute":
             h_chunk_eff, q_chunk_eff = self._effective_permute_chunking(T)
-            if use_active_permute:
-                # Active-row mode is Python-loop heavy; use larger query chunks to
-                # reduce fragmentation while staying bounded by active query length.
-                q_chunk_eff = int(min(max(int(q_chunk_eff), 384), q_len))
             memory_budget_bytes = (
                 self._runtime_memory_budget_bytes
                 if self._runtime_memory_budget_bytes is not None
@@ -475,6 +491,8 @@ class GLMWayfinderAttention(nn.Module):
                 "permute_head_chunk_effective": int(h_chunk_eff) if self.path == "permute" else None,
                 "permute_query_chunk_effective": int(q_chunk_eff) if self.path == "permute" else None,
                 "active_query_mode": bool(use_active_permute),
+                "active_dense_threshold": self.active_dense_threshold,
+                "active_dense_triggered": bool(force_dense_active),
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "mla_qk_dim": int(self.qk_dim),
                 "mla_value_dim": int(self.value_dim),

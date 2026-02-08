@@ -829,7 +829,6 @@ def wayfinder_permute_window_attention_active_batched(
 
         y_heads_local: list[mx.array] = []
         for h in range(h0, h1):
-            local_h = h - h0
             q_h = q[:, h, :, :]  # [B, Tq, dh]
             kv_h = int(q_to_kv_head[h])
             k_h = k[:, kv_h, :, :]  # [B, Tk, dh]
@@ -877,10 +876,15 @@ def wayfinder_permute_window_attention_active_batched(
                     drop = drop_rand & valid & (~preserve)
                     mask_eff = mask_eff & (~drop)
 
-                scores = mx.sum(
-                    q_blk[:, :, None, :].astype(mx.float32) * k_blk.astype(mx.float32),
-                    axis=-1,
-                ) * scale
+                # Batched matmul is substantially faster than explicit elementwise
+                # multiply + reduction for MLA head dimensions.
+                scores = (
+                    mx.matmul(
+                        q_blk.astype(mx.float32).reshape(B * (e - s), 1, dh),
+                        k_blk.astype(mx.float32).reshape(B * (e - s), k_blk.shape[2], dh).transpose(0, 2, 1),
+                    ).reshape(B, e - s, k_blk.shape[2])
+                    * scale
+                )
                 if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
                     cycle_nb = valid & (
                         (k_rank == (q_rank.reshape(-1, 1) - 1))
@@ -895,7 +899,10 @@ def wayfinder_permute_window_attention_active_batched(
                     axis=-1,
                     preserve_dtype=True,
                 )
-                y_blk = mx.sum(w[:, :, :, None] * v_blk.astype(mx.float32), axis=2).astype(v.dtype)
+                y_blk = mx.matmul(
+                    w.reshape(B * (e - s), 1, w.shape[-1]).astype(mx.float32),
+                    v_blk.astype(mx.float32).reshape(B * (e - s), v_blk.shape[2], dh),
+                ).reshape(B, e - s, dh).astype(v.dtype)
 
                 y_q_chunks.append(y_blk)
                 if log_progress:
