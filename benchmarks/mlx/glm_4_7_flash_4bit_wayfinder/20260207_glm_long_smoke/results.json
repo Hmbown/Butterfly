@@ -1,0 +1,125 @@
+{
+  "created_at": "2026-02-07T19:03:05.705841+00:00",
+  "command": "scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 8192 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "tokenizer_name": "<cache>/hub/models--mlx-community--GLM-4.7-Flash-4bit/snapshots/1454cffb1a21737e162f508e5bc70be9def89276",
+  "model_config": {
+    "model_type": "glm4_moe_lite",
+    "num_attention_heads": 20,
+    "num_key_value_heads": 20,
+    "num_hidden_layers": 47,
+    "hidden_size": 2048,
+    "max_position_embeddings": 202752,
+    "q_lora_rank": 768,
+    "kv_lora_rank": 512,
+    "qk_nope_head_dim": 192,
+    "qk_rope_head_dim": 64,
+    "v_head_dim": 256
+  },
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null
+  },
+  "results": [
+    {
+      "seq_len": 4096,
+      "batch": 1,
+      "level_a_real_qkv": {
+        "sanity_mae": 0.004028857685625553,
+        "baseline_attention": {
+          "tokens_per_sec": 23877.49385974934,
+          "latency_ms": 171.54229099833174,
+          "peak_memory_bytes": 1184107052
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 83344.28379225139,
+          "latency_ms": 49.14554200513521,
+          "peak_memory_bytes": 407434558,
+          "graph_build_ms_first": 2604.5227909982204,
+          "graph_build_ms_cached": 0.004540994763374329,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "baseline": {
+          "tokens_per_sec": 23589.00639157068,
+          "latency_ms": 173.64020900276955,
+          "peak_memory_bytes": 1456745012
+        },
+        "wayfinder": {
+          "tokens_per_sec": 38374.72652583662,
+          "latency_ms": 106.736916997761,
+          "peak_memory_bytes": 707504688,
+          "cache_persistent_bytes": 655360,
+          "edge_utilization_proxy": {
+            "cycle": 0.0,
+            "window": 0.0,
+            "landmark": 0.0,
+            "rewire": 0.0
+          },
+          "graph_metrics": {}
+        }
+      }
+    },
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "level_a_real_qkv": {
+        "sanity_mae": 0.003983604721724987,
+        "baseline_attention": {
+          "tokens_per_sec": 19355.25024651089,
+          "latency_ms": 423.24433400062844,
+          "peak_memory_bytes": 3755780652
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 87598.2658802036,
+          "latency_ms": 93.51783300371608,
+          "peak_memory_bytes": 831760944,
+          "graph_build_ms_first": 6390.383874997497,
+          "graph_build_ms_cached": 0.003917008638381958,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "baseline": {
+          "tokens_per_sec": 15578.259960828951,
+          "latency_ms": 525.8610410019173,
+          "peak_memory_bytes": 3940788790
+        },
+        "wayfinder": {
+          "tokens_per_sec": 38596.260415499724,
+          "latency_ms": 212.24854200409027,
+          "peak_memory_bytes": 1368631860,
+          "cache_persistent_bytes": 1310720,
+          "edge_utilization_proxy": {
+            "cycle": 0.0,
+            "window": 0.0,
+            "landmark": 0.0,
+            "rewire": 0.0
+          },
+          "graph_metrics": {}
+        }
+      }
+    }
+  ]
+}

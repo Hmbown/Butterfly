@@ -1,0 +1,50 @@
+{
+  "rows": [
+    {
+      "seq_len": 32768,
+      "ok": true,
+      "rotating_kv": {
+        "max_kv_size": 8192
+      },
+      "prefill_only": {
+        "sec": 63.483523208000406,
+        "tok_s": 516.1654291403673,
+        "peak_memory_bytes": 28928288404
+      },
+      "prefill_plus_1": {
+        "prefill_sec": 98.99470808399929,
+        "decode1_sec": 87.85598612499598,
+        "total_sec": 186.85069420899526,
+        "prefill_tok_s": 331.00759256944923,
+        "decode1_tok_s": 0.011382263680670123,
+        "peak_memory_bytes": 29062506132
+      },
+      "delta_peak_memory_bytes": 134217728,
+      "delta_peak_memory_pct_vs_prefill": 0.46396705579525865,
+      "delta_total_sec_minus_prefill_sec": 123.36717100099486
+    },
+    {
+      "seq_len": 65536,
+      "ok": true,
+      "rotating_kv": {
+        "max_kv_size": 8192
+      },
+      "prefill_only": {
+        "sec": 136.77099991699652,
+        "tok_s": 479.16590534376763,
+        "peak_memory_bytes": 44890891940
+      },
+      "prefill_plus_1": {
+        "prefill_sec": 144.28092995800398,
+        "decode1_sec": 102.2959039999987,
+        "total_sec": 246.57683395800268,
+        "prefill_tok_s": 454.2249625024987,
+        "decode1_tok_s": 0.00977556247022376,
+        "peak_memory_bytes": 44890891940
+      },
+      "delta_peak_memory_bytes": 0,
+      "delta_peak_memory_pct_vs_prefill": 0.0,
+      "delta_total_sec_minus_prefill_sec": 109.80583404100616
+    }
+  ]
+}

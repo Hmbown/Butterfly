@@ -1,0 +1,12 @@
+{
+  "seq_len": 98304,
+  "ok": true,
+  "error": null,
+  "sec": 529.1717826669992,
+  "tok_s": 185.76954255677197,
+  "peak_memory_bytes": 15804927090,
+  "graph_build_ms": 527469.7472079992,
+  "attention_ms": 1253.0852909982204,
+  "cache_hit": false,
+  "cache_source": "runtime"
+}

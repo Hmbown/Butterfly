@@ -1,0 +1,9 @@
+{
+  "rows": [
+    {
+      "seq_len": 32768,
+      "ok": false,
+      "error": "TypeError: tuple indices must be integers or slices, not tuple"
+    }
+  ]
+}

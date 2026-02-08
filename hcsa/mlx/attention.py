@@ -747,6 +747,199 @@ def wayfinder_permute_window_attention_batched(
     return mx.concatenate(y_chunks, axis=1), None
 
 
+def wayfinder_permute_window_attention_active_batched(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    query_positions: mx.array,
+    window: int = 64,
+    edge_type_bias_scalar: Optional[float] = None,
+    window_drop_prob: float = 0.0,
+    training: bool = False,
+    head_chunk_size: Optional[int] = None,
+    query_chunk_size: int = 256,
+    prepermute_mode: Literal["auto", "off", "kv", "qkv", "on"] = "auto",
+    memory_budget_bytes: Optional[int] = None,
+    log_progress: bool = False,
+) -> Tuple[mx.array, mx.array | None]:
+    """Permute-window attention for active query rows (Q_len <= K_len).
+
+    q: [B, Hq, Tq, dh] for active queries only
+    k, v: [B, Hkv, Tk, dh] for currently available cache prefix
+    all_perms/all_inv_perms: [Hq, Tg] with Tg >= Tk (adaptive graph horizon)
+    query_positions: [Tq] original token positions for each query row in q
+    """
+    del memory_budget_bytes  # Not used in the active-row path.
+
+    B, Hq, Tq, dh = q.shape
+    Bk, Hkv, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Tk != Tv:
+        raise ValueError("k/v must share batch and sequence dims")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q/k/v head_dim must match")
+    if Hv != Hkv:
+        raise ValueError("k and v must have same head count")
+    if Hq % Hkv != 0:
+        raise ValueError(f"Hq={Hq} must be divisible by Hkv={Hkv} for GQA")
+    if all_perms.shape[0] != Hq:
+        raise ValueError(f"all_perms first dim must be {Hq}, got {all_perms.shape}")
+    Tg = int(all_perms.shape[1])
+    if all_inv_perms.shape != (Hq, Tg):
+        raise ValueError(f"all_inv_perms must be shape ({Hq}, {Tg}), got {all_inv_perms.shape}")
+    if Tg < Tk:
+        raise ValueError(f"graph sequence length Tg={Tg} must be >= Tk={Tk}")
+    if tuple(query_positions.shape) != (Tq,):
+        raise ValueError(f"query_positions must be shape ({Tq},), got {query_positions.shape}")
+
+    q_pos_all = query_positions.astype(mx.int32)
+    window = int(max(0, window))
+    q_chunk = int(max(1, min(int(query_chunk_size), Tq)))
+
+    h_chunk = Hq if head_chunk_size is None else int(max(1, head_chunk_size))
+    h_chunk = min(h_chunk, Hq)
+    num_h_chunks = (Hq + h_chunk - 1) // h_chunk
+
+    prepermute_mode_l = str(prepermute_mode).lower()
+    if prepermute_mode_l in {"on", "always", "true", "qkv", "kv"}:
+        prepermute_kv = True
+    else:
+        # "auto" defaults to false for active-row mode to keep work O(Tq*W).
+        prepermute_kv = False
+    # Cannot prepermute K/V by full graph order when Tg > Tk.
+    if Tg != Tk:
+        prepermute_kv = False
+
+    kv_repeat = Hq // Hkv
+    q_to_kv_head = np.arange(Hq, dtype=np.int32) // kv_repeat
+    offsets = mx.arange(-window, window + 1, dtype=mx.int32).reshape(1, 2 * window + 1)
+    scale = 1.0 / math.sqrt(dh)
+
+    y_head_chunks: list[mx.array] = []
+    for chunk_idx, h0 in enumerate(range(0, Hq, h_chunk), start=1):
+        h1 = min(h0 + h_chunk, Hq)
+        if log_progress:
+            print(
+                f"      permute_active: head_chunk {chunk_idx}/{num_h_chunks} heads[{h0}:{h1}] start",
+                flush=True,
+            )
+
+        y_heads_local: list[mx.array] = []
+        for h in range(h0, h1):
+            local_h = h - h0
+            q_h = q[:, h, :, :]  # [B, Tq, dh]
+            kv_h = int(q_to_kv_head[h])
+            k_h = k[:, kv_h, :, :]  # [B, Tk, dh]
+            v_h = v[:, kv_h, :, :]  # [B, Tk, dh]
+
+            perm_h = all_perms[h, :].astype(mx.int32)  # [Tg]
+            inv_h = all_inv_perms[h, :].astype(mx.int32)  # [Tg]
+
+            if prepermute_kv:
+                k_src = mx.take(k_h, perm_h, axis=1)  # [B, Tk, dh]
+                v_src = mx.take(v_h, perm_h, axis=1)  # [B, Tk, dh]
+            else:
+                k_src = k_h
+                v_src = v_h
+
+            y_q_chunks: list[mx.array] = []
+            q_chunk_count = (Tq + q_chunk - 1) // q_chunk
+            for q_chunk_idx, s in enumerate(range(0, Tq, q_chunk), start=1):
+                e = min(Tq, s + q_chunk)
+                q_blk = q_h[:, s:e, :]  # [B, Qblk, dh]
+                q_pos = q_pos_all[s:e]  # [Qblk] original positions
+
+                q_rank = mx.take(inv_h, q_pos, axis=0)  # [Qblk], in [0, Tg)
+                k_rank = q_rank.reshape(-1, 1) + offsets  # [Qblk, W]
+                valid = (k_rank >= 0) & (k_rank < Tg)
+                k_rank_clipped = mx.clip(k_rank, 0, Tg - 1).astype(mx.int32)
+
+                # Convert local cycle-window ranks back to original token indices.
+                k_orig = mx.take(perm_h, k_rank_clipped, axis=0).astype(mx.int32)  # [Qblk, W]
+                available = k_orig < Tk
+                causal = k_orig <= q_pos.reshape(-1, 1)
+                mask_eff = valid & available & causal
+
+                gather_idx = k_rank_clipped if prepermute_kv else mx.clip(k_orig, 0, Tk - 1)
+                k_blk = mx.take(k_src, gather_idx, axis=1)  # [B, Qblk, W, dh]
+                v_blk = mx.take(v_src, gather_idx, axis=1)  # [B, Qblk, W, dh]
+
+                if training and window_drop_prob > 0.0:
+                    preserve = (
+                        (k_rank == q_rank.reshape(-1, 1))
+                        | (k_rank == (q_rank.reshape(-1, 1) - 1))
+                        | (k_rank == (q_rank.reshape(-1, 1) + 1))
+                    )
+                    drop_rand = mx.random.uniform(shape=mask_eff.shape) < window_drop_prob
+                    drop = drop_rand & valid & (~preserve)
+                    mask_eff = mask_eff & (~drop)
+
+                scores = mx.sum(
+                    q_blk[:, :, None, :].astype(mx.float32) * k_blk.astype(mx.float32),
+                    axis=-1,
+                ) * scale
+                if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
+                    cycle_nb = valid & (
+                        (k_rank == (q_rank.reshape(-1, 1) - 1))
+                        | (k_rank == (q_rank.reshape(-1, 1) + 1))
+                    )
+                    scores = scores + cycle_nb.astype(mx.float32)[None, :, :] * float(
+                        edge_type_bias_scalar
+                    )
+                w = stable_masked_softmax(
+                    scores,
+                    mask_eff[None, :, :],
+                    axis=-1,
+                    preserve_dtype=True,
+                )
+                y_blk = mx.sum(w[:, :, :, None] * v_blk.astype(mx.float32), axis=2).astype(v.dtype)
+
+                y_q_chunks.append(y_blk)
+                if log_progress:
+                    print(
+                        f"        permute_active: head={h} q_chunk {q_chunk_idx}/{q_chunk_count} q[{s}:{e}]",
+                        flush=True,
+                    )
+
+            if not y_q_chunks:  # pragma: no cover
+                y_h = mx.zeros((B, Tq, dh), dtype=v.dtype)
+            elif len(y_q_chunks) == 1:
+                y_h = y_q_chunks[0]
+            else:
+                y_h = mx.concatenate(y_q_chunks, axis=1)
+            y_heads_local.append(y_h)
+
+            # Drop references eagerly between heads.
+            q_h = None
+            k_h = None
+            v_h = None
+            k_src = None
+            v_src = None
+            perm_h = None
+            inv_h = None
+
+        if len(y_heads_local) == 1:
+            y_local = y_heads_local[0][:, None, :, :]
+        else:
+            y_local = mx.stack(y_heads_local, axis=1)
+        y_head_chunks.append(y_local)
+        mx.eval(y_local)
+        if log_progress:
+            print(
+                f"      permute_active: head_chunk {chunk_idx}/{num_h_chunks} heads[{h0}:{h1}] done",
+                flush=True,
+            )
+
+    if not y_head_chunks:  # pragma: no cover
+        return mx.zeros((B, Hq, Tq, dh), dtype=v.dtype), None
+    if len(y_head_chunks) == 1:
+        return y_head_chunks[0], None
+    return mx.concatenate(y_head_chunks, axis=1), None
+
+
 class WayfinderAttentionMLX(nn.Module):
     """Wayfinder sparse attention in MLX with ABI-driven graph construction."""
 

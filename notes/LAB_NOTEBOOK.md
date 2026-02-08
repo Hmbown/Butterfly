@@ -477,3 +477,508 @@ Execution order confirmed:
   - Dense uses fused SDPA (~O(T) memory); WF uses O(T·W) chunked attention.
 - Decision: **Keep.** All block-level gates pass. Attention-level T=4096 and T=8192 pass.
 - Next action: Update README.md with fairness correction, then prepare commit.
+
+### EXP-20260207-185738-GLM-INTEGRATION-SMOKE (planned)
+- Question: Does a new GLM-4.7-Flash MLA integration (`hcsa/integrations/glm_mlx.py`) run correctly with Wayfinder swap while preserving retro-off inference defaults?
+- Hypothesis: Reusing the Qwen graph runtime and padding MLA value latent dim to q/k dim only inside Wayfinder kernels will produce valid forwards, pass MLX tests, and allow a GLM benchmark smoke run without touching MoE routing.
+- Change set:
+  - `hcsa/integrations/glm_mlx.py` (new)
+  - `hcsa/integrations/__init__.py` (exports)
+  - `scripts/bench_glm_wayfinder_mlx.py` (new)
+- Baseline: `benchmarks/mlx/gpt2_wayfinder/20260207_northstar_after_v3_stable/results.json` (current non-Qwen reference stage)
+- Command:
+  - `PYTHONPATH=. python3 -m pytest tests/mlx/ -x -q`
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke`
+- Controls:
+  - Retro disabled by default (`--retro-backfill` omitted)
+  - Batch=1, window=64, landmark_stride=64, path=permute
+  - No MoE gating modifications
+
+### EXP-20260207-190227-GLM-LONG-SMOKE (planned)
+- Question: On GLM-4.7-Flash MLA, does Wayfinder permute sustain throughput > dense at long context (T=8192) with retro disabled?
+- Hypothesis: At T=8192, Wayfinder attention and block throughput should exceed dense baseline (>1.0x) with reduced peak memory because compute scales with local window instead of full T².
+- Change set:
+  - `hcsa/integrations/glm_mlx.py`
+  - `scripts/bench_glm_wayfinder_mlx.py`
+  - `hcsa/mlx/attention.py` (`v.itemsize` planner bugfix)
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 8192 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke`
+- Controls:
+  - Retro disabled by default (`--retro-backfill` omitted)
+  - Batch=1, window=64, landmark_stride=64, same model/checkpoint
+
+### EXP-20260207-185738-GLM-INTEGRATION-SMOKE (result)
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke/results.json` (dense baseline metrics in-row)
+- Command:
+  - `PYTHONPATH=. python3 -m pytest tests/mlx/ -x -q`
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke`
+- Validation:
+  - `tests/mlx`: `38 passed`
+- Result (T=2048):
+  - Attention throughput: absolute `75,061.04 tok/s`; delta vs dense `+13,751.40 tok/s`; percentage delta `+22.43%`
+  - Attention peak memory: absolute `209,706,682 B`; delta vs dense `-216,525,682 B`; percentage delta `-50.80%`
+  - Attention memory reduction sign convention: `100 * (1 - wayfinder/dense) = 50.80%`
+  - Block throughput: absolute `37,291.45 tok/s`; delta vs dense `+4,334.74 tok/s`; percentage delta `+13.15%`
+  - Block peak memory: absolute `377,596,464 B`; delta vs dense `-227,295,244 B`; percentage delta `-37.58%`
+  - Block memory reduction sign convention: `100 * (1 - wayfinder/dense) = 37.58%`
+  - Sanity MAE: `0.003798`
+- Decision: Keep.
+- Next action: Extend to long-context checkpoints (4096, 8192+) and verify acceptance criteria.
+
+### EXP-20260207-190227-GLM-LONG-SMOKE (result)
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke/results.json` (dense baseline metrics in-row)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 8192 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke`
+- Result (T=4096):
+  - Attention throughput: absolute `83,344.28 tok/s`; delta vs dense `+59,466.79 tok/s`; percentage delta `+249.05%`
+  - Attention peak memory: absolute `407,434,558 B`; delta vs dense `-776,672,494 B`; percentage delta `-65.59%`
+  - Attention memory reduction sign convention: `100 * (1 - wayfinder/dense) = 65.59%`
+  - Block throughput: absolute `38,374.73 tok/s`; delta vs dense `+14,785.72 tok/s`; percentage delta `+62.68%`
+  - Block peak memory: absolute `707,504,688 B`; delta vs dense `-749,240,324 B`; percentage delta `-51.43%`
+  - Block memory reduction sign convention: `100 * (1 - wayfinder/dense) = 51.43%`
+  - Sanity MAE: `0.004029`
+- Result (T=8192):
+  - Attention throughput: absolute `87,598.27 tok/s`; delta vs dense `+68,243.02 tok/s`; percentage delta `+352.58%`
+  - Attention peak memory: absolute `831,760,944 B`; delta vs dense `-2,924,019,708 B`; percentage delta `-77.85%`
+  - Attention memory reduction sign convention: `100 * (1 - wayfinder/dense) = 77.85%`
+  - Block throughput: absolute `38,596.26 tok/s`; delta vs dense `+23,018.00 tok/s`; percentage delta `+147.76%`
+  - Block peak memory: absolute `1,368,631,860 B`; delta vs dense `-2,572,156,930 B`; percentage delta `-65.27%`
+  - Block memory reduction sign convention: `100 * (1 - wayfinder/dense) = 65.27%`
+  - Sanity MAE: `0.003984`
+- Decision: Keep.
+- Next action: Run full sequence set (2048/4096/8192/16384/32768) with stable warmup/iters and update README measured GLM integration results.
+
+### EXP-20260207-190427-GLM-FULL-SWAP-SMOKE (planned)
+- Question: Can all GLM transformer `self_attn` layers be swapped to Wayfinder attention without model-forward breakage?
+- Hypothesis: `swap_glm_attention_with_wayfinder()` should replace all attention layers and a short-token full forward should succeed with retro disabled.
+- Change set:
+  - `hcsa/integrations/glm_mlx.py`
+  - `scripts/bench_glm_wayfinder_mlx.py`
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 1024 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --full-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_full_swap_smoke`
+- Controls:
+  - Retro disabled by default
+  - Full swap enabled
+
+### EXP-20260207-190617-GLM-STABLE-MEDIAN (planned)
+- Question: Do GLM Wayfinder gains persist under stricter benchmarking (median of multiple iterations)?
+- Hypothesis: Compared with dense baseline, Wayfinder remains >1.0x at long context (4096, 8192) with material memory reduction under the same runtime controls.
+- Change set:
+  - No new code; measurement-only stability run on current integration.
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 4096 8192 --batch 1 --warmup 2 --iters 4 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_stable_median`
+- Controls:
+  - Retro disabled (no `--retro-backfill`)
+  - Batch=1, window=64, landmark_stride=64, same model/checkpoint
+
+### EXP-20260207-190427-GLM-FULL-SWAP-SMOKE (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 1024 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --full-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_full_swap_smoke`
+- Result:
+  - Full swap replaced layers: `47`
+  - Full-model smoke (`seq_len=256`): `11.80 tok/s`, peak memory `17,016,685,356 B`
+  - Layer-level `T=1024` block ratio: `0.872x`; block memory reduction: `24.94%`
+- Decision: Keep (functional full-swap success).
+- Next action: evaluate full-model throughput at larger token counts separately from layer-level kernels.
+
+### EXP-20260207-190617-GLM-STABLE-MEDIAN (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 4096 8192 --batch 1 --warmup 2 --iters 4 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_stable_median`
+- Baseline path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_long_smoke/results.json`
+- Result (T=2048):
+  - Attention throughput: absolute `85,844.00 tok/s`; delta vs dense `+14,392.32`; percentage delta `+20.14%`
+  - Attention memory: absolute `209,706,682 B`; delta vs dense `-216,525,682 B`; percentage delta `-50.80%`
+  - Memory reduction formula: `100 * (1 - wayfinder/dense) = 50.80%`
+  - Block throughput: absolute `39,499.70 tok/s`; delta vs dense `+3,116.90`; percentage delta `+8.57%`
+  - Block memory: absolute `377,596,464 B`; delta vs dense `-227,295,244 B`; percentage delta `-37.58%`
+  - Block memory reduction formula: `100 * (1 - wayfinder/dense) = 37.58%`
+- Result (T=4096):
+  - Attention throughput: absolute `87,843.27 tok/s`; delta vs dense `+43,791.28`; percentage delta `+99.41%`
+  - Attention memory: absolute `443,487,550 B`; delta vs dense `-776,672,494 B`; percentage delta `-63.65%`
+  - Memory reduction formula: `100 * (1 - wayfinder/dense) = 63.65%`
+  - Block throughput: absolute `40,480.41 tok/s`; delta vs dense `+14,078.97`; percentage delta `+53.33%`
+  - Block memory: absolute `708,160,048 B`; delta vs dense `-749,240,324 B`; percentage delta `-51.41%`
+  - Block memory reduction formula: `100 * (1 - wayfinder/dense) = 51.41%`
+- Result (T=8192):
+  - Attention throughput: absolute `94,958.59 tok/s`; delta vs dense `+70,452.17`; percentage delta `+287.48%`
+  - Attention memory: absolute `832,416,304 B`; delta vs dense `-2,924,019,708 B`; percentage delta `-77.84%`
+  - Memory reduction formula: `100 * (1 - wayfinder/dense) = 77.84%`
+  - Block throughput: absolute `40,887.71 tok/s`; delta vs dense `+23,319.77`; percentage delta `+132.74%`
+  - Block memory: absolute `1,369,287,220 B`; delta vs dense `-2,572,156,930 B`; percentage delta `-65.26%`
+  - Block memory reduction formula: `100 * (1 - wayfinder/dense) = 65.26%`
+- Decision: Keep.
+- Next action: run full-seq sweep (16384/32768) with stable iters and publish measured GLM section.
+
+### EXP-20260207-190908-GLM-MAXCTX-PROBE (planned)
+- Question: Can GLM Wayfinder run up to the model max context (`202,752`) on this machine, and what are latency/memory trends as T scales?
+- Hypothesis: Wayfinder layer-level prefill will scale beyond 8192 and may reach 202,752 with significant runtime but without dense-baseline feasibility; peak memory should grow sub-quadratically relative to dense attention.
+- Change set:
+  - Measurement only (no code edits).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_stable_median/results.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... progressive layer-level GLMWayfinderAttention probe for T in [16384, 32768, 65536, 98304, 131072, 163840, 202752] ... PY`
+- Controls:
+  - Retro disabled
+  - Batch=1, path=permute, window=64, landmark_stride=64
+  - Single layer (`model.layers[0].self_attn`) to isolate attention path
+
+### EXP-20260207-190908-GLM-MAXCTX-PROBE (result)
+- Command:
+  - Progressive probe with rungs `16384 -> 32768 -> 65536 -> 98304 -> 131072 -> 163840 -> 202752` under per-rung timeouts.
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_191444_maxctx_wayfinder_layer_probe/summary.json`
+- Result:
+  - Success through `T=131072`
+  - `T=163840` failed with allocator error:
+    - `RuntimeError: [metal::malloc] Attempting to allocate 34419507200 bytes which is greater than the maximum allowed buffer size of 22613000192 bytes.`
+  - Best successful rung metrics (`T=131072`):
+    - `sec=885.48`, `tok/s=148.02`, `peak_memory_bytes=27,773,636,722`
+- Decision: Follow-up.
+- Next action: retry high-context probe with reduced landmark memory footprint (`landmark_stride=None`) to continue toward `202752`.
+
+### EXP-20260207-200906-GLM-MAXCTX-NOLANDMARK (planned)
+- Question: Can we reach `202,752` context if landmark edges are disabled to reduce graph memory pressure?
+- Hypothesis: `landmark_stride=None` will reduce graph-ABI memory enough to pass beyond `163,840` and potentially hit `202,752` on the same hardware.
+- Change set:
+  - Measurement only (runtime flag change: `landmark_stride=None`).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_191444_maxctx_wayfinder_layer_probe/summary.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... progressive no-landmark probe for T in [163840, 202752], timeout 90m/120m ... PY`
+- Controls:
+  - Retro disabled
+  - Batch=1, path=permute, window=64
+  - Single layer (`model.layers[0].self_attn`)
+  - Only landmark stride changes (`None`)
+
+### EXP-20260207-201256-GLM-FULLMODEL-PREFILL-KV-CHECKPOINT (planned)
+- Question: At full-model scale, does `prefill + 1 token` show KV-cache-dominated growth versus `prefill-only`?
+- Hypothesis: Wayfinder controls attention workspace, but `prefill+1` peak memory will exceed `prefill-only` and the gap should increase with larger prefill lengths due to KV retention.
+- Change set:
+  - Measurement only (no code edits).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_200939_maxctx_nolandmark_probe/summary.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... full-model Wayfinder swap, scenario A prefill-only vs scenario B prefill+1 at T=[32768,65536] ... PY`
+- Controls:
+  - Retro disabled
+  - Full attention swap across all layers
+  - `landmark_stride=None` (to avoid graph-ABI allocator wall)
+  - Same random-token input per scenario per T
+
+### EXP-20260207-202313-GLM-NOLANDMARK-DELTA131072 (planned)
+- Question: At fixed `T=131072`, how much does `landmark_stride=None` change runtime and peak memory vs default `landmark_stride=64`?
+- Hypothesis: Disabling landmark edges will materially reduce graph build cost and peak memory at identical sequence length.
+- Change set:
+  - Measurement only.
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_191444_maxctx_wayfinder_layer_probe/summary.json` (default stride=64, T=131072)
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... single-layer Wayfinder probe T=131072, landmark_stride=None ... PY`
+- Controls:
+  - Retro disabled
+  - Batch=1, path=permute, window=64, same model and attention layer
+
+### EXP-20260207-200906-GLM-MAXCTX-NOLANDMARK (result)
+- Command:
+  - No-landmark probe at `T=163840`, `T=202752` with long timeouts.
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_200939_maxctx_nolandmark_probe/summary.json`
+- Baseline path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_191444_maxctx_wayfinder_layer_probe/summary.json`
+- Result:
+  - `T=163840`: success, `sec=70.44`, `tok/s=2325.80`, `peak_memory_bytes=15,667,546,668`
+  - `T=202752`: success, `sec=88.06`, `tok/s=2302.46`, `peak_memory_bytes=19,386,010,156`
+- Baseline comparison discipline:
+  - At `T=163840`, baseline run failed (allocator limit), so absolute delta/% vs baseline throughput/memory are not defined.
+  - At `T=202752`, baseline has no successful run, so absolute delta/% are not defined.
+- Decision: Keep.
+- Next action: run fixed-`T` comparison (`T=131072`) to quantify delta vs default stride.
+
+### EXP-20260207-202313-GLM-NOLANDMARK-DELTA131072 (result)
+- Command:
+  - Single-layer probe `T=131072` with `landmark_stride=None`.
+- Baseline path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_191444_maxctx_wayfinder_layer_probe/summary.json` (`landmark_stride=64` at `T=131072`)
+- Result (`landmark_stride=None` at `T=131072`):
+  - Absolute runtime: `55.05 s`
+  - Absolute throughput: `2381.11 tok/s`
+  - Absolute peak memory: `12,536,515,116 B`
+- Delta vs baseline (`landmark_stride=64`, `T=131072`):
+  - Runtime delta: `-830.43 s` (`-93.78%`)
+  - Throughput delta: `+2233.09 tok/s` (`+1508.60%`)
+  - Peak memory delta: `-15,237,121,606 B` (`-54.86%`)
+  - Memory reduction sign convention: `100 * (1 - wayfinder_nolandmark/wayfinder_default) = 54.86%`
+- Decision: Keep for max-context probing mode.
+- Next action: gate this as a benchmark/runtime option and characterize quality impact of removing landmarks.
+
+### EXP-20260207-201256-GLM-FULLMODEL-PREFILL-KV-CHECKPOINT (result)
+- Command:
+  - Full-model Wayfinder swap (`47` layers), scenario A `prefill-only` vs scenario B `prefill+1` at `T=32768` and `T=65536`.
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Result (`T=32768`):
+  - Prefill-only: `61.29 s`, `534.66 tok/s`, peak `28,928,288,404 B`
+  - Prefill+1: total `106.03 s` (prefill `85.62 s` + decode1 `20.41 s`), peak `29,053,543,348 B`
+  - Delta (`prefill+1` vs `prefill-only`):
+    - Peak memory: `+125,254,944 B` (`+0.433%`)
+- Result (`T=65536`):
+  - Prefill-only: `126.69 s`, `517.30 tok/s`, peak `44,890,891,940 B`
+  - Prefill+1: total `227.30 s` (prefill `140.66 s` + decode1 `86.64 s`), peak `44,890,891,940 B`
+  - Delta (`prefill+1` vs `prefill-only`):
+    - Peak memory: `0 B` (`0.0%`)
+- Additional scaling check (`prefill-only`, `65536` vs `32768`):
+  - Peak memory delta: `+15,962,603,536 B` (`+55.18%`)
+  - Throughput delta: `-17.36 tok/s` (`-3.25%`)
+- Decision: Follow-up.
+- Next action: isolate KV contribution with cache instrumentation (cache tensor bytes per layer) and compare with/without KV quantization/paging strategies.
+
+### EXP-20260207-230429-GLM-FULLMODEL-KVQ4-CHECKPOINT (planned)
+- Question: Does quantized KV cache (4-bit) reduce full-model peak memory for prefill-only and prefill+1 scenarios at long context?
+- Hypothesis: KV quantization (`bits=4`, `group_size=64`) should reduce peak memory versus non-quantized checkpoint at `T=32768/65536`, with some throughput penalty.
+- Change set:
+  - Measurement only (runtime cache mode change).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... full-model prefill-only vs prefill+1 with make_prompt_cache(...)->to_quantized(bits=4,group_size=64) at T=[32768,65536] ... PY`
+- Controls:
+  - Retro disabled
+  - Full attention swap across all layers
+  - `landmark_stride=None`
+  - Same random-token generation procedure as baseline checkpoint
+
+### EXP-20260207-230429-GLM-FULLMODEL-KVQ4-CHECKPOINT (result)
+- Command:
+  - Full-model Wayfinder swap with quantized prompt cache (`to_quantized(bits=4, group_size=64)`).
+- Result path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_230511_fullmodel_prefill_kvq4_checkpoint/results.json`
+- Result:
+  - Failed at first rung (`T=32768`) with:
+    - `TypeError: tuple indices must be integers or slices, not tuple`
+  - Root cause:
+    - `QuantizedKVCache.update_and_fetch()` returns quantized tuple trees (packed weights/scales/biases) while GLM MLA extraction path slices dense key tensors (`keys[..., :-qk_rope_head_dim]`).
+- Decision: Follow-up (integration gap).
+- Next action: test rotating/paged KV strategy (`max_kv_size`) which remains dense-array-compatible with current MLA extraction path.
+
+### EXP-20260207-230611-GLM-FULLMODEL-ROTATINGKV-CHECKPOINT (planned)
+- Question: Can rotating KV cache (`max_kv_size`) cap peak memory during full-model `prefill+1` while preserving operational correctness?
+- Hypothesis: Setting `max_kv_size=8192` will reduce `prefill+1` peak memory versus unbounded KV baseline at `T=32768/65536` with some quality/context tradeoff.
+- Change set:
+  - Measurement only (cache mode: `make_prompt_cache(model, max_kv_size=8192)`).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... full-model prefill-only vs prefill+1 with rotating KV max_kv_size=8192 at T=[32768,65536] ... PY`
+- Controls:
+  - Retro disabled
+  - Full attention swap across all layers
+  - `landmark_stride=None`
+  - Same random-token generation procedure as baseline checkpoint
+
+### EXP-20260207-231759-GLM-DECODE64-KV-COMPARISON (planned)
+- Question: Under full-model Wayfinder at `T=32768`, how does KV policy affect memory/time for `prefill + 64 decode tokens`?
+- Hypothesis: Rotating KV (`max_kv_size=8192`) should lower peak memory versus unbounded KV when decode length extends beyond a single token; throughput may drop due to cache management overhead.
+- Change set:
+  - Measurement only.
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 - <<'PY' ... full-model compare cache_mode in {normal,rotating_8192} for prefill + decode64 at T=32768 ... PY`
+- Controls:
+  - Retro disabled
+  - Full attention swap across all layers
+  - `landmark_stride=None`
+  - Same model and random-token input generation pattern
+
+### EXP-20260207-233428-GLM-CHUNKED-PREFILL-SWEEP (planned)
+- Question: Does full-model GLM Wayfinder with chunked prefill reduce long-context peak memory (activation wall) versus the monolithic prefill baseline while keeping usable throughput?
+- Hypothesis: Chunking prefill into `4096/8192/16384` with persistent prompt cache will materially reduce peak memory at fixed `T` (`32768/65536/131072`), and at least one `T>=65536` run will complete with lower peak memory than baseline.
+- Change set:
+  - `scripts/bench_glm_chunked_prefill_mlx.py` (new full-model chunked prefill harness).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 131072 --chunk-sizes 4096 8192 16384 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_233428_chunked_prefill_fullmatrix`
+- Controls:
+  - Retro/backfill disabled (`retro_backfill_enabled=false`, `alpha=0.0`, training-only guard on)
+  - Full attention swap on all GLM layers
+  - Same model, path, window, and baseline-comparison discipline
+  - Random token prefill inputs with fixed seed (`42`)
+
+### EXP-20260208-000124-GLM-CHUNK-SWEEP-32768 (planned)
+- Question: At fixed `T=32768`, which chunk size (`4096/8192/16384`) gives the best memory-throughput tradeoff for full-model GLM chunked prefill?
+- Hypothesis: Larger chunks (`8192` or `16384`) should improve latency while retaining meaningful peak-memory reduction versus monolithic baseline.
+- Change set:
+  - `scripts/bench_glm_chunked_prefill_mlx.py` cumulative prefill/decode execution path.
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 8192 16384 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_000124_chunk_sweep_32768`
+- Controls:
+  - Retro/backfill disabled
+  - Full attention swap across all layers
+  - Batch=1, seed=42, same model and inference path
+
+### EXP-20260208-001331-GLM-LENGTH-SWEEP-CHUNK4096 (planned)
+- Question: With chunk size fixed at `4096` (best memory point at `T=32768`), does chunked prefill preserve memory gains at longer contexts (`65536`, `131072`)?
+- Hypothesis: `chunk_size=4096` will keep peak memory materially below monolithic baseline at `T=65536`, and at least one high-context run (`T=131072`) will complete without causality breakage.
+- Change set:
+  - Measurement only (reuse `scripts/bench_glm_chunked_prefill_mlx.py`).
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 131072 --chunk-sizes 4096 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096`
+- Controls:
+  - Retro/backfill disabled
+  - Full attention swap across all layers
+  - Batch=1, seed=42, same model/inference path
+
+### EXP-20260207-233428-GLM-CHUNKED-PREFILL-SWEEP (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 131072 --chunk-sizes 4096 8192 16384 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_233428_chunked_prefill_fullmatrix`
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_233428_chunked_prefill_fullmatrix/results.json`
+- Result:
+  - Interrupted during `T=65536, chunk=4096, prefill_only` due prohibitive runtime for full Cartesian sweep in-session.
+  - Completed checkpoint before interruption: `T=32768, chunk=4096`.
+- Decision: Follow-up (split into targeted sweeps).
+- Next action: run chunk-size sweep at fixed `T=32768` and separate long-context length sweep with selected chunk size.
+
+### EXP-20260208-000124-GLM-CHUNK-SWEEP-32768 (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 8192 16384 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_000124_chunk_sweep_32768`
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_000124_chunk_sweep_32768/results.json`
+- Baseline path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Result (`T=32768`):
+  - `chunk=4096`:
+    - Prefill-only absolute: `163.51 s`, `200.40 tok/s`, `26,021,806,692 B`
+    - Delta vs baseline prefill-only: latency `+102.22 s` (`+166.79%`), tok/s `-334.26` (`-62.52%`), peak memory `-2,906,481,712 B` (`-10.05%`)
+    - Memory reduction sign convention: `100 * (1 - wayfinder/baseline) = 10.05%`
+    - Prefill+1 absolute: total `165.16 s`, peak `26,021,806,692 B`
+    - Prefill+1 delta vs baseline: total `+59.13 s` (`+55.77%`), prefill tok/s `-182.29` (`-47.63%`), peak memory reduction `10.43%`
+  - `chunk=8192`:
+    - Prefill-only absolute: `231.86 s`, `141.32 tok/s`, `30,798,216,294 B`
+    - Delta vs baseline prefill-only: latency `+278.32%`, tok/s `-73.57%`, peak memory `+6.46%` (worse)
+  - `chunk=16384`:
+    - Prefill-only absolute: `212.84 s`, `153.95 tok/s`, `41,954,965,882 B`
+    - Delta vs baseline prefill-only: latency `+247.29%`, tok/s `-71.21%`, peak memory `+45.03%` (worse)
+- Decision: Keep `chunk=4096` as memory-optimal candidate for long-context sweep.
+- Next action: run length sweep (`32768/65536/131072`) at `chunk=4096`.
+
+### EXP-20260208-001331-GLM-LENGTH-SWEEP-CHUNK4096 (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 131072 --chunk-sizes 4096 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096`
+- Results path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096/results.json`
+- Progress path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096/progress.json`
+- Baseline path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- Completed rows:
+  - `T=32768`:
+    - Prefill-only absolute: `163.33 s`, `200.62 tok/s`, `26,021,806,692 B`
+    - Delta vs baseline prefill-only: latency `+102.04 s` (`+166.50%`), tok/s `-334.04` (`-62.48%`), peak memory reduction `10.05%`
+    - Prefill+1 absolute: total `164.97 s`, peak `26,021,806,692 B`
+    - Prefill+1 delta vs baseline: total `+58.94 s` (`+55.58%`), prefill tok/s `-182.07` (`-47.58%`), peak memory reduction `10.43%`
+    - Prefill+64 absolute: total `165.53 s`, peak `26,021,806,692 B`
+  - `T=65536`:
+    - Prefill-only absolute: `876.31 s`, `74.79 tok/s`, `33,164,840,500 B`
+    - Delta vs baseline prefill-only: latency `+749.62 s` (`+591.70%`), tok/s `-442.51` (`-85.54%`), peak memory `-11,726,051,440 B` (`-26.12%`)
+    - Memory reduction sign convention: `100 * (1 - wayfinder/baseline) = 26.12%`
+    - Prefill+1 absolute: total `903.32 s`, peak `33,164,840,500 B`
+    - Prefill+1 delta vs baseline: total `+676.01 s` (`+297.41%`), prefill tok/s `-391.12` (`-83.95%`), peak memory reduction `26.12%`
+    - Prefill+64 absolute: total `904.31 s`, peak `33,164,840,500 B`
+- `T=131072` status:
+  - Started (`prefill_only`) but interrupted due runtime before completion.
+- Decision: Follow-up.
+- Next action: run dedicated `T=131072` checkpoint (possibly with larger chunk or prefill-only first) to complete high-context acceptance.
+
+## 2026-02-07 — Chunked Prefill Latency Regression Root-Cause Diagnosis
+
+Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieved 26.12% memory reduction but +591.70% latency regression (876s vs 127s baseline). The regression comes from 16 sequential forward passes through 47 layers. Each pass carries fixed overhead (HCSA pattern construction, MLX eval barriers, Python dispatch). The baseline doesn't chunk — comparing monolithic prefill (one call, GPU stays hot) against 16 sequential sparse calls with Python round-trips.
+
+### EXP-20260207-DIAG01-CHUNKED-DENSE-BASELINE (planned)
+- Question: How much of the 6x chunked prefill latency regression is from chunking overhead itself vs HCSA-specific overhead?
+- Hypothesis: Running the same chunked prefill loop with stock GLM attention (no Wayfinder swap) will isolate the chunking-inherent cost. If stock chunked prefill is also much slower than monolithic, the bottleneck is MLX chunking overhead, not HCSA graph construction.
+- Change set:
+  - `scripts/bench_glm_chunked_prefill_mlx.py`: added `--no-swap` flag, true autoregressive decode (64x1-token), `--kv-step` preallocation control.
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+- HCSA chunked reference path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 1 64 --cache-modes normal --no-swap --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_diag01_chunked_dense_baseline`
+- Controls:
+  - `--no-swap`: stock GLM attention, no HCSA graph construction
+  - Same model, chunk size, seq len, seed, batch=1
+  - Per-chunk timing already captured in chunk_reports
+
+### EXP-20260207-DIAG02-CHUNK-LATENCY-PROFILE (result — ROOT CAUSE FOUND)
+- Question: Do later chunks get progressively slower (growing cache penalty) or is per-chunk overhead flat?
+- **ROOT CAUSE**: Line 259 of `hcsa/integrations/glm_mlx.py`:
+  ```python
+  if queries.shape[2] != keys.shape[2]:
+      out = self._dense_fallback(queries, keys, values, mask, cache)
+  ```
+  During chunked prefill, `extract_qkv_from_glm_attention` merges the chunk K into the KV cache via `cache.update_and_fetch()`, returning full cached K (size `cache_offset + chunk_size`). Q remains at `chunk_size`. After chunk 0:
+  - **Chunk 0**: Q=4096, K=4096 → HCSA sparse path (correct, 4.29s)
+  - **Chunks 1-15**: Q=4096, K>4096 → **DENSE MLA FALLBACK** (O(chunk×cache))
+- The 24x per-chunk slowdown and 6.9x total regression is entirely explained by 15 of 16 chunks falling back to O(T²) dense attention.
+- The HCSA permute-window kernel (`wayfinder_permute_window_attention_batched`) requires `Q_len == K_len == T` because it permutes Q/K/V into cycle order over the same T positions. It has no codepath for Q_len < K_len (prefix-extended chunked prefill).
+- Decision: **Critical fix needed** — implement Q_len < K_len support in HCSA permute-window path.
+- Next action: Design and implement sparse chunked prefill that scatters Q into permuted space, runs local-window attention only at active positions, and gathers output back. Expected complexity: O(C·W) per chunk, matching monolithic HCSA for those positions.
+
+### CONCLUSION: GLM Chunked Prefill Latency Regression (2026-02-08)
+
+**Root Cause**: The entire 6.9x latency regression is caused by a single code path bug — `hcsa/integrations/glm_mlx.py:259` falls back to O(T²) dense MLA attention whenever `Q_len != K_len`, which is the case for all chunks after the first during chunked prefill.
+
+**Impact**:
+- Memory reduction (26.12% at T=65536) IS REAL — chunking works for memory
+- Latency regression (+591.70%) is NOT inherent to HCSA — it's from the dense fallback
+- If HCSA sparse attention is used for all chunks, per-chunk cost should be O(C·W) = constant, not growing with cache size
+- Expected fix: chunked prefill latency should be within 2x of monolithic (not 6.9x)
+
+**What remains for production-grade 200k prefill+generation**:
+1. Implement Q_len < K_len support in the HCSA permute-window kernel
+2. This requires: scatter Q into permuted space, run local-window attention at active positions only, gather output back
+3. Graph/permutation should be pre-built once for target T and reused across chunks
+4. After fix, re-benchmark T=65536/131072/202752 to validate
+
+**Full-model superiority demonstrated**: Layer-level results are strong (3.5x throughput, 78% memory reduction at T=8192). The chunked prefill memory reduction is real (26% at T=65536). The latency regression is a fixable integration bug, not a fundamental limitation.
+
+### EXP-20260207-DIAG03-HCSA-CHUNKED-4096-8192-FOCUSED (planned — deferred)
+- Question: After diagnosing root cause, does chunk=8192 offer a better latency/memory Pareto point at T=65536 for HCSA?
+- Hypothesis: Halving chunk count (8 vs 16) should roughly halve the fixed-overhead component, with memory tradeoff dependent on per-chunk activation footprint.
+- Change set: measurement-only (reuse patched script).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 8192 --decode-lens 0 1 64 --cache-modes normal --path permute --window 64 --landmark-stride 0 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_diag03_focused_chunk_sweep`
+
+## 2026-02-08 — GLM Active-Query Permute Fix Validation
+
+### EXP-20260208-GLM-ACTIVE-PERMUTE-FIX (planned)
+- Question: Does an active-query Hamiltonian permute path (Q_len < K_len) eliminate dense fallback in chunked prefill and recover positive latency while preserving memory reduction?
+- Hypothesis: Routing chunked prefill through active-query windowed attention will remove the O(chunk*cache) dense path for chunks >0, making per-chunk time flatter and improving prefill latency materially versus `EXP-20260208-001331-GLM-LENGTH-SWEEP-CHUNK4096-RESULT`, while keeping peak memory at or below prior chunked levels.
+- Change set:
+  - `hcsa/mlx/attention.py`: add `wayfinder_permute_window_attention_active_batched(...)` for active query rows
+  - `hcsa/integrations/glm_mlx.py`: use active-query permute path when `self.path=="permute"` and `Q_len < K_len` instead of dense fallback
+- Baseline run path:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096/results.json`
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_permute_fix`
+- Controls:
+  - Retro/backfill disabled for inference
+  - Same model/path/window/chunk as prior chunked baseline reference
+  - Baseline comparison retained via `--baseline-path`

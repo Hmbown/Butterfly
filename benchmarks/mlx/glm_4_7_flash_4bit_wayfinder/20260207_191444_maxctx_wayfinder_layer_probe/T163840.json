@@ -1,0 +1,8 @@
+{
+  "seq_len": 163840,
+  "ok": false,
+  "error": "RuntimeError: [metal::malloc] Attempting to allocate 34419507200 bytes which is greater than the maximum allowed buffer size of 22613000192 bytes.",
+  "sec": null,
+  "tok_s": null,
+  "peak_memory_bytes": null
+}
