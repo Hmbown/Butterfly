@@ -18,11 +18,14 @@ O(T) attention with graph-theoretic connectivity guarantees.
 
 Standard self-attention scales as O(T²) in both compute and memory. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w + k) neighbors while guaranteeing every position remains reachable.
 
-> **On reachability vs. effective receptive field:** A single Hamiltonian cycle guarantees connectivity but has diameter O(T) — information cannot cross 256K tokens in ~61 layers via cycle edges alone. HCSA addresses this three ways: (1) **landmarks act as aggregation hubs** (every token attends to O(T/stride) landmark positions, providing O(1)-hop shortcuts), (2) **cycle resampling across layers** gives each layer a different long-range shortcut topology, and (3) **multi-head diversity** (each head can use an independent cycle) creates a union-of-cycles with expander-like properties and much smaller effective diameter.
+<details><summary><b>On reachability vs. effective receptive field</b></summary>
+
+A single Hamiltonian cycle guarantees connectivity but has diameter O(T) — information cannot cross 256K tokens in ~61 layers via cycle edges alone. HCSA addresses this three ways: (1) **landmarks act as aggregation hubs** (every token attends to O(T/stride) landmark positions, providing O(1)-hop shortcuts), (2) **cycle resampling across layers** gives each layer a different long-range shortcut topology, and (3) **multi-head diversity** (each head can use an independent cycle) creates a union-of-cycles with expander-like properties and much smaller effective diameter.
+</details>
 
 ## North Star: Kimi K2.5 on One Mac Studio
 
-The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2) at 4-bit on a single Mac Studio (M3 Ultra, 512 GB)** — a 1.04-trillion-parameter MoE model running at its full 256K context length.
+The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2.5) at 4-bit on a single Mac Studio (M3 Ultra, 512 GB)** — a 1.04-trillion-parameter MoE model running at its full 256K context length.
 
 This is a hard problem on two fronts:
 
@@ -42,7 +45,10 @@ This is a hard problem on two fronts:
 
 The path: expert offloading handles the weight budget, HCSA handles the attention budget. Apple Silicon unified memory + NVMe makes expert paging viable; HCSA makes long-context generation fast enough to be usable.
 
-> **Assumptions to validate:** Expert paging depends on **expert locality** — a high cache hit-rate among the 384 experts so that cold-expert loads from SSD are infrequent. If routing is too diffuse (every token activates a different set of experts), random I/O thrash per layer per token will dominate latency. We expect locality to be high based on natural-language token distributions, but this must be measured empirically with real routing traces before the full Kimi K2.5-on-one-box claim is solid.
+<details><summary><b>Assumptions to validate</b></summary>
+
+Expert paging depends on **expert locality** — a high cache hit-rate among the 384 experts so that cold-expert loads from SSD are infrequent. If routing is too diffuse (every token activates a different set of experts), random I/O thrash per layer per token will dominate latency. We expect locality to be high based on natural-language token distributions, but this must be measured empirically with real routing traces before the full Kimi K2.5-on-one-box claim is solid.
+</details>
 
 ## How It Works
 
@@ -59,7 +65,7 @@ Causality is enforced by masking any neighbor j > i. Neighborhood size per token
 
 **The permute-window fast path** reorders Q, K, V into cycle order so cycle-neighbor attention becomes a contiguous local window op — no gather/scatter needed. On GPT-2 at T≥4K (block-level) and GLM-4.7-Flash at T≥32K (end-to-end), the permute path meets or exceeds dense SDPA throughput.
 
-### Cycle Strategies
+<details><summary><b>Cycle strategies</b></summary>
 
 | Strategy | Description | Properties |
 |---|---|---|
@@ -68,22 +74,27 @@ Causality is enforced by masking any neighbor j > i. Neighborhood size per token
 | `regular_partition` | Cluster-balanced interleaving (k clusters) | O(T), 5–10% faster permute than random (better spatial locality) |
 | `edge_disjoint` | Multiple Hamiltonian cycles with no shared edges | Maximizes edge diversity across cycles |
 | `covering` | Greedy cycle generation targeting edge-coverage fraction | Monotonically approaches dense attention as cycles increase |
+</details>
 
-### Graph-Theoretic Analysis
+<details><summary><b>Graph-theoretic analysis toolkit</b></summary>
 
-We provide diagnostic utilities (`hcsa/graph/analysis.py`) grounded in the Hamiltonian cycle literature:
+Diagnostic utilities in `hcsa/graph/analysis.py`, grounded in the Hamiltonian cycle literature:
 
 - **Spectral gap** — eigenvalue gap of the cycle+window adjacency matrix; larger gap → faster information mixing.
 - **Expansion proxy** — random-walk mixing time to stationarity; validates expander-like properties.
 - **Resilience** — empirical survival rate under random edge drops, aligned with Draganić et al. (2025) Theorem 1.5: cycle+window graphs tolerate ~30% edge dropout while preserving Hamiltonicity (96% survival at drop_rate=0.3, T=128, w=32).
 - **Regularity** — ε-regularity of edge distribution across clusters; validates structural uniformity.
 - **Edge coverage** — fraction of all possible edges covered by a set of cycles; covering_cycles reaches ≥95% coverage given enough cycles.
+</details>
 
 ## Results
 
 All benchmarks on Apple Silicon (MLX backend), dated 2026-02-08. Dense baselines use fused SDPA.
 
-> **Methodology note:** Results below fall into two categories. **Throughput/memory benchmarks** (GLM, GPT-2, Qwen, Tiny synthetic) measure the HCSA attention mechanism swapped into pretrained models at inference — no retraining. These models were not trained with HCSA, so quality impact of the swap is not yet validated. **Quality (perplexity) results** come from small models trained from scratch with HCSA attention on TinyShakespeare.
+<details><summary><b>Methodology note</b></summary>
+
+Results below fall into two categories. **Throughput/memory benchmarks** (GLM, GPT-2, Qwen, Tiny synthetic) measure the HCSA attention mechanism swapped into pretrained models at inference — no retraining. These models were not trained with HCSA, so quality impact of the swap is not yet validated. **Quality (perplexity) results** come from small models trained from scratch with HCSA attention on TinyShakespeare.
+</details>
 
 ### GLM-4.7-Flash (MLA + MoE, 4-bit) — Attention Swap, Current Focus
 
@@ -139,17 +150,21 @@ These results are from small models trained from scratch on TinyShakespeare (MLX
 | 200-step + edge-bias | 28.06 | 29.15 | `runs/mlx/20260207_050514` |
 | 1k-step scheduled | 70.20 | **22.92** | `runs/mlx/20260207_050440` |
 
-> **Note on 1k-step result:** Dense overfits severely on this tiny dataset (final val ppl 70.20 vs best 16.25). HCSA's lower final ppl (22.92 vs best 16.89) is partly an implicit regularization effect — sparse attention constrains capacity. This is a real phenomenon but should not be read as "HCSA produces better language models."
+<details><summary>Note on 1k-step result</summary>
 
-**Retro backfill** (comparing HCSA-without-retro vs HCSA-with-retro, same architecture):
+Dense overfits severely on this tiny dataset (final val ppl 70.20 vs best 16.25). HCSA's lower final ppl (22.92 vs best 16.89) is partly an implicit regularization effect — sparse attention constrains capacity. This is a real phenomenon but should not be read as "HCSA produces better language models."
+</details>
+
+<details><summary><b>Retro backfill</b> (HCSA-without-retro vs HCSA-with-retro)</summary>
 
 | Setting | HCSA ppl (retro off) | HCSA ppl (retro on) | Source |
 |---|---:|---:|---|
 | Tiny-long 1k-step (alpha=0.2) | 91.02 | **79.92** | `runs/mlx/20260207_retro_{control,treatment}` |
 
 Retro backfill improves perplexity 12% at 8% throughput cost. Training-only by default; disabled at inference for causality safety.
+</details>
 
-### Graph-Theory Experiments (2026-02-08)
+<details><summary><b>Graph-theory experiments (2026-02-08)</b></summary>
 
 Validating theoretical properties of the cycle-based attention graph:
 
@@ -161,6 +176,7 @@ Validating theoretical properties of the cycle-based attention graph:
 | **Regular partition (reg8/reg16 vs random)** | 5–10% faster permute, flat memory | `tiny_wayfinder/regularity_*` |
 
 Covering cycles monotonically converge toward dense attention as cycle count increases — validates the theoretical motivation for Hamiltonian cycle backbones.
+</details>
 
 ### Roadmap
 
@@ -209,6 +225,8 @@ python scripts/bench_mlx_wayfinder_scale.py \
 
 ## Architecture
 
+<details><summary>Project layout</summary>
+
 ```
 hcsa/
 ├── model.py                   GPT with configurable attention (dense / hcsa)
@@ -230,8 +248,7 @@ hcsa/
     ├── glm_mlx.py             GLM-4 attention swap (MLA + MoE)
     └── gpt2_mlx.py            GPT-2 attention swap
 ```
-
-**Key design boundary:** the Graph ABI is the bridge between backends. Strategies produce cycles on CPU, the ABI wraps them as NumPy arrays, each backend converts to native tensors. The permute fast path reorders Q/K/V into cycle order for contiguous local-window attention. The sparse gather path serves as correctness reference.
+</details>
 
 ## Related Work
 
