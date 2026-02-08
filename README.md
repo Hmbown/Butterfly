@@ -277,14 +277,20 @@ hcsa/
 | Method | Approach | Graph Guarantee |
 |---|---|---|
 | **HCSA** (this work) | Hamiltonian cycle backbone + local window | Every token reachable via cycle |
+| Exphormer (Shirzad et al., 2023) | Expander graphs + virtual global nodes for graph transformers | Near-Ramanujan spectral expansion |
+| SPLA (Wang et al., 2026) | Block sparse top-k + residual linear attention for long tail | None (block selection is input-dependent) |
 | NSA (DeepSeek, 2025) | Hardware-aligned sparse with token compression | None |
 | Longformer (2020) | Sliding window + global tokens | Global tokens only |
 | BigBird (2020) | Window + global + random edges | No cycle guarantee |
+
+Exphormer is the closest prior work — it uses d>1 independent Hamiltonian cycles per head to create expander graphs with O(log n) mixing time for graph transformers. HCSA adapts this idea to causal LM attention with a permute-window fast path. SPLA tackles a complementary problem: instead of sparsifying the attention graph structure, it keeps block-sparse exact attention for "peaks" and compresses the remaining context via linear attention, avoiding the hard-truncation quality loss of NSA/InfLLM-v2.
 
 ## References
 
 - Draganic et al. (2025). Hamilton cycles in pseudorandom graphs. [arXiv:2507.22807](https://arxiv.org/abs/2507.22807)
 - Draganic et al. (2024). Hamiltonicity of expanders: optimal bounds and applications. [arXiv:2402.06603](https://arxiv.org/abs/2402.06603)
+- Shirzad et al. (2023). Exphormer: Sparse Transformers for Graphs. ICML 2023. [arXiv:2303.06147](https://arxiv.org/abs/2303.06147)
+- Wang et al. (2026). SPLA: Block Sparse Plus Linear Attention for Long Context Modeling. [arXiv:2601.22379](https://arxiv.org/abs/2601.22379)
 
 ## Citation
 
