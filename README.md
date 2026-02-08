@@ -1,8 +1,8 @@
 <div align="center">
 
-# HCSA
+# Wayfinder
 
-**Hamiltonian Cycle Sparse Attention**
+**Hamiltonian Cycle Sparse Attention (HCSA)**
 
 Sparse causal attention for language models using Hamiltonian cycles as the attention backbone.
 O(T) attention with graph-theoretic connectivity guarantees.
@@ -16,7 +16,7 @@ O(T) attention with graph-theoretic connectivity guarantees.
 
 ---
 
-Standard self-attention scales as O(T²) in both compute and memory. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w + k) neighbors while guaranteeing every position remains reachable.
+Standard self-attention scales as O(T²) in compute. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w) neighbors (cycle + local window) while guaranteeing every position remains reachable. Optional landmarks add O(T/s) anchors per token for better effective diameter.
 
 <details><summary><b>On reachability vs. effective receptive field</b></summary>
 
@@ -29,17 +29,17 @@ The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2.5) at 4-bit on a
 
 This is a hard problem on two fronts:
 
-1. **The model barely fits.** At 4-bit, all 384 experts total ~520 GB — already over the 512 GB budget before KV cache and activations. MoE helps (only 32B params active per token), so with expert offloading you keep the attention layers + hot experts resident and page cold experts from SSD. But memory headroom is razor-thin.
+1. **The model barely fits.** At 4-bit, the full 1.04T-parameter model totals ~520 GB (1.04T × 0.5 bytes; actual size higher with group-quantization overhead) — already over the 512 GB budget before KV cache and activations. MoE helps (only 32B params active per token), so with expert offloading you keep the attention layers + hot experts resident and page cold experts from SSD. But memory headroom is razor-thin.
 
-2. **Dense attention at 256K is a dealbreaker.** Even with MLA compressing KV cache ~10×, dense O(T²) attention at 256K context is a **compute wall** — the arithmetic cost scales quadratically and dominates generation time on consumer hardware. (Modern SDPA/FlashAttention kernels avoid materializing the full T×T matrix at inference, so the memory issue is primarily a **training activation cost**, but the compute is still O(T²) either way.) This is where HCSA comes in.
+2. **Dense attention at 256K is a dealbreaker.** Even with MLA compressing KV cache ~25× (kv_lora_rank=512 vs 64-head MHA), dense O(T²) attention at 256K context is a **compute wall** — the quadratic cost dominates prefill and per-token decode scales as O(T) in context length. (Modern SDPA/FlashAttention kernels avoid materializing the full T×T matrix at inference, so the memory issue is primarily a **training activation cost**, but the compute is still O(T²) either way.) This is where HCSA comes in.
 
 **What HCSA does:** replaces O(T²) attention compute with O(T·W) where W=64 — a **~4,000× attention compute reduction** per layer at 256K context (T/W ≈ 256,000/64 ≈ 4,000). This makes 256K context practical instead of theoretical, and frees memory headroom that the model weights desperately need.
 
 | Component | Size | Notes |
 |---|---|---|
-| Model weights (4-bit) | ~520 GB | All 384 experts; exceeds 512 GB alone |
-| Active expert weights | ~41 GB | 9 active experts + non-MoE layers |
-| KV cache at 256K (MLA) | ~16 GB | MLA compresses ~10x vs standard |
+| Model weights (4-bit) | ~520 GB | 1.04T × 0.5 bytes; experts are ~98% of params |
+| Active per token (4-bit) | ~16 GB | 32B activated params × 0.5 bytes |
+| KV cache at 256K (MLA) | ~16 GB | MLA compresses ~25× vs standard MHA (kv_lora_rank=512) |
 | Attention intermediates (dense) | O(T²) per layer | The compute wall |
 | **Attention intermediates (HCSA)** | **O(T·W) per layer** | **Makes 256K feasible** |
 
@@ -58,10 +58,10 @@ A Hamiltonian cycle visits every vertex exactly once and returns to the start. H
 |---|---|
 | **Cycle neighbors** | Two adjacent nodes in the Hamiltonian cycle (long-range shortcuts) |
 | **Local window** | The w preceding tokens (local context, always included) |
-| **Landmarks** | Every k-th token (optional global anchors) |
+| **Landmarks** | Every s-th token (optional global anchors; adds O(T/s) neighbors) |
 | **Self** | Always included |
 
-Causality is enforced by masking any neighbor j > i. Neighborhood size per token is O(w + k), independent of T.
+Causality is enforced by masking any neighbor j > i. Without landmarks, neighborhood size is O(w) per token, independent of T. With landmarks at stride s, each token adds O(T/s) neighbors — a tunable compute/diameter trade-off.
 
 **The permute-window fast path** reorders Q, K, V into cycle order so cycle-neighbor attention becomes a contiguous local window op — no gather/scatter needed. On GPT-2 at T≥4K (block-level) and GLM-4.7-Flash at T≥32K (end-to-end), the permute path meets or exceeds dense SDPA throughput.
 
@@ -203,7 +203,7 @@ Full benchmark artifacts in [`benchmarks/mlx/`](benchmarks/mlx/) and [`notes/LAB
 ## Quickstart
 
 ```bash
-git clone https://github.com/Hmbown/hcsa.git && cd hcsa
+git clone https://github.com/Hmbown/Wayfinder.git && cd Wayfinder
 pip install -e ".[dev]"
 
 # PyTorch: train dense vs HCSA
@@ -262,7 +262,7 @@ hcsa/
 ## References
 
 - Draganic et al. (2025). Hamilton cycles in pseudorandom graphs. [arXiv:2507.22807](https://arxiv.org/abs/2507.22807)
-- Draganic et al. (2024). Hamiltonicity of expanders: optimal bounds and applications. [arXiv:2405.18875](https://arxiv.org/abs/2405.18875)
+- Draganic et al. (2024). Hamiltonicity of expanders: optimal bounds and applications. [arXiv:2402.06603](https://arxiv.org/abs/2402.06603)
 
 ## Citation
 
@@ -271,7 +271,7 @@ hcsa/
   author    = {Bown, Hunter},
   title     = {{HCSA}: Hamiltonian Cycle Sparse Attention},
   year      = {2026},
-  url       = {https://github.com/Hmbown/hcsa},
+  url       = {https://github.com/Hmbown/Wayfinder},
   version   = {0.3.0}
 }
 ```
