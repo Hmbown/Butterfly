@@ -5,7 +5,7 @@
 **Hamiltonian Cycle Sparse Attention (HCSA)**
 
 Sparse causal attention for language models using Hamiltonian cycles as the attention backbone.
-O(T) attention with graph-theoretic connectivity guarantees.
+O(T) attention with graph-theoretic connectivity backbone.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB.svg)](https://www.python.org/)
@@ -16,7 +16,7 @@ O(T) attention with graph-theoretic connectivity guarantees.
 
 ---
 
-Standard self-attention scales as O(T²) in compute. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w) neighbors (cycle + local window) while guaranteeing every position remains reachable. Optional landmarks add O(T/s) anchors per token for better effective diameter.
+Standard self-attention scales as O(T²) in compute. HCSA replaces it with a sparse graph induced by Hamiltonian cycles, restricting each token's attention to O(w) neighbors (cycle + local window) while maintaining a connected backbone over all positions. Optional landmarks add O(T/s) anchors per token for better effective diameter.
 
 <details><summary><b>On reachability vs. effective receptive field</b></summary>
 
@@ -276,7 +276,7 @@ hcsa/
 
 | Method | Approach | Graph Guarantee |
 |---|---|---|
-| **HCSA** (this work) | Hamiltonian cycle backbone + local window | Every token reachable via cycle |
+| **HCSA** (this work) | Hamiltonian cycle backbone + local window | Connected backbone; effective receptive field grows with depth + resampling |
 | Exphormer (Shirzad et al., 2023) | Expander graphs + virtual global nodes for graph transformers | Near-Ramanujan spectral expansion |
 | SPLA (Wang et al., 2026) | Block sparse top-k + residual linear attention for long tail | None (block selection is input-dependent) |
 | NSA (DeepSeek, 2025) | Hardware-aligned sparse with token compression | None |
@@ -287,8 +287,8 @@ Exphormer is the closest prior work — it uses d>1 independent Hamiltonian cycl
 
 ## References
 
-- Draganic et al. (2025). Hamilton cycles in pseudorandom graphs. [arXiv:2507.22807](https://arxiv.org/abs/2507.22807)
-- Draganic et al. (2024). Hamiltonicity of expanders: optimal bounds and applications. [arXiv:2402.06603](https://arxiv.org/abs/2402.06603)
+- Draganić et al. (2025). Hamilton cycles in pseudorandom graphs: resilience and approximate decompositions. [arXiv:2507.22807](https://arxiv.org/abs/2507.22807)
+- Draganić et al. (2024). Hamiltonicity of expanders: optimal bounds and applications. [arXiv:2402.06603](https://arxiv.org/abs/2402.06603)
 - Shirzad et al. (2023). Exphormer: Sparse Transformers for Graphs. ICML 2023. [arXiv:2303.06147](https://arxiv.org/abs/2303.06147)
 - Wang et al. (2026). SPLA: Block Sparse Plus Linear Attention for Long Context Modeling. [arXiv:2601.22379](https://arxiv.org/abs/2601.22379)
 
