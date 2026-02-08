@@ -20,21 +20,25 @@ Standard self-attention scales as O(T^2) in both compute and memory. HCSA replac
 
 ## North Star: Kimi K2.5 on One Mac Studio
 
-The goal is to make **trillion-parameter MoE models usable at full context on consumer hardware** — specifically, [Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2) (1.04T params, 32B active) running 256K context on a single Mac Studio M4 Ultra with 512 GB unified memory.
+The goal is **[Kimi K2.5](https://github.com/MoonshotAI/Kimi-K2) at 4-bit on a single Mac Studio M4 Ultra (512 GB)** — a 1.04-trillion-parameter MoE model running at its full 256K context length.
 
-Kimi K2.5 *should* run on consumer hardware — only 32B parameters are active per token. But dense O(T^2) attention at 256K context makes it impractical. HCSA reduces attention to O(T * W) with W=64, a ~4,000x compute reduction per layer.
+This is a hard problem on two fronts:
 
-**The memory math:**
+1. **The model barely fits.** At 4-bit, all 384 experts total ~520 GB — already over the 512 GB budget before KV cache and activations. MoE helps (only 32B params active per token), so with expert offloading you keep the attention layers + hot experts resident and page cold experts from SSD. But memory headroom is razor-thin.
 
-| Component | Size |
-|---|---|
-| Model weights (4-bit, all 384 experts) | ~520 GB |
-| Model weights (3-bit) | ~390 GB |
-| KV cache at 256K (MLA compresses ~10x) | ~16 GB |
-| Activations + OS overhead | ~30 GB |
-| **Total at 3-bit** | **~436 GB < 512 GB** |
+2. **Dense attention at 256K is a dealbreaker.** Even with MLA compressing KV cache ~10x, dense O(T^2) attention at 256K context takes both too much memory and too much compute for practical generation on consumer hardware. This is where HCSA comes in.
 
-At 3-bit quantization the model fits with 76 GB headroom. At 4-bit, expert offloading to SSD keeps active memory under budget. Either way, HCSA is what makes 256K context feasible — without it, attention alone is the bottleneck.
+**What HCSA does:** replaces O(T^2) attention with O(T * W) where W=64 — a ~4,000x compute reduction per layer. This makes 256K context practical instead of theoretical, and frees memory headroom that the model weights desperately need.
+
+| Component | Size | Notes |
+|---|---|---|
+| Model weights (4-bit) | ~520 GB | All 384 experts; exceeds 512 GB alone |
+| Active expert weights | ~41 GB | 9 active experts + non-MoE layers |
+| KV cache at 256K (MLA) | ~16 GB | MLA compresses ~10x vs standard |
+| Attention intermediates (dense) | O(T^2) per layer | The memory/compute wall |
+| **Attention intermediates (HCSA)** | **O(T * W) per layer** | **Makes 256K feasible** |
+
+The path: expert offloading handles the weight budget, HCSA handles the attention budget. Apple Silicon unified memory + NVMe makes expert paging viable; HCSA makes long-context generation fast enough to be usable.
 
 ## How It Works
 
