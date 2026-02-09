@@ -23,6 +23,17 @@ HCSA: per-token fan-in is bounded by `D ≤ W + 2 + T/s`; after causal masking o
 
 At `T=4096`, `W=64`, `s=64`: `D=130` vs `4095`, a **31x** reduction in edges per token.
 
+## Research Questions
+
+Can sparse attention learn like a slime mold — start with a structured backbone and discover which edges carry information at every scale?
+
+Practical version:
+- Start from an overcomplete candidate graph (window + landmarks + `k` cycles/rewires).
+- Learn a degree-budgeted subgraph (per-token/head top-`D` edges) via gated edges or periodic prune/rewire using usage/gradient credit.
+- Measure: (1) quality at long context, (2) layer depth needed for near-full-prefix receptive fields, (3) end-to-end throughput and peak memory under a fixed `D`.
+
+Related structural question: does multiscale cycle richness of the undirected skeleton predict the depth needed for full-prefix receptive fields under causal composition, beyond spectral gap alone?
+
 ## Benchmarks
 
 All numbers: Apple M-series silicon, MLX backend, 4-bit weights, `W=64`, chunk=`4096`, circular windowing.
