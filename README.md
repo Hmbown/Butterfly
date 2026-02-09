@@ -6,6 +6,17 @@
 - `neigh_idx`: padded `int32` neighbor indices (`-1` = PAD), shape `[T,D]` or `[H,T,D]`
 - `edge_type`: `uint8` edge labels (`PAD/CYCLE/WINDOW/LANDMARK/REWIRE`)
 
+## Overview: graph → attention
+
+```mermaid
+graph LR
+  A["Graph construction\n(cycle + window + landmarks)"] -->|neigh_idx + edge_type| B["Graph ABI\n(hcsa/graph/abi.py)"]
+  B --> C["Sparse attention\n(gather / permute-window)"]
+  C --> D["Transformer block"]
+```
+
+If you're coming from graph theory: the research question is how **different constant-degree (or low-degree) token graphs** affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`). Kernel discovery is performance plumbing around the same graph/ABI.
+
 ## Install
 
 ```bash
@@ -40,6 +51,12 @@ python scripts/bench_mlx_wayfinder_scale.py \
   --batch 2 --heads 4 --embd 128 \
   --window 32 --landmark-stride 32
 ```
+
+## Graph properties → attention patterns
+
+![Attention weights on sparse edges](docs/assets/attention_on_edges_heatmap.png)
+
+![Highway distance histogram](docs/assets/highway_distance_hist.png)
 
 ## Where to look (research map)
 
