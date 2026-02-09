@@ -18,6 +18,7 @@ from .analysis import (
     laplacian_spectral_gap,
     spectral_gap,
 )
+from . import expander
 
 __all__ = [
     "EdgeType",
@@ -34,4 +35,5 @@ __all__ = [
     "compute_edge_coverage",
     "laplacian_spectral_gap",
     "fiedler_bridge_candidates",
+    "expander",
 ]

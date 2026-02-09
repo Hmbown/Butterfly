@@ -208,7 +208,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--targets",
         nargs="*",
         default=["all"],
-        help="Target ids/names (k1..k5) or all.",
+        help="Target ids/names (k1..k6) or all.",
     )
     p_discover_targets.add_argument("--json-out", type=Path, default=None)
     p_discover_targets.set_defaults(func=cmd_discover_targets)
@@ -221,7 +221,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--targets",
         nargs="*",
         default=["all"],
-        help="Target ids/names (k1..k5) or all.",
+        help="Target ids/names (k1..k6) or all.",
     )
     p_discover_setup.add_argument("--repo-root", type=Path, default=Path.cwd())
     p_discover_setup.add_argument("--zmlx-root", type=Path, default=Path("/Volumes/VIXinSSD/ZMLX"))

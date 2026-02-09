@@ -2957,3 +2957,150 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Decision: Keep. HCSA memory advantage is real and growing. Per-chunk throughput crosses
   over at K~28K, meaning 64K+ sequences will show full-model throughput wins. The flat
   per-chunk profile is the key theoretical advantage.
+
+### EXP-20260209-dispatch-kv-default (Hypothesis)
+- Question: Does forcing `permute_prepermute_mode=kv` reduce chunked-prefill dispatch overhead
+  vs the existing `auto` schedule on GLM-4.7-Flash-4bit?
+- Hypothesis: Pinning K/V-only prepermute will improve `prefill tok/s` and reduce sample-layer
+  `attention_ms` on active chunks by eliminating repeated per-q-chunk K/V gather work.
+- Baseline run path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_ab_hcsa_with_decode/results.json`
+  (scenario: `seq_len=8192`, `chunk_size=4096`, `prefill_only`).
+- Change set:
+  1. `hcsa/integrations/glm_mlx.py` default `GLMWayfinderConfig.permute_prepermute_mode` -> `kv`
+  2. `scripts/bench_glm_chunked_prefill_mlx.py` add CLI `--permute-prepermute-mode` and pass through
+- Command:
+  `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --permute-prepermute-mode kv --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_ab_hcsa_with_decode/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_kv_default`
+- Controls: same model (`mlx-community/GLM-4.7-Flash-4bit`), same path (`permute`), same
+  window/head/query chunking, same cache mode (`normal`), same decode length (`0`), retro disabled.
+- Metrics: `prefill_only.sec`, `prefill_only.tok_s`, `prefill_only.peak_memory_bytes`, and chunk-level
+  `profile_sample.attention_ms` at `k_len=8192`.
+- Decision: pending
+- Next action: run benchmark and compute absolute / delta / percentage delta vs named baseline.
+
+### EXP-20260209-dispatch-kv-vs-auto-tiebreak (Hypothesis)
+- Question: Is the observed `kv` slowdown real, or due to run-to-run noise compared with a fresh `auto` run
+  in the same environment?
+- Hypothesis: A same-session rerun with `auto` will match or beat the `kv` run, confirming that forcing `kv`
+  is not a safe default for GLM chunked prefill.
+- Baseline run path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_kv_default/results.json`
+  (same command family, only prepermute mode differs).
+- Change set:
+  1. No new code changes
+  2. Controlled rerun with `--permute-prepermute-mode auto`
+- Command:
+  `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --permute-prepermute-mode auto --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_kv_default/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak`
+- Controls: identical to prior run except `permute_prepermute_mode`.
+- Metrics: `prefill_only.sec`, `prefill_only.tok_s`, `prefill_only.peak_memory_bytes`, chunk-level
+  `profile_sample.attention_ms` at `k_len=8192`.
+- Decision: pending
+- Next action: run tie-break benchmark and decide whether to revert runtime default to `auto`.
+
+### EXP-20260209-dispatch-headchunk8 (Hypothesis)
+- Question: Can increasing `head_chunk_size` from `2` to `8` reduce dispatch overhead enough to
+  improve chunked-prefill throughput at `seq_len=8192`?
+- Hypothesis: Fewer head chunks should cut Python loop/dispatch overhead and improve `prefill tok/s`
+  with limited peak-memory change.
+- Baseline run path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json`
+  (`head_chunk_size=2`, `permute_prepermute_mode=auto`).
+- Change set:
+  1. No code changes for runtime logic
+  2. Controlled benchmark override: `--head-chunk-size 8`
+- Command:
+  `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --head-chunk-size 8 --permute-prepermute-mode auto --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_headchunk8`
+- Controls: same model, same chunk size/query chunk/window/cache mode/seed and only `head_chunk_size` changes.
+- Metrics: `prefill_only.sec`, `prefill_only.tok_s`, `prefill_only.peak_memory_bytes`, and chunk-level
+  `profile_sample.attention_ms` at `k_len=8192`.
+- Decision: pending
+- Next action: run benchmark and decide whether to raise GLM default head chunk size.
+
+### EXP-20260209-dispatch-querychunk384 (Hypothesis)
+- Question: Can increasing `query_chunk_size` from `192` to `384` reduce dispatch count and improve
+  chunked-prefill throughput at `seq_len=8192`?
+- Hypothesis: Larger query chunks should reduce dispatch frequency and improve `prefill tok/s`, with
+  moderate memory impact.
+- Baseline run path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json`
+  (`query_chunk_size=192`, `permute_prepermute_mode=auto`).
+- Change set:
+  1. No code changes for runtime logic
+  2. Controlled benchmark override: `--query-chunk-size 384`
+- Command:
+  `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --query-chunk-size 384 --permute-prepermute-mode auto --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_querychunk384`
+- Controls: same model, same head chunk/window/cache mode/seed and only `query_chunk_size` changes.
+- Metrics: `prefill_only.sec`, `prefill_only.tok_s`, `prefill_only.peak_memory_bytes`, and chunk-level
+  `profile_sample.attention_ms` at `k_len=8192`.
+- Decision: pending
+- Next action: run benchmark and decide if query chunk default should increase.
+
+### EXP-20260209-k6-discovery-target (Hypothesis)
+- Question: Does adding a `k6` fused all-head/all-query discovery target integrate cleanly with the
+  current `wayc discover-*` tooling and tests?
+- Hypothesis: Extending the target registry + alias map + seed scaffold to `k6` will pass existing
+  discovery tests and expose the new target via CLI without regressions.
+- Baseline run path: setup-only baseline (no runtime benchmark); reference test command:
+  `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`.
+- Change set:
+  1. `hcsa/discover/targets.py` add `k6` spec + alias
+  2. `hcsa/mlx/kernels/metal/seeds/hcsa_fused_attention.metal` add seed scaffold
+  3. `tests/test_discover_targets.py` update expected target inventory and alias checks
+  4. `scripts/wayc.py` help text update to `k1..k6`
+  5. `NEXT_SESSION_PROMPT.md` target table update
+- Command:
+  `python3 scripts/wayc.py discover-targets --targets k6 && python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
+- Controls: setup-only validation, no model loading/inference/attention benchmark execution.
+- Metrics: CLI target id visibility, pytest pass/fail counts.
+- Decision: pending
+- Next action: run setup-only validation and record outcomes.
+
+### EXP-20260209-dispatch-kv-default (Result)
+- Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_ab_hcsa_with_decode/results.json`
+- Metrics (`seq_len=8192`, `chunk_size=4096`, `prefill_only`):
+  1. `sec`: absolute `104.7408`, delta `+37.4507`, delta% `+55.6557%`
+  2. `tok_s`: absolute `78.2121`, delta `-43.5295`, delta% `-35.7556%`
+  3. `peak_memory_bytes`: absolute `21,443,723,048`, delta `+16,384`, delta% `+0.0000764%`
+  4. `memory_reduction_pct_vs_baseline`: `-0.0000764%`
+     sign convention: reduction % = `100 * (1 - wayfinder/dense)` (negative => memory increase vs baseline)
+  5. chunk-1 `attention_ms`: `842.9740`
+- Decision: revert default flip. Forced `kv` is a regression in this regime.
+- Next action: run same-session `auto` tie-break and keep runtime default on `auto`.
+
+### EXP-20260209-dispatch-kv-vs-auto-tiebreak (Result)
+- Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_kv_default/results.json`
+- Metrics (`seq_len=8192`, `chunk_size=4096`, `prefill_only`):
+  1. `sec`: absolute `70.7817`, delta `-33.9591`, delta% `-32.4220%`
+  2. `tok_s`: absolute `115.7361`, delta `+37.5240`, delta% `+47.9772%`
+  3. `peak_memory_bytes`: absolute `21,443,706,664`, delta `-16,384`, delta% `-0.0000764%`
+  4. `memory_reduction_pct_vs_baseline`: `+0.0000764%`
+  5. chunk-1 `attention_ms`: `649.5346`
+- Decision: keep `auto` default.
+- Next action: test other dispatch levers (head/query chunk size) against this `auto` baseline.
+
+### EXP-20260209-dispatch-headchunk8 (Result)
+- Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json`
+- Metrics (`seq_len=8192`, `chunk_size=4096`, `prefill_only`):
+  1. `sec`: absolute `94.0258`, delta `+23.2441`, delta% `+32.8392%`
+  2. `tok_s`: absolute `87.1250`, delta `-28.6111`, delta% `-24.7210%`
+  3. `peak_memory_bytes`: absolute `21,443,706,664`, delta `0`, delta% `0.0%`
+  4. `memory_reduction_pct_vs_baseline`: `0.0%`
+  5. chunk-1 `attention_ms`: `896.4303`
+- Decision: reject `head_chunk_size=8` as default for this workload.
+- Next action: test query-chunk-size lever.
+
+### EXP-20260209-dispatch-querychunk384 (Result)
+- Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_auto_tiebreak/results.json`
+- Metrics (`seq_len=8192`, `chunk_size=4096`, `prefill_only`):
+  1. `sec`: absolute `71.0847`, delta `+0.3030`, delta% `+0.4281%`
+  2. `tok_s`: absolute `115.2427`, delta `-0.4934`, delta% `-0.4263%`
+  3. `peak_memory_bytes`: absolute `21,441,617,192`, delta `-2,089,472`, delta% `-0.009744%`
+  4. `memory_reduction_pct_vs_baseline`: `+0.009744%`
+  5. chunk-1 `attention_ms`: `656.0338`
+- Decision: keep as tunable option only; not a throughput default change.
+- Next action: prioritize true fused-kernel path (single dispatch), not chunk-parameter tuning.
+
+### EXP-20260209-k6-discovery-target (Result)
+- Command result:
+  1. `python3 scripts/wayc.py discover-targets --targets k6` returns target `k6`
+     with `kernel_name=hcsa_fused_attention`, `priority=P0`, expected IO metadata, and seed path.
+  2. `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
+     passed `7/7`.
+- Decision: keep. K6 discovery scaffolding is integrated and validated.
+- Next action: run `discover-setup --targets k6` and launch ZMLX search for `hcsa_fused_attention`.

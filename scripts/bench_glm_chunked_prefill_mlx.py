@@ -509,6 +509,13 @@ def main() -> None:
         default=0,
         help="Use dense fallback in active mode when K_len <= threshold (<=0 disables).",
     )
+    parser.add_argument(
+        "--permute-prepermute-mode",
+        type=str,
+        choices=["auto", "off", "kv", "qkv", "on"],
+        default="auto",
+        help="Wayfinder prepermute planner mode for permute/active paths.",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-swap", action="store_true", default=False,
                         help="Run with stock GLM attention (no Wayfinder swap) for chunked baseline")
@@ -552,7 +559,7 @@ def main() -> None:
         compiled_graph_dir=None,
         permute_head_chunk_size=int(max(1, args.head_chunk_size)),
         query_chunk_size=int(max(1, args.query_chunk_size)),
-        permute_prepermute_mode="auto",
+        permute_prepermute_mode=str(args.permute_prepermute_mode),  # type: ignore[arg-type]
         permute_log_chunks=False,
         compute_edge_utilization_proxy=False,
         compute_graph_metrics=False,

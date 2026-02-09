@@ -116,6 +116,29 @@ _TARGETS: Dict[str, KernelTargetSpec] = {
         expected_outputs=["out [B,H,T,dh]", "W_ttt_next [H,F,F]"],
         quality_gate_ref="Q1,Q2,Q5",
     ),
+    "k6": KernelTargetSpec(
+        id="k6",
+        kernel_name="hcsa_fused_attention",
+        discover_target="hcsa_fused_attention",
+        priority="P0",
+        question=(
+            "Can we fuse all-head/all-query permute-window attention into one Metal dispatch "
+            "to eliminate Python head-chunk x query-chunk overhead?"
+        ),
+        reference_path="hcsa/mlx/attention.py:757",
+        seed_kernel_path="hcsa/mlx/kernels/metal/seeds/hcsa_fused_attention.metal",
+        session_stub_name="hcsa_fused_attention_session.stub.json",
+        expected_inputs=[
+            "q [B,Hq,T,dh]",
+            "k [B,Hkv,T,dh]",
+            "v [B,Hkv,T,dh]",
+            "all_perms [Hq,T] int32",
+            "all_inv_perms [Hq,T] int32",
+            "window int",
+        ],
+        expected_outputs=["out [B,Hq,T,dh]"],
+        quality_gate_ref="Q1,Q2",
+    ),
 }
 
 _ALIASES = {
@@ -125,6 +148,7 @@ _ALIASES = {
     "hcsa_graph_construct": "k3",
     "hcsa_active_row_fused": "k4",
     "hcsa_wayfinder_ttt_fused": "k5",
+    "hcsa_fused_attention": "k6",
 }
 
 
