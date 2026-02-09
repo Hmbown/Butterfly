@@ -47,6 +47,10 @@ docs/HANDOFF_PROMPT.md
 runs/mlx/qwen_env_check.json
 runs/mlx/qwen_env_check_full.json
 
+# Markdown (only root README.md is tracked)
+*.md
+!/README.md
+
 # IDE / editor
 .idea/
 .vscode/

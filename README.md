@@ -6,59 +6,54 @@
 - `neigh_idx`: padded `int32` neighbor indices (`-1` = PAD), shape `[T,D]` or `[H,T,D]`
 - `edge_type`: `uint8` edge labels (`PAD/CYCLE/WINDOW/LANDMARK/REWIRE`)
 
-## Token interactions: dense vs sparse
+## Token interactions: dense vs HCSA
+
+Both panels show which tokens **t7** attends to in a single layer.
 
 ```mermaid
-%%{init: {'flowchart': {'curve': 'basis'}}}%%
-flowchart LR
-  subgraph D["Dense causal (query t7)"]
-    direction LR
-    d0((t0))
-    d1((t1))
-    d2((t2))
-    d3((t3))
-    d4((t4))
-    d5((t5))
-    d6((t6))
-    d7((t7))
+%%{init: {'theme': 'neutral', 'flowchart': {'curve': 'basis'}}}%%
+flowchart TB
+    subgraph S["HCSA  (query t7 · W=2 · stride=4)"]
+        s7((t7)):::q
+        s7 -->|window| s6((t6)):::w
+        s7 -->|window| s5((t5)):::w
+        s7 -.->|cycle| s2((t2)):::c
+        s7 ==>|landmark| s4((t4)):::l
+        s7 ==>|landmark| s0((t0)):::l
+        s7 ~~~ s1((t1)):::skip
+        s7 ~~~ s3((t3)):::skip
+    end
 
-    d7 --> d6
-    d7 --> d5
-    d7 --> d4
-    d7 --> d3
-    d7 --> d2
-    d7 --> d1
-    d7 --> d0
-  end
+    subgraph D["Dense causal  (query t7)"]
+        d7((t7)):::q
+        d7 --> d6((t6))
+        d7 --> d5((t5))
+        d7 --> d4((t4))
+        d7 --> d3((t3))
+        d7 --> d2((t2))
+        d7 --> d1((t1))
+        d7 --> d0((t0))
+    end
 
-  subgraph S["HCSA neighborhood (W=2 + a few long edges)"]
-    direction LR
-    s0((t0))
-    s1((t1))
-    s2((t2))
-    s3((t3))
-    s4((t4))
-    s5((t5))
-    s6((t6))
-    s7((t7))
-
-    %% local window
-    s7 --> s6
-    s7 --> s5
-    s6 --> s5
-    s6 --> s4
-
-    %% sparse long edges (examples)
-    s7 -. cycle .-> s2
-    s7 -. landmark .-> s4
-    s6 -. cycle .-> s1
-    s4 -. landmark .-> s0
-  end
+    classDef q fill:#e63946,stroke:#fff,color:#fff,stroke-width:3px
+    classDef w fill:#457b9d,stroke:#1d3557,color:#fff
+    classDef c fill:#e76f51,stroke:#9c4835,color:#fff
+    classDef l fill:#2a9d8f,stroke:#1b6b62,color:#fff
+    classDef skip fill:#f1faee,stroke:#ccc,color:#bbb,stroke-dasharray:5 5
 ```
 
-Dense fan-in per query token ≈ **O(T)** ⇒ **O(T²)** edges total.
-HCSA fan-in per query token ≈ **W + 2 (cycle) + (T/s) (landmarks)** ⇒ **O(T·W)** (plus landmarks).
-Research question: how these low-degree token graphs affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`).
+**Edge types in HCSA** (self-attention is always included but omitted from the diagram):
+
+| Arrow style | Type | Rule |
+|---|---|---|
+| **solid** `-->` | window | W nearest causal neighbors |
+| **dashed** `-.->` | cycle | Hamiltonian-cycle neighbor(s) with j < i |
+| **thick** `==>` | landmark | every stride-th position with j < i |
+| dashed border | *not reached* | outside t7's neighborhood this layer |
+
+Dense: fan-in = **T - 1** per token, **O(T^2)** total edges, **O(T^2 d)** attention cost.
+HCSA: fan-in = **W + 2 + T/s** per token (degree D), **O(T D)** total edges, **O(T D d)** attention cost.
+At T = 4096, W = 64, stride = 64: D = 130 vs 4095 — a **31x** reduction in edges per token.
 
 ## Install
 
