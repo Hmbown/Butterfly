@@ -9,8 +9,9 @@
 ## Token interactions: dense vs sparse
 
 ```mermaid
+%%{init: {'flowchart': {'curve': 'basis'}}}%%
 flowchart LR
-  subgraph D["Dense causal (example query t7)"]
+  subgraph D["Dense causal (query t7)"]
     direction LR
     d0((t0))
     d1((t1))
@@ -28,11 +29,9 @@ flowchart LR
     d7 --> d2
     d7 --> d1
     d7 --> d0
-    nD["…and every token i connects to all j<i"]
-    d7 --- nD
   end
 
-  subgraph S["HCSA neighborhood (window W=2 + a few long edges)"]
+  subgraph S["HCSA neighborhood (W=2 + a few long edges)"]
     direction LR
     s0((t0))
     s1((t1))
@@ -49,7 +48,7 @@ flowchart LR
     s6 --> s5
     s6 --> s4
 
-    %% sparse long edges (cycle + landmarks are examples)
+    %% sparse long edges (examples)
     s7 -. cycle .-> s2
     s7 -. landmark .-> s4
     s6 -. cycle .-> s1
@@ -57,8 +56,8 @@ flowchart LR
   end
 ```
 
-Dense edges/query ≈ **i** (avg ≈ T/2) ⇒ **O(T²)** total edges.
-HCSA edges/query ≈ **W + O(1)** (plus optional landmarks) ⇒ **O(T·W)** total edges.
+Dense fan-in per query token ≈ **O(T)** ⇒ **O(T²)** edges total.
+HCSA fan-in per query token ≈ **W + 2 (cycle) + (T/s) (landmarks)** ⇒ **O(T·W)** (plus landmarks).
 Research question: how these low-degree token graphs affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`).
 
 ## Install
