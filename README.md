@@ -13,18 +13,7 @@ Both panels show which tokens **t7** attends to in a single layer.
 ```mermaid
 %%{init: {'theme': 'neutral', 'flowchart': {'curve': 'basis'}}}%%
 flowchart TB
-    subgraph S["HCSA  (query t7 · W=2 · stride=4)"]
-        s7((t7)):::q
-        s7 -->|window| s6((t6)):::w
-        s7 -->|window| s5((t5)):::w
-        s7 -.->|cycle| s2((t2)):::c
-        s7 ==>|landmark| s4((t4)):::l
-        s7 ==>|landmark| s0((t0)):::l
-        s7 ~~~ s1((t1)):::skip
-        s7 ~~~ s3((t3)):::skip
-    end
-
-    subgraph D["Dense causal  (query t7)"]
+    subgraph D["Dense causal (t7)"]
         d7((t7)):::q
         d7 --> d6((t6))
         d7 --> d5((t5))
@@ -35,6 +24,17 @@ flowchart TB
         d7 --> d0((t0))
     end
 
+    subgraph S["HCSA (t7, W=2, stride=4)"]
+        s7((t7)):::q
+        s7 --> s6((t6)):::w
+        s7 --> s5((t5)):::w
+        s7 -.-> s2((t2)):::c
+        s7 ==> s4((t4)):::l
+        s7 ==> s0((t0)):::l
+        s7 ~~~ s1((t1)):::skip
+        s7 ~~~ s3((t3)):::skip
+    end
+
     classDef q fill:#e63946,stroke:#fff,color:#fff,stroke-width:3px
     classDef w fill:#457b9d,stroke:#1d3557,color:#fff
     classDef c fill:#e76f51,stroke:#9c4835,color:#fff
@@ -42,14 +42,15 @@ flowchart TB
     classDef skip fill:#f1faee,stroke:#ccc,color:#bbb,stroke-dasharray:5 5
 ```
 
-**Edge types in HCSA** (self-attention is always included but omitted from the diagram):
+**HCSA edge types** (self-attention always included, omitted from diagram):
 
-| Arrow style | Type | Rule |
-|---|---|---|
-| **solid** `-->` | window | W nearest causal neighbors |
-| **dashed** `-.->` | cycle | Hamiltonian-cycle neighbor(s) with j < i |
-| **thick** `==>` | landmark | every stride-th position with j < i |
-| dashed border | *not reached* | outside t7's neighborhood this layer |
+| Node color | Arrow | Type | Rule |
+|---|---|---|---|
+| red | — | query | the token computing attention |
+| blue | solid `-->` | window | W nearest causal neighbors |
+| orange | dashed `-.->` | cycle | Hamiltonian-cycle neighbor(s) with j < i |
+| green | thick `==>` | landmark | every stride-th position with j < i |
+| gray dashed | — | *not reached* | outside neighborhood this layer |
 
 Dense: fan-in = **T - 1** per token, **O(T^2)** total edges, **O(T^2 d)** attention cost.
 HCSA: fan-in = **W + 2 + T/s** per token (degree D), **O(T D)** total edges, **O(T D d)** attention cost.
