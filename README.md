@@ -78,6 +78,7 @@ See: `docs/discover_setup.md`, `hcsa/discover/targets.py`, `hcsa/discover/sessio
 ## References
 
 - Hamilton cycles in pseudorandom graphs (resilience/decompositions): https://arxiv.org/abs/2507.22807
+- Exphormer (Sparse Transformers for Graphs): https://arxiv.org/abs/2303.06147
 - TTT-Discover (test-time tuning/training): https://arxiv.org/abs/2601.16175
 - ZMLX (`zmlx.discover`): https://github.com/Hmbown/ZMLX
 
