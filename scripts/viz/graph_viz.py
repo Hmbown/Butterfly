@@ -108,8 +108,8 @@ def plot_cycle_graph(
     fig, ax = plt.subplots(1, 1, figsize=(10, 10))
 
     # Color mapping
-    color_map = {"cycle": "#3B82F6", "window": "#22C55E", "landmark": "#EF4444"}
-    alpha_map = {"cycle": 0.8, "window": 0.4, "landmark": 0.3}
+    color_map = {"cycle": "#3B82F6", "window": "#22C55E", "landmark": "#DC2626"}
+    alpha_map = {"cycle": 0.8, "window": 0.5, "landmark": 0.6}
 
     # Draw edges by type (landmarks first, then window, then cycle on top)
     for etype in ["landmark", "window", "cycle"]:
@@ -125,7 +125,7 @@ def plot_cycle_graph(
             )
             nx.draw_networkx_edges(
                 G, pos, edgelist=acausal_edges, ax=ax,
-                edge_color="gray", alpha=0.15,
+                edge_color="gray", alpha=0.25,
                 arrows=False, width=0.5, style="dashed",
             )
         else:
