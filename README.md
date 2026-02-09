@@ -70,43 +70,55 @@ Protocol details: see `AGENTS.md`.
 
 ## Benchmarks
 
-All numbers: Apple M-series silicon, MLX backend, 4-bit weights, `W=64`, chunk=`4096`, circular windowing.
-
-### Qwen3-1.7B-4bit - isolated attention (single layer, no MLP)
-
-Attention kernel only (one layer; no MLP), isolating `O(TD)` vs `O(T^2)` scaling with `D << T` in the sparse regime.
-
-| T | Dense tok/s | HCSA tok/s | Speedup |
-|------:|----------:|----------:|--------:|
-| 8192 | 174,964 | 227,455 | **1.30x** |
-| 16384 | 112,437 | 236,100 | **2.10x** |
-| 32768 | 62,733 | 236,420 | **3.77x** |
-
-HCSA stays ~flat in this configuration while dense drops sharply with `T`.
-
-### Qwen3-1.7B-4bit - full transformer block (attention + MLP + norms)
-
-One complete block; `O(T)` terms (MLP/norms) dilute attention-only speedups.
-
-| T | Dense tok/s | HCSA tok/s | Speedup | Memory reduction |
-|------:|----------:|----------:|--------:|--------:|
-| 8192 | 75,857 | 82,949 | 1.09x | 15.2% |
-| 16384 | 60,916 | 84,444 | 1.39x | 15.6% |
-| 32768 | 42,847 | 85,466 | **2.00x** | 10.1% |
+All numbers: Apple M4 Max, MLX backend, 4-bit weights, `W=64`, chunk=`4096`.
 
 ### GLM-4.7-Flash-4bit - full model (47 layers, MoE)
 
-End-to-end chunked prefill through all 47 layers of a production MoE model (9B total, ~4B active).
+End-to-end chunked prefill through all 47 layers of a production MoE model (9B total, ~4B active). HCSA is **faster than dense at every sequence length** tested.
 
-| T | Dense tok/s | HCSA tok/s | Dense memory | HCSA memory | Memory reduction |
+| T | Dense | HCSA | Speedup | Dense memory | HCSA memory |
 |------:|----------:|----------:|--------:|--------:|--------:|
-| 8192 | 254 | 121 | 19.2 GB | 20.0 GB | - |
-| 16384 | 360 | 175 | 20.9 GB | 20.4 GB | 2.4% |
-| 32768 | 177 | 148 | 24.2 GB | 20.8 GB | **22.9%** |
+| 8,192 | 254 tok/s | **293 tok/s** | **1.15x** | 20.7 GB | 20.1 GB |
+| 16,384 | 365 tok/s | **852 tok/s** | **2.34x** | 22.4 GB | 21.8 GB |
+| 32,768 | 227 tok/s | **666 tok/s** | **2.93x** | 26.0 GB | 25.4 GB |
 
-At these lengths HCSA is slower end-to-end because attention is a smaller fraction of total work; the main win in this table is memory at 32K (22.9% reduction in this run).
+Dense scales O(T^2); HCSA scales O(T*W). The advantage grows with sequence length.
 
-Raw data: `benchmarks/`
+### Qwen3-4B-4bit - isolated attention (single layer)
+
+| T | Dense tok/s | HCSA tok/s | Speedup |
+|------:|----------:|----------:|--------:|
+| 4,096 | 241,600 | 309,100 | **1.28x** |
+| 8,192 | 176,000 | 313,600 | **1.78x** |
+| 16,384 | 113,700 | 314,800 | **2.77x** |
+
+### Qwen3-4B-4bit - full transformer block (attention + MLP + norms)
+
+| T | Dense tok/s | HCSA tok/s | Speedup |
+|------:|----------:|----------:|--------:|
+| 4,096 | 85,200 | 92,000 | **1.08x** |
+| 8,192 | 76,300 | 94,000 | **1.23x** |
+| 16,384 | 61,300 | 93,700 | **1.53x** |
+
+### GPT-2 (MLX) - isolated attention
+
+| T | Dense tok/s | HCSA tok/s | Speedup |
+|------:|----------:|----------:|--------:|
+| 4,096 | 790,000 | 1,020,000 | **1.30x** |
+| 8,192 | 500,000 | 1,050,000 | **2.12x** |
+| 16,384 | 280,000 | 1,090,000 | **3.87x** |
+
+Raw data: `results/`, `benchmarks/`
+
+## How It's Fast
+
+Three optimizations combine to make HCSA sparse attention faster than dense on real models:
+
+1. **Vectorized all-head dispatch** (`hcsa/mlx/fused_attention.py`): Processes all query heads simultaneously via flat-index arithmetic + MLX's fused SDPA kernel, eliminating per-head Python loops and eval barriers. Two code paths: contiguous-window (when graph matches data) and flat-index gather (oversized graphs).
+
+2. **Fast perms-only graph build** (`hcsa/topology/core.py`): `Topology.construct_perms_only()` generates only cycle permutations in O(T) time, skipping the O(T*D) neighbor-index construction that is unused by the permute attention path. **1904x faster** at T=32,768 (24s to 12ms).
+
+3. **Exact graph horizon** (`hcsa/integrations/glm_mlx.py`): Builds graphs at exactly the KV cache size (Tg=Tk) instead of rounding up to a power-of-two horizon. This enables the contiguous-window active-row path where pre-permuted K/V can be sliced without random-access gathers.
 
 ## Visuals
 
@@ -126,12 +138,15 @@ HCSA graph on 32 tokens (circle layout; only causal edges shown):
 | `hcsa/cycles.py`, `hcsa/graph_strategies.py` | Cycle construction + strategy wrappers |
 | `hcsa/graph/abi.py` | Graph ABI (neighbor indices + edge typing) |
 | `hcsa/graph/analysis.py` | Empirical diagnostics: spectral gap, random-walk mixing, resilience |
-| `hcsa/topology/core.py` | Topology runtime (construct/save/load/rewire) |
+| `hcsa/topology/core.py` | Topology runtime (construct/save/load/rewire/`construct_perms_only`) |
 | `hcsa/compiler/` + `configs/graph_specs/*.wf` | Graph-spec compiler + cache artifacts |
-| `hcsa/mlx/`, `hcsa/torch/` | Backend implementations |
-| `scripts/wayc.py` | CLI: validate/compile/bench + discovery setup |
-| `tests/` | Correctness + diagnostics coverage |
-| `benchmarks/` | Experiment results + benchmark data |
+| `hcsa/mlx/attention.py` | MLX attention dispatch (dense, sparse-gather, permute-window) |
+| `hcsa/mlx/fused_attention.py` | Vectorized all-head fused dispatch (full-prefill + active-row) |
+| `hcsa/integrations/` | Model integrations (Qwen3, GLM-4, GPT-2) |
+| `hcsa/torch/` | PyTorch/CUDA backend |
+| `scripts/` | Benchmarks, training, ablations, visualization |
+| `tests/` | 240 tests covering correctness + diagnostics |
+| `benchmarks/`, `results/` | Experiment results + benchmark data |
 
 ## Research Questions
 

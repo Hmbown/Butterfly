@@ -207,6 +207,16 @@ class GLMWayfinderAttention(nn.Module):
         self._runtime_schedule_bias_vec = np.zeros((4,), dtype=np.float32)
         self._runtime_memory_budget_bytes: Optional[int] = None
         self._active_graph_seq_len: int = 0
+        # Fast graph build: perms-only path avoids O(T*D) ABI construction.
+        # When available, the adaptive horizon uses exact k_len so Tg == Tk,
+        # enabling the contiguous-window active-row attention path.
+        self._fast_graph_build = bool(
+            cfg.path == "permute"
+            and not cfg.compute_graph_metrics
+            and not cfg.compute_edge_utilization_proxy
+            and cfg.path != "sparse"
+            and not cfg.verify_spectral_gap
+        )
 
         self.last_profile: AttentionProfile = AttentionProfile(path=cfg.path)
         self.last_graph_abi: Optional[WayfinderGraphABI] = None
@@ -242,8 +252,13 @@ class GLMWayfinderAttention(nn.Module):
                 max_size = None
         if max_size is not None and max_size > 0:
             target = max(target, max_size)
+        elif self._fast_graph_build:
+            # With fast perms-only graph build (~12ms), no need for an
+            # aggressive adaptive horizon.  Match the actual data size
+            # so Tg == Tk, enabling the contiguous-window active-row path.
+            return int(target)
         else:
-            # Adaptive horizon: amortize graph builds without assuming fixed final length.
+            # Slow full-ABI build: amortize graph rebuilds.
             step = max(4096, int(max(1, q_len)) * 8)
             target = ((target + step - 1) // step) * step
 
@@ -453,9 +468,7 @@ class GLMWayfinderAttention(nn.Module):
                         circular=self.circular,
                         multi_cycle_mode=self.multi_cycle_mode,
                         log_progress=self.permute_log_chunks,
-                        use_fused_dispatch=(
-                            self.use_fused_dispatch and discovered_fused_attention_available
-                        ),
+                        use_fused_dispatch=self.use_fused_dispatch,
                     )
                 except Exception as exc:
                     out = self._dense_fallback(queries, keys, values, mask, cache)

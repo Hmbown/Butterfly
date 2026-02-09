@@ -23,6 +23,7 @@ from hcsa.mlx.graph_abi import (
     to_mlx_graph_abi,
 )
 from hcsa.mlx.fused_attention import (
+    _fused_active_dispatch_eligible,
     _fused_dispatch_eligible,
     wayfinder_fused_permute_window_attention,
 )
@@ -1235,13 +1236,12 @@ def wayfinder_permute_window_attention_active_batched(
         raise ValueError(f"query_positions must be shape ({Tq},), got {query_positions.shape}")
 
     # --- Fused all-head dispatch for active-row path ---
-    if _fused_dispatch_eligible(
+    # Uses a more permissive eligibility check than the full-prefill path
+    # because the vectorized active-row function handles circular + edge bias.
+    if _fused_active_dispatch_eligible(
         all_perms=all_perms,
-        edge_type_bias_scalar=edge_type_bias_scalar,
         window_drop_prob=window_drop_prob,
         training=training,
-        retro_backfill_enabled=False,  # active path has no retro backfill
-        circular=circular,
         multi_cycle_mode=multi_cycle_mode,
         use_fused_dispatch=use_fused_dispatch,
     ):
@@ -1271,6 +1271,8 @@ def wayfinder_permute_window_attention_active_batched(
             query_positions=query_positions,
             window=int(max(0, window)),
             query_chunk_size=query_chunk_size,
+            circular=circular,
+            edge_type_bias_scalar=edge_type_bias_scalar,
         )
         return y, None
 

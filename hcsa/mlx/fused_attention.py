@@ -26,7 +26,7 @@ def _fused_dispatch_eligible(
     multi_cycle_mode: str,
     use_fused_dispatch: bool,
 ) -> bool:
-    """Return True when the fused all-head path can be used."""
+    """Return True when the fused all-head *full-prefill* path can be used."""
     if not use_fused_dispatch:
         return False
     # Multi-cycle 3-D permutations require per-cycle averaging.
@@ -41,6 +41,30 @@ def _fused_dispatch_eligible(
     if retro_backfill_enabled:
         return False
     if circular:
+        return False
+    if multi_cycle_mode == "union":
+        return False
+    return True
+
+
+def _fused_active_dispatch_eligible(
+    *,
+    all_perms: mx.array,
+    window_drop_prob: float,
+    training: bool,
+    multi_cycle_mode: str,
+    use_fused_dispatch: bool,
+) -> bool:
+    """Return True when the vectorized active-row path can be used.
+
+    More permissive than ``_fused_dispatch_eligible`` because the vectorized
+    active-row implementation supports circular wrapping and edge-type bias.
+    """
+    if not use_fused_dispatch:
+        return False
+    if all_perms.ndim != 2:
+        return False
+    if training and window_drop_prob > 0.0:
         return False
     if multi_cycle_mode == "union":
         return False
@@ -174,12 +198,21 @@ def wayfinder_fused_permute_window_attention_active(
     query_positions: mx.array,
     window: int,
     query_chunk_size: int = 192,
+    circular: bool = False,
+    edge_type_bias_scalar: Optional[float] = None,
 ) -> mx.array:
-    """All-head fused active-row permute-window attention.
+    """All-head vectorized active-row permute-window attention.
 
-    Loops over heads and query chunks like the chunked path but builds a
-    single lazy MLX compute graph with **no** ``mx.eval()`` barriers.  MLX
-    schedules all per-head work concurrently on the GPU.
+    Two strategies depending on whether the graph size matches the data:
+
+    **Full-prefill reuse** (``Tg == Tk``):  Pre-permute Q/K/V into cycle
+    order, run windowed SDPA with contiguous slicing (zero random-access
+    gathers), then extract active rows.  This is identical in structure to
+    the full-prefill fused path and runs at the same speed.
+
+    **Flat-index gather** (``Tg > Tk``, legacy oversized graph):
+    Vectorized gather across all heads using flat permutation tables +
+    SDPA with ``NH = Hq * Qblk`` virtual heads.
 
     Args:
         q: [B, Hq, Tq, dh] — active query rows only
@@ -187,88 +220,268 @@ def wayfinder_fused_permute_window_attention_active(
         all_perms: [Hq, Tg] int32 — cycle permutations (Tg >= Tk)
         all_inv_perms: [Hq, Tg] int32 — inverse permutations
         query_positions: [Tq] int32 — original token positions for each query
-        window: half-window size (W_full = 2*window + 1)
+        window: half-window size
         query_chunk_size: query positions per chunk (memory bounding)
+        circular: modular wrap-around in cycle order.
+        edge_type_bias_scalar: additive bias for cycle-adjacent positions.
 
     Returns:
         y: [B, Hq, Tq, dh]
     """
-    import numpy as np
+    B, Hq, Tq, dh = q.shape
+    Hkv = k.shape[1]
+    Tk = k.shape[2]
+    Tg = int(all_perms.shape[1])
 
-    from hcsa.mlx.attention import stable_masked_softmax
+    # --- Fast path: full-prefill reuse when graph matches data ---
+    # When Tg == Tk, we can pre-permute K/V once and use contiguous
+    # window slicing — identical to the full-prefill fused path but
+    # with a padded Q tensor.  This eliminates all random-access gathers.
+    if Tg == Tk and (edge_type_bias_scalar is None or edge_type_bias_scalar == 0.0):
+        return _active_via_full_prefill(
+            q, k, v,
+            all_perms=all_perms,
+            all_inv_perms=all_inv_perms,
+            query_positions=query_positions,
+            window=window,
+            query_chunk_size=query_chunk_size,
+        )
 
+    # --- Fallback: flat-index gather for oversized graphs (Tg > Tk) ---
+    return _active_via_gather(
+        q, k, v,
+        all_perms=all_perms,
+        all_inv_perms=all_inv_perms,
+        query_positions=query_positions,
+        window=window,
+        query_chunk_size=query_chunk_size,
+        circular=circular,
+        edge_type_bias_scalar=edge_type_bias_scalar,
+    )
+
+
+def _active_via_full_prefill(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    query_positions: mx.array,
+    window: int,
+    query_chunk_size: int = 384,
+) -> mx.array:
+    """Active-row via full-prefill: pad Q, run full T attention, extract rows.
+
+    Pre-permutes K/V once (contiguous) and uses the same windowed SDPA
+    as the full-prefill path.  This trades ~2x extra SDPA work for
+    eliminating all random-access K/V gathers.
+    """
+    B, Hq, Tq, dh = q.shape
+    Hkv = k.shape[1]
+    T = k.shape[2]  # Tg == Tk
+    scale = 1.0 / math.sqrt(dh)
+    q_chunk = int(max(1, min(query_chunk_size, T)))
+
+    # Build full-T Q tensor with active rows placed at their positions.
+    q_pos = query_positions.astype(mx.int32)  # [Tq]
+    q_full = mx.zeros((B, Hq, T, dh), dtype=q.dtype)
+    # Scatter active rows into full Q.
+    # query_positions are contiguous: active_start .. active_start + Tq - 1
+    active_start = int(q_pos[0].item())
+    q_full = q_full.at[:, :, active_start:active_start + Tq, :].add(q)
+
+    # GQA expansion for pre-permute.
+    if Hkv < Hq:
+        if Hq % Hkv != 0:
+            raise ValueError(f"Hq={Hq} must be divisible by Hkv={Hkv}")
+        repeats = Hq // Hkv
+        k_exp = mx.repeat(k, repeats=repeats, axis=1)
+        v_exp = mx.repeat(v, repeats=repeats, axis=1)
+    else:
+        k_exp = k
+        v_exp = v
+
+    # Pre-permute into cycle order (one gather per head, contiguous after).
+    perm_idx = all_perms[None, :, :, None]  # [1, Hq, T, 1]
+    perm_idx_b = mx.broadcast_to(perm_idx, (B, Hq, T, 1))
+    q_pi = mx.take_along_axis(q_full, perm_idx_b, axis=2)
+    k_pi = mx.take_along_axis(k_exp, perm_idx_b, axis=2)
+    v_pi = mx.take_along_axis(v_exp, perm_idx_b, axis=2)
+
+    # Run windowed SDPA (identical to full-prefill fused path).
+    y_pi_chunks: list[mx.array] = []
+    for s in range(0, T, q_chunk):
+        e = min(T, s + q_chunk)
+        ks = max(0, s - window)
+        ke = min(T, e + window)
+        Qblk = e - s
+        Kblk = ke - ks
+
+        q_blk = q_pi[:, :, s:e, :]
+        k_blk = k_pi[:, :, ks:ke, :]
+        v_blk = v_pi[:, :, ks:ke, :]
+
+        # Causal mask from original positions.
+        q_idx = all_perms[:, s:e]
+        k_idx = all_perms[:, ks:ke]
+        causal = k_idx[:, None, :] <= q_idx[:, :, None]
+
+        # Window constraint in permuted order.
+        q_r = mx.arange(s, e, dtype=mx.int32).reshape(1, Qblk, 1)
+        k_r = mx.arange(ks, ke, dtype=mx.int32).reshape(1, 1, Kblk)
+        rel = k_r - q_r
+        in_window = (rel >= -window) & (rel <= window)
+
+        mask = in_window & causal
+
+        y_blk = mx.fast.scaled_dot_product_attention(
+            q_blk, k_blk, v_blk,
+            scale=scale,
+            mask=mask[None, :, :, :],
+        ).astype(v.dtype)
+        y_pi_chunks.append(y_blk)
+
+    if len(y_pi_chunks) == 1:
+        y_pi = y_pi_chunks[0]
+    else:
+        y_pi = mx.concatenate(y_pi_chunks, axis=2)
+
+    # Inverse-permute back to original order.
+    inv_idx = all_inv_perms[None, :, :, None]
+    inv_idx_b = mx.broadcast_to(inv_idx, (B, Hq, T, 1))
+    y_full = mx.take_along_axis(y_pi, inv_idx_b, axis=2).astype(v.dtype)
+
+    # Extract active rows.
+    y = y_full[:, :, active_start:active_start + Tq, :]
+    mx.eval(y)
+    return y
+
+
+def _active_via_gather(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    query_positions: mx.array,
+    window: int,
+    query_chunk_size: int = 192,
+    circular: bool = False,
+    edge_type_bias_scalar: Optional[float] = None,
+) -> mx.array:
+    """Active-row via flat-index gather (for oversized graphs, Tg > Tk)."""
     B, Hq, Tq, dh = q.shape
     Hkv = k.shape[1]
     Tk = k.shape[2]
     Tg = int(all_perms.shape[1])
     scale = 1.0 / math.sqrt(dh)
+    W_full = 2 * window + 1
     q_chunk = int(max(1, min(query_chunk_size, Tq)))
 
     kv_repeat = Hq // Hkv
-    q_to_kv_head = np.arange(Hq, dtype=np.int32) // kv_repeat
-    offsets = mx.arange(-window, window + 1, dtype=mx.int32)
-    W_full = 2 * window + 1
     q_pos_all = query_positions.astype(mx.int32)
 
-    # Build per-head results in a single lazy graph — NO mx.eval() calls.
-    y_heads: list[mx.array] = []
-    for h in range(Hq):
-        q_h = q[:, h, :, :]  # [B, Tq, dh]
-        kv_h = int(q_to_kv_head[h])
-        k_h = k[:, kv_h, :, :]  # [B, Tk, dh]
-        v_h = v[:, kv_h, :, :]  # [B, Tk, dh]
+    perm_i32 = all_perms.astype(mx.int32)
+    inv_i32 = all_inv_perms.astype(mx.int32)
+    flat_perm = perm_i32.reshape(-1)
+    flat_inv = inv_i32.reshape(-1)
 
-        perm_h = all_perms[h]  # [Tg]
-        inv_h = all_inv_perms[h]  # [Tg]
+    head_off = (mx.arange(Hq, dtype=mx.int32) * Tg).reshape(Hq, 1, 1)
+    offsets = mx.arange(-window, window + 1, dtype=mx.int32).reshape(1, 1, W_full)
 
-        y_q_chunks: list[mx.array] = []
-        for s in range(0, Tq, q_chunk):
-            e = min(Tq, s + q_chunk)
-            Qblk = e - s
-            q_blk = q_h[:, s:e, :]  # [B, Qblk, dh]
-            q_pos = q_pos_all[s:e]  # [Qblk]
+    kv_head_idx = mx.arange(Hq, dtype=mx.int32) // kv_repeat
+    kv_head_off = (kv_head_idx * Tk).reshape(Hq, 1, 1)
 
-            q_rank = mx.take(inv_h, q_pos, axis=0)  # [Qblk]
-            k_rank = q_rank.reshape(-1, 1) + offsets.reshape(1, -1)  # [Qblk, W]
+    k_flat = k.reshape(B, Hkv * Tk, dh)
+    v_flat = v.reshape(B, Hkv * Tk, dh)
 
-            valid = (k_rank >= 0) & (k_rank < Tg)
-            k_rank_clipped = mx.clip(k_rank, 0, Tg - 1).astype(mx.int32)
+    y_chunks: list[mx.array] = []
+    for s in range(0, Tq, q_chunk):
+        e = min(Tq, s + q_chunk)
+        Qblk = e - s
+        q_blk = q[:, :, s:e, :]
+        q_pos = q_pos_all[s:e]
 
-            k_orig = mx.take(perm_h, k_rank_clipped, axis=0).astype(mx.int32)
-            available = k_orig < Tk
-            causal = k_orig <= q_pos.reshape(-1, 1)
-            mask_eff = valid & available & causal  # [Qblk, W]
+        inv_idx = head_off[:, :, 0] + q_pos[None, :]
+        all_ranks = mx.take(flat_inv, inv_idx.reshape(-1), axis=0).reshape(
+            Hq, Qblk
+        )
 
-            gather_idx = mx.clip(k_orig, 0, Tk - 1)
-            k_blk = mx.take(k_h, gather_idx, axis=1)  # [B, Qblk, W, dh]
-            v_blk = mx.take(v_h, gather_idx, axis=1)  # [B, Qblk, W, dh]
+        k_ranks = all_ranks[:, :, None] + offsets
 
-            scores = (
-                mx.matmul(
-                    q_blk.astype(mx.float32).reshape(B * Qblk, 1, dh),
-                    k_blk.astype(mx.float32).reshape(B * Qblk, W_full, dh)
-                    .transpose(0, 2, 1),
-                ).reshape(B, Qblk, W_full)
-                * scale
-            )
-            w = stable_masked_softmax(
-                scores, mask_eff[None, :, :], axis=-1, preserve_dtype=True,
-            )
-            y_blk = mx.matmul(
-                w.reshape(B * Qblk, 1, W_full).astype(mx.float32),
-                v_blk.astype(mx.float32).reshape(B * Qblk, W_full, dh),
-            ).reshape(B, Qblk, dh).astype(v.dtype)
-
-            y_q_chunks.append(y_blk)
-
-        if len(y_q_chunks) == 1:
-            y_h = y_q_chunks[0]
+        if circular:
+            k_ranks_clipped = (k_ranks % Tg).astype(mx.int32)
+            valid = mx.ones(k_ranks.shape, dtype=mx.bool_)
         else:
-            y_h = mx.concatenate(y_q_chunks, axis=1)  # [B, Tq, dh]
-        y_heads.append(y_h)
+            valid = (k_ranks >= 0) & (k_ranks < Tg)
+            k_ranks_clipped = mx.clip(k_ranks, 0, Tg - 1).astype(mx.int32)
 
-    # Stack all heads: [B, Hq, Tq, dh] — single lazy graph, no eval barriers.
-    return mx.stack(y_heads, axis=1)
+        perm_idx = (head_off + k_ranks_clipped).reshape(-1)
+        k_orig = mx.take(flat_perm, perm_idx, axis=0).reshape(
+            Hq, Qblk, W_full
+        ).astype(mx.int32)
+
+        available = k_orig < Tk
+        causal = k_orig <= q_pos[None, :, None]
+        mask_eff = valid & available & causal
+
+        gather = mx.clip(k_orig, 0, Tk - 1) + kv_head_off
+        gather_flat = gather.reshape(-1)
+
+        gi_exp = mx.broadcast_to(
+            gather_flat[None, :, None], (B, Hq * Qblk * W_full, dh)
+        )
+        k_gathered = mx.take_along_axis(k_flat, gi_exp, axis=1).reshape(
+            B, Hq, Qblk, W_full, dh
+        )
+        v_gathered = mx.take_along_axis(v_flat, gi_exp, axis=1).reshape(
+            B, Hq, Qblk, W_full, dh
+        )
+
+        NH = Hq * Qblk
+        q_sdpa = q_blk.reshape(B, NH, 1, dh)
+        k_sdpa = k_gathered.reshape(B, NH, W_full, dh)
+        v_sdpa = v_gathered.reshape(B, NH, W_full, dh)
+
+        mask_dtype = q.dtype
+        neg_val = mx.array(
+            -1e4 if mask_dtype == mx.float16 else -1e9, dtype=mask_dtype,
+        )
+        zero_val = mx.array(0.0, dtype=mask_dtype)
+        if edge_type_bias_scalar is not None and edge_type_bias_scalar != 0.0:
+            cycle_nb = valid & (
+                (k_ranks == (all_ranks[:, :, None] - 1))
+                | (k_ranks == (all_ranks[:, :, None] + 1))
+            )
+            bias = mx.where(
+                mask_eff,
+                cycle_nb.astype(mask_dtype) * mx.array(
+                    edge_type_bias_scalar, dtype=mask_dtype
+                ),
+                neg_val,
+            )
+            sdpa_mask = bias.reshape(1, NH, 1, W_full)
+        else:
+            sdpa_mask = mx.where(
+                mask_eff.reshape(1, NH, 1, W_full),
+                zero_val,
+                neg_val,
+            )
+
+        y_blk = mx.fast.scaled_dot_product_attention(
+            q_sdpa, k_sdpa, v_sdpa,
+            scale=scale,
+            mask=sdpa_mask,
+        ).reshape(B, Hq, Qblk, dh).astype(v.dtype)
+
+        mx.eval(y_blk)
+        y_chunks.append(y_blk)
+
+    if len(y_chunks) == 1:
+        return y_chunks[0]
+    return mx.concatenate(y_chunks, axis=2)
 
 
 def wayfinder_fused_permute_window_attention_active_metal(

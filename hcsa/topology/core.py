@@ -131,6 +131,58 @@ class Topology:
         )
         return abi
 
+    def construct_perms_only(self, T: int) -> TopologyGraph:
+        """Fast path: generate only cycle permutations, skip full ABI.
+
+        Returns a minimal ``TopologyGraph`` whose ``abi`` has D=0
+        (no neighbor indices / edge types) but carries per-head
+        permutation lists in ``meta["cycle_perms"]`` and
+        ``meta["all_cycle_perms"]``.  This is ~100x faster than
+        ``construct()`` for large T because it avoids the O(T*D)
+        Python loop in ``build_graph_abi_from_adjacency``.
+        """
+        t = int(T)
+        if t <= 0:
+            raise ValueError(f"T must be > 0, got {t}")
+
+        cycle_perms: list[list[int] | None] = []
+        all_cycle_perms: list[list[list[int]] | None] = []
+
+        for h in range(self.n_heads):
+            perms = self._strategies[h]._sample_perms(t)
+            all_h = [p.detach().cpu().tolist() for p in perms]
+            all_cycle_perms.append(all_h)
+            cycle_perms.append(all_h[0] if all_h else None)
+
+        neigh_idx = np.zeros((self.n_heads, t, 0), dtype=np.int32)
+        edge_type = np.zeros((self.n_heads, t, 0), dtype=np.uint8)
+
+        meta: Dict[str, Any] = {
+            "n_heads": self.n_heads,
+            "seq_len": t,
+            "max_degree": 0,
+            "window": self.window,
+            "landmark_stride": self.landmark_stride,
+            "strategy": self.strategy,
+            "num_cycles": self.num_cycles,
+            "cycle_perms": cycle_perms,
+            "all_cycle_perms": all_cycle_perms,
+        }
+
+        abi = WayfinderGraphABI(neigh_idx=neigh_idx, edge_type=edge_type, meta=meta)
+        return TopologyGraph(
+            abi=abi,
+            source="runtime_perms_only",
+            notes={
+                "strategy": self.strategy,
+                "window": self.window,
+                "landmark_stride": self.landmark_stride,
+                "num_cycles": self.num_cycles,
+                "edge_disjoint": self.edge_disjoint,
+                "regular_num_clusters": self.regular_num_clusters,
+            },
+        )
+
     def construct(
         self,
         x: int | Mapping[str, Any],

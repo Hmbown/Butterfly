@@ -231,6 +231,20 @@ class _QwenGraphRuntime:
                 "Qwen full-swap currently supports input-independent strategies "
                 "('random' or 'regular_partition') for deterministic caching."
             )
+
+        # Fast path: permute path without diagnostics only needs permutations,
+        # skip the expensive O(T*D) ABI construction.
+        if (
+            self.path == "permute"
+            and not self.store_graph_tensors
+            and not self.store_numpy_abi
+            and not self.verify_spectral_gap
+        ):
+            graph = self.topology.construct_perms_only(int(T))
+            abi = graph.abi
+            mlx_graph = to_mlx_graph_abi(abi, heads=self.n_heads, validate=False)
+            return mlx_graph, abi
+
         abi = self.topology.construct({"T": int(T), "include_self": True}).abi
         if self.verify_spectral_gap:
             perm = None
