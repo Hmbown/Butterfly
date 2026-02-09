@@ -19,6 +19,7 @@ from hcsa.mlx.attention import (
 )
 from hcsa.mlx.kernels.metal import (
     has_discovered_active_row_kernel,
+    has_discovered_fused_attention_kernel,
     has_discovered_permute_window_kernel,
 )
 
@@ -313,6 +314,7 @@ class GLMWayfinderAttention(nn.Module):
             and self.use_discovered_active_row_kernel
             and has_discovered_active_row_kernel()
         )
+        discovered_fused_attention_available = has_discovered_fused_attention_kernel()
         force_dense_active = (
             active_mode
             and self.active_dense_threshold is not None
@@ -451,6 +453,9 @@ class GLMWayfinderAttention(nn.Module):
                         circular=self.circular,
                         multi_cycle_mode=self.multi_cycle_mode,
                         log_progress=self.permute_log_chunks,
+                        use_fused_dispatch=(
+                            self.use_fused_dispatch and discovered_fused_attention_available
+                        ),
                     )
                 except Exception as exc:
                     out = self._dense_fallback(queries, keys, values, mask, cache)
@@ -470,6 +475,9 @@ class GLMWayfinderAttention(nn.Module):
                             "active_dense_threshold": self.active_dense_threshold,
                             "active_dense_triggered": bool(force_dense_active),
                             "discovered_active_available": bool(discovered_active_available),
+                            "discovered_fused_attention_available": bool(
+                                discovered_fused_attention_available
+                            ),
                             "discovered_permute_available": bool(discovered_permute_available),
                             "fallback_error": f"{type(exc).__name__}: {exc}",
                         },
@@ -546,6 +554,9 @@ class GLMWayfinderAttention(nn.Module):
                 "active_dense_threshold": self.active_dense_threshold,
                 "active_dense_triggered": bool(force_dense_active),
                 "discovered_active_available": bool(discovered_active_available),
+                "discovered_fused_attention_available": bool(
+                    discovered_fused_attention_available
+                ),
                 "discovered_permute_available": bool(discovered_permute_available),
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "mla_qk_dim": int(self.qk_dim),

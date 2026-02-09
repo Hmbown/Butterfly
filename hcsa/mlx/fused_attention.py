@@ -269,3 +269,48 @@ def wayfinder_fused_permute_window_attention_active(
 
     # Stack all heads: [B, Hq, Tq, dh] — single lazy graph, no eval barriers.
     return mx.stack(y_heads, axis=1)
+
+
+def wayfinder_fused_permute_window_attention_active_metal(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    query_positions: mx.array,
+    window: int,
+    query_chunk_size: int = 192,
+) -> mx.array:
+    """K6 Metal fused active-row attention (all heads)."""
+    from hcsa.mlx.kernels.metal import fused_attention_kernel
+
+    kernel = fused_attention_kernel()
+    perm_i32 = all_perms.astype(mx.int32)
+    inv_i32 = all_inv_perms.astype(mx.int32)
+    q_pos_all = query_positions.astype(mx.int32)
+    window_arr = mx.array([int(window)], dtype=mx.int32)
+
+    B, Hq, Tq, dh = q.shape
+    q_chunk = int(max(1, min(query_chunk_size, Tq)))
+    y_chunks: list[mx.array] = []
+    for s in range(0, Tq, q_chunk):
+        e = min(Tq, s + q_chunk)
+        q_blk = q[:, :, s:e, :]
+        q_pos_blk = q_pos_all[s:e]
+        y_blk = kernel(
+            q_blk,
+            k,
+            v,
+            perm_i32,
+            inv_i32,
+            q_pos_blk,
+            window_arr,
+            output_shapes=[q_blk.shape],
+            output_dtypes=[q_blk.dtype],
+        )[0]
+        y_chunks.append(y_blk)
+
+    if len(y_chunks) == 1:
+        return y_chunks[0]
+    return mx.concatenate(y_chunks, axis=2)

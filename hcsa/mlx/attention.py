@@ -1245,6 +1245,22 @@ def wayfinder_permute_window_attention_active_batched(
         multi_cycle_mode=multi_cycle_mode,
         use_fused_dispatch=use_fused_dispatch,
     ):
+        from hcsa.mlx.kernels.metal import has_discovered_fused_attention_kernel
+
+        if has_discovered_fused_attention_kernel():
+            from hcsa.mlx.fused_attention import (
+                wayfinder_fused_permute_window_attention_active_metal,
+            )
+            y = wayfinder_fused_permute_window_attention_active_metal(
+                q, k, v,
+                all_perms=all_perms,
+                all_inv_perms=all_inv_perms,
+                query_positions=query_positions,
+                window=int(max(0, window)),
+                query_chunk_size=query_chunk_size,
+            )
+            return y, None
+
         from hcsa.mlx.fused_attention import (
             wayfinder_fused_permute_window_attention_active,
         )

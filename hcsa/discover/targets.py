@@ -122,21 +122,22 @@ _TARGETS: Dict[str, KernelTargetSpec] = {
         discover_target="hcsa_fused_attention",
         priority="P0",
         question=(
-            "Can we fuse all-head/all-query permute-window attention into one Metal dispatch "
+            "Can we fuse all-head active-row permute-window attention into one Metal dispatch "
             "to eliminate Python head-chunk x query-chunk overhead?"
         ),
-        reference_path="hcsa/mlx/attention.py:757",
+        reference_path="hcsa/mlx/attention.py:1294",
         seed_kernel_path="hcsa/mlx/kernels/metal/seeds/hcsa_fused_attention.metal",
         session_stub_name="hcsa_fused_attention_session.stub.json",
         expected_inputs=[
-            "q [B,Hq,T,dh]",
-            "k [B,Hkv,T,dh]",
-            "v [B,Hkv,T,dh]",
-            "all_perms [Hq,T] int32",
-            "all_inv_perms [Hq,T] int32",
+            "q [B,Hq,Q,dh]",
+            "k [B,Hkv,Tk,dh]",
+            "v [B,Hkv,Tk,dh]",
+            "all_perms [Hq,Tg] int32",
+            "all_inv_perms [Hq,Tg] int32",
+            "query_positions [Q] int32",
             "window int",
         ],
-        expected_outputs=["out [B,Hq,T,dh]"],
+        expected_outputs=["out [B,Hq,Q,dh]"],
         quality_gate_ref="Q1,Q2",
     ),
 }

@@ -6,6 +6,7 @@ signatures expected for a future custom-op drop-in.
 
 from __future__ import annotations
 
+from functools import cache
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +29,11 @@ def has_discovered_permute_window_kernel() -> bool:
     return _PERMUTE_WINDOW_DISCOVERED.exists()
 
 
+def has_discovered_fused_attention_kernel() -> bool:
+    """True when a post-search K6 artifact has been exported."""
+    return _FUSED_ATTENTION_DISCOVERED.exists()
+
+
 def has_fused_dispatch() -> bool:
     """True when the Python-level fused all-head dispatch is available.
 
@@ -36,6 +42,42 @@ def has_fused_dispatch() -> bool:
     Python path but the eligibility gate is independent of the Metal file.
     """
     return True
+
+
+@cache
+def fused_attention_kernel():
+    """Load the discovered K6 fused-attention Metal kernel."""
+    if not has_discovered_fused_attention_kernel():
+        raise FileNotFoundError(
+            "K6 fused-attention kernel not found. Expected: "
+            f"{_FUSED_ATTENTION_DISCOVERED}"
+        )
+    try:
+        from zmlx.metal import kernel as metal_kernel
+        from zmlx.msl import DEFAULT_HEADER
+    except ModuleNotFoundError as exc:  # pragma: no cover - optional runtime
+        raise RuntimeError(
+            "zmlx is required to load the discovered fused-attention kernel. "
+            "Install ZMLX or set PYTHONPATH to the ZMLX source."
+        ) from exc
+
+    source = _FUSED_ATTENTION_DISCOVERED.read_text()
+    return metal_kernel(
+        name="kk_discovered_hcsa_fused_attention",
+        input_names=[
+            "q",
+            "k",
+            "v",
+            "all_perms",
+            "all_inv_perms",
+            "query_positions",
+            "window",
+        ],
+        output_names=["out"],
+        source=source,
+        header=DEFAULT_HEADER,
+        cache=True,
+    )
 
 
 def sparse_row_attention_fused(

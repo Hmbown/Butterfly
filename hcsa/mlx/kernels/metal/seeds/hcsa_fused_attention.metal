@@ -1,4 +1,4 @@
-// Setup-only seed for hcsa_fused_attention
+// Setup-only seed for hcsa_fused_attention (active-row all-head)
 // This file is a scaffold for future ZMLX Discover runs.
 // It is intentionally non-executable until a full kernel implementation is discovered.
 
