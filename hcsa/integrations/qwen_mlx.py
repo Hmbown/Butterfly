@@ -287,8 +287,13 @@ class _QwenGraphRuntime:
         if self.path == "sparse":
             s_idx = safe_neighbor_idx(mlx_graph.neigh_idx, T)
             c_mask = causal_neighbor_mask(mlx_graph.neigh_idx, T)
+        elif self.store_graph_tensors:
+            # Permute path with diagnostics: precompute causal mask once
+            # so _edge_utilization_proxy doesn't recompute every forward.
+            s_idx = mx.zeros((self.n_heads, T, 0), dtype=mx.int32)
+            c_mask = causal_neighbor_mask(mlx_graph.neigh_idx, T)
         else:
-            # Permute path does not consume sparse-row artifacts.
+            # Permute path without diagnostics: zero-sized placeholders.
             s_idx = mx.zeros((self.n_heads, T, 0), dtype=mx.int32)
             c_mask = mx.zeros((self.n_heads, T, 0), dtype=mx.bool_)
 
@@ -874,10 +879,7 @@ class QwenWayfinderAttention(nn.Module):
                     retro_backfill_causal_only=self.retro_backfill_causal_only,
                     log_progress=self.permute_log_chunks,
                 )
-            if self.compute_edge_utilization_proxy:
-                keep_mask = causal_neighbor_mask(graph_cache.mlx_graph.neigh_idx, T)
-            else:
-                keep_mask = graph_cache.causal_mask
+            keep_mask = graph_cache.causal_mask
         else:
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0

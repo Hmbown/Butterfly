@@ -1,0 +1,149 @@
+{
+  "created_at": "2026-02-09T00:54:27.954403+00:00",
+  "command": "scripts/bench_qwen_ab_mlx.py --seq-lens 2048 4096 8192 --skip-model",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": true,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0
+  },
+  "chunk_size": 4096,
+  "rows": [
+    {
+      "seq_len": 2048,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 8.5,
+          "tok_s": 242037.0,
+          "peak_memory_bytes": 62128696,
+          "peak_memory_mb": 59.3
+        },
+        "hcsa": {
+          "latency_ms": 11.3,
+          "tok_s": 181814.0,
+          "peak_memory_bytes": 71160444,
+          "peak_memory_mb": 67.9
+        },
+        "memory_reduction_pct": -14.5,
+        "throughput_speedup": 0.751,
+        "mae": 1.1461880207061768
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 23.6,
+          "tok_s": 86668.0,
+          "peak_memory_bytes": 158868004,
+          "peak_memory_mb": 151.5
+        },
+        "hcsa": {
+          "latency_ms": 29.6,
+          "tok_s": 69110.0,
+          "peak_memory_bytes": 137896492,
+          "peak_memory_mb": 131.5
+        },
+        "memory_reduction_pct": 13.2,
+        "throughput_speedup": 0.797
+      },
+      "elapsed_sec": 1.61
+    },
+    {
+      "seq_len": 4096,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 17.0,
+          "tok_s": 241133.0,
+          "peak_memory_bytes": 138945076,
+          "peak_memory_mb": 132.5
+        },
+        "hcsa": {
+          "latency_ms": 18.9,
+          "tok_s": 216841.0,
+          "peak_memory_bytes": 157203128,
+          "peak_memory_mb": 149.9
+        },
+        "memory_reduction_pct": -13.1,
+        "throughput_speedup": 0.899,
+        "mae": 1.193840742111206
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 49.1,
+          "tok_s": 83381.0,
+          "peak_memory_bytes": 289940004,
+          "peak_memory_mb": 276.5
+        },
+        "hcsa": {
+          "latency_ms": 50.5,
+          "tok_s": 81146.0,
+          "peak_memory_bytes": 247996972,
+          "peak_memory_mb": 236.5
+        },
+        "memory_reduction_pct": 14.5,
+        "throughput_speedup": 0.973
+      },
+      "elapsed_sec": 2.88
+    },
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 46.9,
+          "tok_s": 174779.0,
+          "peak_memory_bytes": 250094140,
+          "peak_memory_mb": 238.5
+        },
+        "hcsa": {
+          "latency_ms": 36.3,
+          "tok_s": 225855.0,
+          "peak_memory_bytes": 286544708,
+          "peak_memory_mb": 273.3
+        },
+        "memory_reduction_pct": -14.6,
+        "throughput_speedup": 1.292,
+        "mae": 1.2255654335021973
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 107.9,
+          "tok_s": 75923.0,
+          "peak_memory_bytes": 552084004,
+          "peak_memory_mb": 526.5
+        },
+        "hcsa": {
+          "latency_ms": 98.3,
+          "tok_s": 83352.0,
+          "peak_memory_bytes": 468197932,
+          "peak_memory_mb": 446.5
+        },
+        "memory_reduction_pct": 15.2,
+        "throughput_speedup": 1.098
+      },
+      "elapsed_sec": 6.42
+    }
+  ]
+}

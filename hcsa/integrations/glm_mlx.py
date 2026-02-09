@@ -17,7 +17,6 @@ from hcsa.mlx.attention import (
     wayfinder_permute_window_attention_active_batched,
     wayfinder_permute_window_attention_batched,
 )
-from hcsa.mlx.graph_abi import causal_neighbor_mask
 from hcsa.mlx.kernels.metal import (
     has_discovered_active_row_kernel,
     has_discovered_permute_window_kernel,
@@ -497,15 +496,9 @@ class GLMWayfinderAttention(nn.Module):
                     retro_backfill_causal_only=self.retro_backfill_causal_only,
                     log_progress=self.permute_log_chunks,
                 )
-            if self.compute_edge_utilization_proxy:
-                neigh_idx = graph_cache.mlx_graph.neigh_idx
-                if int(neigh_idx.shape[1]) != T:
-                    neigh_idx = neigh_idx[:, :T, :]
-                keep_mask = causal_neighbor_mask(neigh_idx, T)
-            else:
-                keep_mask = graph_cache.causal_mask
-                if int(keep_mask.shape[1]) != T:
-                    keep_mask = keep_mask[:, :T, :]
+            keep_mask = graph_cache.causal_mask
+            if int(keep_mask.shape[1]) != T:
+                keep_mask = keep_mask[:, :T, :]
         else:
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0

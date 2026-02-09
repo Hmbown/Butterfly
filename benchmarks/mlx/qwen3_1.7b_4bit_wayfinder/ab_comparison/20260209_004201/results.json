@@ -1,0 +1,140 @@
+{
+  "created_at": "2026-02-09T00:43:23.871940+00:00",
+  "command": "scripts/bench_qwen_ab_mlx.py --seq-lens 2048 4096 8192 16384 32768",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": true,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0
+  },
+  "chunk_size": 4096,
+  "rows": [
+    {
+      "seq_len": 2048,
+      "batch": 1,
+      "dense": {
+        "prefill_sec": 0.75809241598472,
+        "prefill_tok_s": 2701.517594447587,
+        "peak_memory_bytes": 2659903572,
+        "peak_memory_mb": 2536.7
+      },
+      "hcsa": {
+        "prefill_sec": 1.6272714590013493,
+        "prefill_tok_s": 1258.5484669268706,
+        "peak_memory_bytes": 1934813660,
+        "peak_memory_mb": 1845.2
+      },
+      "comparison": {
+        "memory_reduction_pct": 27.3,
+        "throughput_speedup": 0.466
+      },
+      "elapsed_sec": 2.82
+    },
+    {
+      "seq_len": 4096,
+      "batch": 1,
+      "dense": {
+        "prefill_sec": 1.5735904999892227,
+        "prefill_tok_s": 2602.9643671768818,
+        "peak_memory_bytes": 3379234868,
+        "peak_memory_mb": 3222.7
+      },
+      "hcsa": {
+        "prefill_sec": 3.5567500419856515,
+        "prefill_tok_s": 1151.613116369937,
+        "peak_memory_bytes": 2902133212,
+        "peak_memory_mb": 2767.7
+      },
+      "comparison": {
+        "memory_reduction_pct": 14.1,
+        "throughput_speedup": 0.442
+      },
+      "elapsed_sec": 5.6
+    },
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "dense": {
+        "prefill_sec": 3.528701875009574,
+        "prefill_tok_s": 2321.5336092901794,
+        "peak_memory_bytes": 3841673268,
+        "peak_memory_mb": 3663.7
+      },
+      "hcsa": {
+        "prefill_sec": 3.5805127499916125,
+        "prefill_tok_s": 2287.940463281185,
+        "peak_memory_bytes": 3841673716,
+        "peak_memory_mb": 3663.7
+      },
+      "comparison": {
+        "memory_reduction_pct": -0.0,
+        "throughput_speedup": 0.986
+      },
+      "elapsed_sec": 7.61
+    },
+    {
+      "seq_len": 16384,
+      "batch": 1,
+      "dense": {
+        "prefill_sec": 8.573909958009608,
+        "prefill_tok_s": 1910.9134665794259,
+        "peak_memory_bytes": 4680566832,
+        "peak_memory_mb": 4463.7
+      },
+      "hcsa": {
+        "prefill_sec": 8.69405883300351,
+        "prefill_tok_s": 1884.5053058307715,
+        "peak_memory_bytes": 4680567280,
+        "peak_memory_mb": 4463.7
+      },
+      "comparison": {
+        "memory_reduction_pct": -0.0,
+        "throughput_speedup": 0.986
+      },
+      "elapsed_sec": 17.78
+    },
+    {
+      "seq_len": 32768,
+      "batch": 1,
+      "dense": {
+        "prefill_sec": 24.088348499994026,
+        "prefill_tok_s": 1360.3257192998567,
+        "peak_memory_bytes": 6568069164,
+        "peak_memory_mb": 6263.8
+      },
+      "hcsa": {
+        "prefill_sec": 23.33952199999476,
+        "prefill_tok_s": 1403.9704840573581,
+        "peak_memory_bytes": 6568069612,
+        "peak_memory_mb": 6263.8
+      },
+      "comparison": {
+        "memory_reduction_pct": -0.0,
+        "throughput_speedup": 1.032
+      },
+      "elapsed_sec": 48.55
+    }
+  ]
+}

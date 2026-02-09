@@ -306,6 +306,8 @@ def _union_multigraph_attention(
         w = stable_masked_softmax(scores, mask_h[None, :, :], axis=-1)
         y_h = mx.sum(w[:, :, :, None] * v_g.astype(mx.float32), axis=2)
         ys.append(y_h.astype(v.dtype))
+        # Sync per head to avoid accumulating huge lazy gather graphs in memory
+        mx.eval(ys[-1])
 
     return mx.stack(ys, axis=1)
 
@@ -654,8 +656,8 @@ def wayfinder_permute_window_attention_batched(
     Bv, Hv, Tv, dhv = v.shape
     if Bk != B or Bv != B or Tk != T or Tv != T:
         raise ValueError("k/v must share batch and sequence dims with q")
-    if dhk != dh or dhv != dh:
-        raise ValueError("q/k/v head_dim must match")
+    if dhk != dh:
+        raise ValueError("k head_dim must match q head_dim")
     if Hv != Hkv:
         raise ValueError("k and v must have same head count")
     if all_perms.ndim == 3:
@@ -1100,8 +1102,8 @@ def wayfinder_permute_window_attention_active_batched(
     Bv, Hv, Tv, dhv = v.shape
     if Bk != B or Bv != B or Tk != Tv:
         raise ValueError("k/v must share batch and sequence dims")
-    if dhk != dh or dhv != dh:
-        raise ValueError("q/k/v head_dim must match")
+    if dhk != dh:
+        raise ValueError("k head_dim must match q head_dim")
     if Hv != Hkv:
         raise ValueError("k and v must have same head count")
     if Hq % Hkv != 0:

@@ -1,0 +1,149 @@
+{
+  "created_at": "2026-02-09T00:56:01.735217+00:00",
+  "command": "scripts/bench_qwen_ab_mlx.py --seq-lens 8192 16384 32768 --skip-model",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": true,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0
+  },
+  "chunk_size": 4096,
+  "rows": [
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 46.8,
+          "tok_s": 174964.0,
+          "peak_memory_bytes": 227279416,
+          "peak_memory_mb": 216.8
+        },
+        "hcsa": {
+          "latency_ms": 36.0,
+          "tok_s": 227455.0,
+          "peak_memory_bytes": 263729984,
+          "peak_memory_mb": 251.5
+        },
+        "memory_reduction_pct": -16.0,
+        "throughput_speedup": 1.3,
+        "mae": 1.226184368133545
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 108.0,
+          "tok_s": 75857.0,
+          "peak_memory_bytes": 550511140,
+          "peak_memory_mb": 525.0
+        },
+        "hcsa": {
+          "latency_ms": 98.8,
+          "tok_s": 82949.0,
+          "peak_memory_bytes": 466625068,
+          "peak_memory_mb": 445.0
+        },
+        "memory_reduction_pct": 15.2,
+        "throughput_speedup": 1.093
+      },
+      "elapsed_sec": 6.43
+    },
+    {
+      "seq_len": 16384,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 145.7,
+          "tok_s": 112437.0,
+          "peak_memory_bytes": 470819380,
+          "peak_memory_mb": 449.0
+        },
+        "hcsa": {
+          "latency_ms": 69.4,
+          "tok_s": 236100.0,
+          "peak_memory_bytes": 498597940,
+          "peak_memory_mb": 475.5
+        },
+        "memory_reduction_pct": -5.9,
+        "throughput_speedup": 2.1,
+        "mae": 1.2580796480178833
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 269.0,
+          "tok_s": 60916.0,
+          "peak_memory_bytes": 1074799140,
+          "peak_memory_mb": 1025.0
+        },
+        "hcsa": {
+          "latency_ms": 194.0,
+          "tok_s": 84444.0,
+          "peak_memory_bytes": 907026988,
+          "peak_memory_mb": 865.0
+        },
+        "memory_reduction_pct": 15.6,
+        "throughput_speedup": 1.386
+      },
+      "elapsed_sec": 16.92
+    },
+    {
+      "seq_len": 32768,
+      "batch": 1,
+      "attention": {
+        "dense": {
+          "latency_ms": 522.3,
+          "tok_s": 62733.0,
+          "peak_memory_bytes": 915415604,
+          "peak_memory_mb": 873.0
+        },
+        "hcsa": {
+          "latency_ms": 138.6,
+          "tok_s": 236420.0,
+          "peak_memory_bytes": 887725616,
+          "peak_memory_mb": 846.6
+        },
+        "memory_reduction_pct": 3.0,
+        "throughput_speedup": 3.769,
+        "mae": 1.3128364086151123
+      },
+      "block": {
+        "dense": {
+          "latency_ms": 764.8,
+          "tok_s": 42847.0,
+          "peak_memory_bytes": 1989157412,
+          "peak_memory_mb": 1897.0
+        },
+        "hcsa": {
+          "latency_ms": 383.4,
+          "tok_s": 85466.0,
+          "peak_memory_bytes": 1787830828,
+          "peak_memory_mb": 1705.0
+        },
+        "memory_reduction_pct": 10.1,
+        "throughput_speedup": 1.995
+      },
+      "elapsed_sec": 52.74
+    }
+  ]
+}
