@@ -91,11 +91,15 @@ python scripts/bench_mlx_wayfinder_scale.py \
   --window 32 --landmark-stride 32
 ```
 
-## Graph properties → attention patterns
+## What the attention graph looks like
 
-![Attention weights on sparse edges](docs/assets/attention_on_edges_heatmap.png)
+Dense attention (left) vs HCSA connectivity (right) at T=64, W=8, stride=16:
 
-![Highway distance histogram](docs/assets/highway_distance_hist.png)
+![Dense vs HCSA attention matrices](docs/assets/attention_comparison.png)
+
+HCSA graph on 32 tokens (circle layout — blue = cycle, green = window, red = landmark, faded = acausal/masked):
+
+![HCSA graph circle layout](docs/assets/hcsa_graph_circle.png)
 
 ## Where to look (research map)
 
@@ -110,7 +114,7 @@ python scripts/bench_mlx_wayfinder_scale.py \
 | `hcsa/mlx/`, `hcsa/torch/` | Backend implementations |
 | `scripts/wayc.py` | CLI: compile/validate/bench + discovery setup |
 | `tests/` | Correctness + diagnostics coverage |
-| `benchmarks/`, `notes/LAB_NOTEBOOK.md` | Experiments + results |
+| `benchmarks/` | Experiment results + benchmark data |
 
 ## Kernel auto-find (optional; setup here)
 
@@ -129,7 +133,7 @@ python scripts/wayc.py discover-setup \
   --strict
 ```
 
-See: `docs/discover_setup.md`, `hcsa/discover/targets.py`, `hcsa/discover/session.py`.
+See: `hcsa/discover/targets.py`, `hcsa/discover/session.py`.
 
 ## References
 
