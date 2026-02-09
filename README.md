@@ -6,16 +6,39 @@
 - `neigh_idx`: padded `int32` neighbor indices (`-1` = PAD), shape `[T,D]` or `[H,T,D]`
 - `edge_type`: `uint8` edge labels (`PAD/CYCLE/WINDOW/LANDMARK/REWIRE`)
 
-## Overview: graph → attention
+## Token interactions (dense vs HCSA)
 
 ```mermaid
-graph LR
-  A["Graph construction\n(cycle + window + landmarks)"] -->|neigh_idx + edge_type| B["Graph ABI\n(hcsa/graph/abi.py)"]
-  B --> C["Sparse attention\n(gather / permute-window)"]
-  C --> D["Transformer block"]
+flowchart LR
+  subgraph D["Dense causal attention (O(T²))"]
+    d0((t0))
+    d1((t1)) --> d0
+    d2((t2)) --> d1
+    d2 --> d0
+    d3((t3)) --> d2
+    d3 --> d1
+    d3 --> d0
+    d4((t4)) --> d3
+    d4 --> d2
+    d4 --> d1
+    d4 --> d0
+  end
+
+  subgraph S["HCSA neighborhood (O(T·W))"]
+    s0((t0))
+    s1((t1)) --> s0
+    s2((t2)) --> s1
+    s2 --> s0
+    s3((t3)) --> s2
+    s3 --> s1
+    s4((t4)) --> s3
+    s4 --> s2
+    s4 -. cycle .-> s1
+    s4 -. landmark .-> s0
+  end
 ```
 
-If you're coming from graph theory: the research question is how **different constant-degree (or low-degree) token graphs** affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`). Kernel discovery is performance plumbing around the same graph/ABI.
+Dense uses **all** past-token edges; HCSA uses a **bounded neighborhood** (window + a few structured long edges) so compute scales ~linearly in sequence length. Research question: how these low-degree token graphs affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`).
 
 ## Install
 
