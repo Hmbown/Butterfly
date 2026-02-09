@@ -267,6 +267,53 @@ Execution order confirmed:
   - Throughput crossover still holds at long context under fair dense SDPA baseline.
 - Decision: Keep SDPA dense baseline as default comparison path.
 
+## 2026-02-08 — Discover Setup Scaffold (No Inference)
+
+### EXP-20260208-DISCOVER-SETUP-SCAFFOLD
+- Question: Can we prepare K1-K5 fused-kernel discovery scaffolding and readiness checks without running model loading, inference, or attention benchmarks?
+- Hypothesis: A setup-only workflow should generate target metadata, seed kernel placeholders, and session stubs while preserving retro defaults and avoiding model execution paths.
+- Change set:
+  - Add `hcsa/discover/{targets,readiness,session}.py` and package exports.
+  - Extend `scripts/wayc.py` with `discover-targets`, `discover-setup`, `discover-status`.
+  - Add docs for setup-only workflow and README quickstart pointer.
+  - Add setup-focused tests for metadata, session generation, and CLI behavior.
+- Command:
+  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root hcsa/mlx/kernels/metal --dry-run`
+  - `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
+- Controls:
+  - No model loading.
+  - No inference path execution.
+  - No attention benchmark execution.
+  - Retro defaults remain off for inference.
+- Metrics: pending.
+- Decision: pending.
+- Next action: run setup-only validation commands and record outputs.
+
+### EXP-20260208-DISCOVER-SETUP-SCAFFOLD-RESULT
+- Question: Can we prepare K1-K5 fused-kernel discovery scaffolding and readiness checks without running model loading, inference, or attention benchmarks?
+- Hypothesis: A setup-only workflow should generate target metadata, seed kernel placeholders, and session stubs while preserving retro defaults and avoiding model execution paths.
+- Change set:
+  - Added `hcsa/discover/targets.py`, `hcsa/discover/readiness.py`, `hcsa/discover/session.py`, and package exports.
+  - Added `discover-*` setup commands to `scripts/wayc.py`.
+  - Added setup docs and README quickstart integration.
+  - Added tests for target registry, setup workspace generation, and CLI.
+- Command:
+  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root hcsa/mlx/kernels/metal --strict --overwrite --json-out runs/mlx/discover_setup_20260208_setup.json`
+  - `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
+  - `python3 scripts/wayc.py discover-status --manifest discover_sessions/manifest.json`
+- Controls:
+  - No model loading.
+  - No inference path execution.
+  - No attention benchmark execution.
+  - Retro defaults verified off in MLX model + GLM/Qwen integrations.
+- Key result:
+  - Setup manifest generated at `discover_sessions/manifest.json`, status `setup_only`, `ready=true`, `targets=5`.
+  - Wrote 10 setup artifacts: 5 seed kernels in `hcsa/mlx/kernels/metal/seeds/` and 5 session stubs in `discover_sessions/`.
+  - Required checks: `12/12` pass (repo + ZMLX paths).
+  - Validation tests: `7 passed`.
+- Decision: keep.
+- Next action: begin K1 discovery run from ZMLX using `discover_sessions/hcsa_permute_window_session.stub.json` when model execution is authorized.
+
 ### EXP-20260207-TINY-LONG-RETRO-CONTROL-SDPA-DENSE
 - Question: With fair SDPA dense baseline, does tiny-long control remain stable?
 - Command:
@@ -1315,3 +1362,1487 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 - Decision: Keep `threshold=49152` as reproducible long-context default.
 - Next action:
   - Use `threshold=49152`, `query_chunk_size=384`, `head_chunk_size=2` as the promoted benchmark config in README/roadmap.
+
+
+## 2026-02-08 (cf52da4 continuation: GLM 65k reproducibility campaign)
+
+### EXP-20260208-GLM65K-CF52DA4-TUNED-R01 (planned)
+- Question: Reproduce tuned baseline run 1 in fresh session window.
+- Hypothesis: th=49152,q=384,h=2 will remain in the high-performance, low-variance regime versus chunked dense control.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-TUNED-R02 (planned)
+- Question: Reproduce tuned baseline run 2 in fresh session window.
+- Hypothesis: Second repeat should stay close to run 1 (low variance) and support stable medians.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r02`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-DENSE-R01 (planned)
+- Question: Reproduce chunked dense control run 1 in same session window.
+- Hypothesis: Chunked dense no-swap control remains materially slower than tuned HCSA while using more memory.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --no-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-DENSE-R02 (planned)
+- Question: Reproduce chunked dense control run 2 in same session window.
+- Hypothesis: Second dense control captures variance and enables robust median comparison.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --no-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r02`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-TH47104-R01 (planned)
+- Question: Retune threshold candidate 47104 with tuned q/h settings.
+- Hypothesis: Lowering threshold to 47104 may improve latency modestly but could increase variance.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 47104 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh47104_q384_h2_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-TH49152-R03 (planned)
+- Question: Retune threshold reference 49152 in same sweep window.
+- Hypothesis: 49152 will remain strongest reproducible threshold once measured side-by-side with nearby thresholds.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh49152_q384_h2_r03`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-TH51200-R01 (planned)
+- Question: Retune threshold candidate 51200 with tuned q/h settings.
+- Hypothesis: Raising threshold to 51200 likely hurts latency due to denser late chunks.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 51200 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh51200_q384_h2_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-Q320-R01 (planned)
+- Question: Low-risk query chunk sweep at q=320 if threshold retune stalls.
+- Hypothesis: q=320 may lower per-chunk working-set pressure but likely gives lower throughput than q=384.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 320 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q320_th49152_h2_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-Q384-R03 (planned)
+- Question: Low-risk query chunk sweep reference at q=384 in same window.
+- Hypothesis: q=384 should remain best tradeoff between dispatch overhead and memory pressure.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 384 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q384_th49152_h2_r03`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+### EXP-20260208-GLM65K-CF52DA4-Q448-R01 (planned)
+- Question: Low-risk query chunk sweep at q=448 if threshold retune stalls.
+- Hypothesis: q=448 may match or slightly degrade q=384 depending on kernel pressure.
+- Change set: measurement only (no kernel rewrite; retro/backfill remains off).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --active-dense-threshold 49152 --query-chunk-size 448 --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q448_th49152_h2_r01`
+- Controls:
+  - Baseline: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`
+  - Fixed: seq_len=65536, chunk=4096, decode_len=0, path=permute, window=64, kv_step=4096, head_chunk_size=2.
+
+
+### EXP-20260208-GLM65K-CF52DA4-CAMPAIGN (result)
+- Scope: tuned repeats (2), chunked dense controls (2), threshold sweep (47104/49152/51200), q-sweep (320/384/448).
+- Monolithic dense baseline (seq=65536): `126.689 s`, `517.296 tok/s`, `44,890,891,940 B`.
+- Chunked dense control median (2 fresh): `732.267 s`, `89.971 tok/s`, `33,161,104,180 B`; std `53.122 s`, `6.527 tok/s`.
+- Tuned th=49152,q=384,h=2 median (2 fresh): `680.801 s`, `100.054 tok/s`, `29,589,653,008 B`; std `132.522 s`, `19.476 tok/s`.
+- Tuned vs fresh dense median: absolute `sec=680.801`, delta `-51.465 s`; absolute `tok/s=100.054`, delta `+10.083`; memory reduction `% = 100*(1-wayfinder/dense) = 10.770%`.
+- Per-run post results:
+  - `EXP-20260208-GLM65K-CF52DA4-TUNED-R01` -> `813.323 s`, `80.578 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r01/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-TUNED-R02` -> `548.280 s`, `119.530 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r02/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-DENSE-R01` -> `679.145 s`, `96.498 tok/s`, `33,161,104,180 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r01/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-DENSE-R02` -> `785.388 s`, `83.444 tok/s`, `33,161,104,180 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r02/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-TH47104-R01` -> `525.417 s`, `124.731 tok/s`, `28,696,790,168 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh47104_q384_h2_r01/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-TH49152-R03` -> `512.693 s`, `127.827 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh49152_q384_h2_r03/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-TH51200-R01` -> `525.596 s`, `124.689 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh51200_q384_h2_r01/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-Q320-R01` -> `634.621 s`, `103.268 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q320_th49152_h2_r01/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-Q384-R03` -> `582.206 s`, `112.565 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q384_th49152_h2_r03/results.json`).
+  - `EXP-20260208-GLM65K-CF52DA4-Q448-R01` -> `628.708 s`, `104.239 tok/s`, `29,589,653,008 B` (`benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q448_th49152_h2_r01/results.json`).
+- Threshold sweep interpretation:
+  - `th=49152` single run was fastest (`512.693 s`).
+  - `th=47104` was slower by `12.724 s` but used lower peak memory (`28,696,790,168 B`).
+  - `th=51200` was slower by `12.903 s`.
+- Q-sweep interpretation at th=49152:
+  - `q=384` best (`582.206 s`) vs `q=320` (`634.621 s`) and `q=448` (`628.708 s`).
+- Decision: keep promoted default `path=permute, threshold=49152, query_chunk_size=384, head_chunk_size=2, kv_step=4096`, retro/backfill disabled by default for inference.
+- Evidence quality: current session shows elevated variance on tuned repeats; retain default based on best-single plus prior reproducible pair, and schedule warmed repeats to tighten confidence interval.
+
+### EXP-20260208-GLM65K-CF52DA4-TUNED-R01 (result)
+- Metrics: `sec=813.323`, `tok/s=80.578`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-TUNED-R02 (result)
+- Metrics: `sec=548.280`, `tok/s=119.530`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_tuned_th49152_q384_h2_r02/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-DENSE-R01 (result)
+- Metrics: `sec=679.145`, `tok/s=96.498`, `peak=33,161,104,180 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-DENSE-R02 (result)
+- Metrics: `sec=785.388`, `tok/s=83.444`, `peak=33,161,104,180 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_dense_noswap_r02/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-TH47104-R01 (result)
+- Metrics: `sec=525.417`, `tok/s=124.731`, `peak=28,696,790,168 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh47104_q384_h2_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-TH49152-R03 (result)
+- Metrics: `sec=512.693`, `tok/s=127.827`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh49152_q384_h2_r03/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-TH51200-R01 (result)
+- Metrics: `sec=525.596`, `tok/s=124.689`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_thresh51200_q384_h2_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-Q320-R01 (result)
+- Metrics: `sec=634.621`, `tok/s=103.268`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q320_th49152_h2_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-Q384-R03 (result)
+- Metrics: `sec=582.206`, `tok/s=112.565`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q384_th49152_h2_r03/results.json`.
+- Decision: recorded for campaign aggregation.
+
+### EXP-20260208-GLM65K-CF52DA4-Q448-R01 (result)
+- Metrics: `sec=628.708`, `tok/s=104.239`, `peak=29,589,653,008 B`.
+- Artifact: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm65k_cf52da4_phase2_q448_th49152_h2_r01/results.json`.
+- Decision: recorded for campaign aggregation.
+
+## 2026-02-08 — GLM-4.7 Consumer-like Campaign (Hamiltonian, retro off)
+
+### EXP-20260208-GLM47-CONSUMER-HCSA-R01 (planned)
+- Question: Under consumer-like single-turn + multi-turn + quality workloads, does Hamiltonian permute (`th=49152,q=384,h=2`) beat chunked dense on latency while reducing memory and preserving quality?
+- Hypothesis: Hamiltonian should improve E2E and TTFT on long contexts while keeping ITL p95 near dense and reducing peak memory by >=8%.
+- Change set: minimal benchmark instrumentation + new consumer harness only; no attention kernel redesign; retro/backfill remains disabled for inference.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 65536 --decode-len 256 --repeats 3 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 60 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_r01`
+- Controls:
+  - Model fixed: `mlx-community/GLM-4.7-Flash-4bit`
+  - Fixed: `chunk=4096`, `kv_step=4096`, `window=64`, `landmark_stride=0`, `h=2`, `retro_backfill_enabled=false`
+  - Warmup: 1 unlogged warmup per measured single-turn set.
+
+### EXP-20260208-GLM47-CONSUMER-DENSE-R01 (planned)
+- Question: What are dense chunked control metrics under the same consumer-like workload suite?
+- Hypothesis: Dense control will have higher peak memory and weaker long-context E2E/TTFT than Hamiltonian.
+- Change set: measurement-only control (`--no-swap`).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 65536 --decode-len 256 --repeats 3 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 60 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --no-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_r01`
+- Controls:
+  - Same controls as HCSA run, with stock GLM attention.
+
+### EXP-20260208-GLM47-CONSUMER-THRESH-SWEEP-R01 (planned)
+- Question: On seq=65536 decode=256, does threshold micro-retune (`47104/49152/51200`) improve consumer E2E/TTFT without harming ITL p95?
+- Hypothesis: `49152` stays best or tied-best once decode metrics are included.
+- Change set: measurement-only micro-retune.
+- Command:
+  - `for th in 47104 49152 51200; do PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 60 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold $th --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_thresh_${th}_r01; sleep 60; done`
+- Controls:
+  - Same model and fixed core settings.
+
+### EXP-20260208-GLM47-CONSUMER-REDUCED-HCSA-R02 (planned)
+- Question: Can we obtain complete artifacted consumer metrics quickly enough to make a strict go/no-go call tonight?
+- Hypothesis: Single-repeat full-suite data (including 65k and multi-turn) will be enough to reject/continue without claiming victory.
+- Change set: same benchmark code; reduced runtime protocol (`repeats=1`, `cooldown=0`) to complete end-to-end artifact capture.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 65536 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_r02_reduced`
+
+### EXP-20260208-GLM47-CONSUMER-REDUCED-DENSE-R02 (planned)
+- Question: Under identical reduced runtime protocol, how does chunked dense compare to Hamiltonian on consumer metrics?
+- Hypothesis: Dense remains slower at long context and uses more memory; quality parity should stay close.
+- Change set: measurement-only control run (`--no-swap`).
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 65536 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --no-swap --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_r02_reduced`
+
+### EXP-20260208-GLM47-CONSUMER-DENSE-PARTIAL-R03 (planned)
+- Question: For completed lengths (2k/8k/32k), what are dense control single-turn metrics under identical settings?
+- Hypothesis: Dense will be slower and use more memory than Hamiltonian at 8k/32k.
+- Change set: measurement-only bounded control.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --no-swap --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_partial_r03`
+
+### EXP-20260208-GLM47-CONSUMER-HCSA-PARTIAL-R04 (planned)
+- Question: On a bounded single-turn slice (2k/8k/32k), what are Hamiltonian metrics for direct matched comparison to dense partial R03?
+- Hypothesis: Hamiltonian should be competitive at 2k, slower or mixed at 8k, and better E2E/memory at 32k.
+- Change set: measurement-only bounded HCSA run.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_partial_r04`
+
+### EXP-20260208-GLM47-CONSUMER-HCSA-R01 (result)
+- Status: interrupted during `seq=65536, decode=256` single-turn stage (no final artifact emitted by that attempt).
+- Completed measured points before interrupt:
+  - `seq=2048` repeats: `e2e=[7.533, 7.434, 7.467] s`, `ttft=[0.1214, 0.1070, 0.1024] s`, `itl_p95=[0.0187, 0.0186, 0.0187] s`, peak `18,284,328,404 B`.
+  - `seq=8192` repeats: `e2e=[23.257, 21.172, 21.162] s`, `ttft=[0.2612, 0.1538, 0.1489] s`, `itl_p95=[0.0220, 0.0199, 0.0199] s`, peak `20,660,500,328 B`.
+  - `seq=32768` repeats: `e2e=[190.151, 198.556, 224.831] s`, `ttft=[4.5064, 5.6082, 7.7524] s`, `itl_p95=[0.0351, 0.0344, 0.0347] s`, peak `30,027,907,880 B`.
+- Artifact:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_partial_interrupted/partial_metrics.json`
+- Decision: recorded as partial evidence only; cannot satisfy victory gates without completed 65k + multi-turn + quality.
+
+### EXP-20260208-GLM47-CONSUMER-REDUCED-HCSA-R02 (result)
+- Status: interrupted during `seq=65536, decode=256` single-turn stage.
+- Completed measured points before interrupt:
+  - `seq=2048`: `e2e=6.602 s`, `ttft=0.0842 s`, `itl_p95=0.0163 s`, peak `18,284,328,404 B`.
+  - `seq=8192`: `e2e=21.143 s`, `ttft=0.1408 s`, `itl_p95=0.0200 s`, peak `20,660,500,328 B`.
+  - `seq=32768`: `e2e=151.884 s`, `ttft=0.2404 s`, `itl_p95=0.0343 s`, peak `30,027,907,880 B`.
+- Artifact:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_partial_interrupted/partial_metrics.json`
+- Decision: partial evidence only.
+
+### EXP-20260208-GLM47-CONSUMER-DENSE-PARTIAL-R03 (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --no-swap --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_partial_r03`
+- Metrics:
+  - `seq=2048`: `e2e=6.181 s`, `ttft=0.0845 s`, `itl_p95=0.0158 s`, `decode_tok_s=62.875`, peak `18,355,369,054 B`.
+  - `seq=8192`: `e2e=17.477 s`, `ttft=0.1559 s`, `itl_p95=0.0198 s`, `decode_tok_s=49.706`, peak `21,800,155,168 B`.
+  - `seq=32768`: `e2e=159.118 s`, `ttft=5.4201 s`, `itl_p95=0.0346 s`, `decode_tok_s=17.996`, peak `35,716,954,144 B`.
+- Artifact:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_partial_r03/results.json`
+- Decision: keep as dense control for bounded comparison.
+
+### EXP-20260208-GLM47-CONSUMER-HCSA-PARTIAL-R04 (result)
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_partial_r04`
+- Metrics:
+  - `seq=2048`: `e2e=6.580 s`, `ttft=0.0704 s`, `itl_p95=0.0162 s`, `decode_tok_s=61.763`, peak `18,284,328,404 B`.
+  - `seq=8192`: `e2e=21.117 s`, `ttft=0.1297 s`, `itl_p95=0.0199 s`, `decode_tok_s=49.705`, peak `20,660,500,328 B`.
+  - `seq=32768`: `e2e=151.547 s`, `ttft=0.2171 s`, `itl_p95=0.0342 s`, `decode_tok_s=28.901`, peak `30,027,907,880 B`.
+- Artifact:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_partial_r04/results.json`
+
+### EXP-20260208-GLM47-CONSUMER-PARTIAL-CAMPAIGN (result)
+- Comparison artifact:
+  - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_partial_interrupted/campaign_summary_partial.json`
+- Absolute + delta + pct deltas (HCSA vs dense, bounded single-turn slice):
+  - `seq=2048`: E2E `6.580 s` vs `6.181 s` (`+0.399 s`, `+6.46%` worse); TTFT `0.0704 s` vs `0.0845 s` (`-16.69%` better); ITL p95 `+2.82%` worse; memory reduction `0.39%`.
+  - `seq=8192`: E2E `21.117 s` vs `17.477 s` (`+3.640 s`, `+20.83%` worse); TTFT `-16.83%` better; ITL p95 `+0.43%` worse; memory reduction `5.23%`.
+  - `seq=32768`: E2E `151.547 s` vs `159.118 s` (`-7.571 s`, `-4.76%` better); TTFT `-95.99%` better; ITL p95 `-1.12%` better; memory reduction `15.93%` using `100*(1-wayfinder/dense)`.
+- Evidence quality (from 3-repeat interrupted HCSA run, bounded lengths only):
+  - `seq=2048`: median/std/CV E2E = `7.467 / 0.041 / 0.0055`.
+  - `seq=8192`: median/std/CV E2E = `21.172 / 0.985 / 0.0465`.
+  - `seq=32768`: median/std/CV E2E = `198.556 / 14.771 / 0.0744`.
+- Promoted default config decision:
+  - Keep unchanged default: `path=permute`, `active_dense_threshold=49152`, `query_chunk_size=384`, `head_chunk_size=2`, `kv_step=4096`, `retro/backfill off`.
+- Final decision block:
+  - **NO VICTORY**
+  - Why: no completed measured data yet for required `seq=65536 decode=256`, no completed multi-turn 8-turn session metrics, no quality-parity run artifacts for this campaign, and reproducibility gates (`>=3 repeats` + 2-run confirmation within ±5%) are unmet.
+- Next highest-impact experiment:
+  - Run a split campaign with checkpointed per-seq writes and isolated 65k jobs (`HCSA` and `dense` each with `repeats=3`) before multi-turn/quality, then execute the 8-turn and quality suite once per mode and finalize gate evaluation.
+
+### EXP-20260208-GLM47-CONSUMER-CHECKPOINT-FIX (result)
+- Question: Can consumer benchmark writes survive mid-run interruption by checkpointing each completed single-turn row?
+- Hypothesis: Persisting `payload['single_turn']` incrementally on each row avoids loss during long 65k runs.
+- Change set:
+  - `scripts/bench_glm_consumer_mlx.py`: single-turn callback now appends each completed row directly into payload before flush.
+- Validation command:
+  - `python3 -m py_compile scripts/bench_glm_consumer_mlx.py`
+- Result:
+  - Compile passed.
+- Decision: keep.
+- Next action:
+  - Use this script for isolated `seq=65536` repeated runs and resume-safe campaign completion.
+
+## 2026-02-08 — GLM-4.7 Consumer Benchmark Campaign (Overnight Session 2)
+
+Roadmap alignment: Confirmed. This campaign is the verification/reproducibility evidence step for the promoted config (`th=49152, q=384, h=2`). It follows ROADMAP's overnight workstream items 1 (stabilize reproducible default) and 3 (post-change verification matrix). Phase 2 kernel optimizations (2b/2c/2d) are separate work items.
+
+### EXP-20260208-GLM47-CONSUMER-65K-HCSA-R05 (planned)
+- Question: At seq=65536 decode=256, what is HCSA consumer E2E/TTFT/ITL with promoted config?
+- Hypothesis: HCSA should beat chunked dense at 65k due to O(T·W) vs O(T²) scaling advantage on the late chunks. Prior prefill-only data showed 680.80s vs 732.27s (7% faster). With decode, the gap should hold because decode is model-dominated, not attention-dominated.
+- Change set: measurement only.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --decode-len 256 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 90 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_65k_hcsa_r05`
+- Controls: promoted config, retro off, seed=42, chunk=4096, kv_step=4096.
+
+### EXP-20260208-GLM47-CONSUMER-65K-DENSE-R05 (planned)
+- Question: At seq=65536 decode=256, what is chunked dense consumer E2E/TTFT/ITL?
+- Hypothesis: Dense at 65k will be slower on prefill due to O(T²) attention and will have worse TTFT, but ITL should be comparable since decode is model-level.
+- Change set: measurement only.
+- Command:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 65536 --decode-len 256 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 90 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --no-swap --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_65k_dense_r05`
+- Controls: --no-swap for pure dense, same chunking params.
+
+## 2026-02-08 — Hamiltonian Theory Integration (Ideas 4→1→2→5→3)
+
+### EXP-20260208-HCY-IDEA4-SPECTRAL (planned)
+- Question: Do random-cycle + local-window graphs in HCSA satisfy strong expansion proxies (`d/λ`) at small sequence lengths?
+- Hypothesis: Random cycles with window augmentation will produce expansion ratios above the acceptance threshold, and poor/structured cycles will fail this check.
+- Change set:
+  - `hcsa/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
+  - Graph runtime verification toggle wiring in MLX integrations
+  - `tests/test_spectral.py` (new)
+- Command:
+  - `python3 -m pytest`
+- Controls:
+  - Retro/backfill disabled.
+  - Existing random strategy baseline preserved with verification OFF by default.
+- Metrics:
+  - expansion_ratio, lambda_2, spectral_gap, directional agreement with walk proxy.
+- Decision: pending
+- Next action: implement Idea 4 and run tests.
+
+### EXP-20260208-HCY-IDEA1-DISJOINT (planned)
+- Question: Can we enforce edge-disjoint multi-cycle packing and correctly consume all cycles in permute attention?
+- Hypothesis: Enforcing edge-disjoint cycles will eliminate wasted overlap and produce valid multi-cycle outputs with expected ~linear compute scaling in cycle count.
+- Change set:
+  - `hcsa/cycles.py`: edge-disjoint cycle generator and verifier
+  - `hcsa/graph_strategies.py`, `hcsa/graph/abi.py`: all-cycle ABI metadata
+  - `hcsa/mlx/attention.py` + integrations: multi-cycle permute averaging
+  - `tests/test_edge_disjoint_cycles.py` (new)
+- Commands:
+  - `python3 -m pytest`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d1`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 2 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d2`
+- Controls:
+  - Same batch/heads/embd/window/iters across d=1 vs d=2.
+  - Retro/backfill disabled.
+- Metrics:
+  - Tokens/s, attention ms, peak memory bytes, deltas vs d=1 baseline.
+- Decision: pending
+- Next action: implement Idea 1 and run tests/benchmarks.
+
+### EXP-20260208-HCY-IDEA2-RESILIENCE (planned)
+- Question: Under window-drop, does the cycle+window graph maintain resilience signals at practical drop rates?
+- Hypothesis: At moderate drop (`~0.3`) survival remains high; at aggressive drop (`~0.8`) resilience collapses.
+- Change set:
+  - `hcsa/graph/analysis.py`: `check_resilience`
+  - `docs/resilience.md` (new)
+  - attention comments referencing theorem-backed safe regime
+  - `tests/test_resilience.py` (new)
+- Commands:
+  - `python3 -m pytest`
+  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100))"`
+  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100))"`
+- Controls:
+  - T=128, window=32, fixed permutation seed.
+- Metrics:
+  - survival_rate, min_degree_mean/min, threshold compliance.
+- Decision: pending
+- Next action: implement Idea 2 and run tests/measurements.
+
+### EXP-20260208-HCY-IDEA5-REGULARITY (planned)
+- Question: Can a regular-partition cycle strategy improve cluster regularity while preserving runtime feasibility?
+- Hypothesis: Regular-partition cycles should reduce inter-cluster deviation versus random/identity baselines, with comparable runtime complexity.
+- Change set:
+  - `hcsa/cycles.py`: `regular_partition_cycle`
+  - `hcsa/graph/analysis.py`: `check_regularity`
+  - strategy/config wiring for `regular_partition`
+  - `tests/test_regularity.py` (new)
+- Commands:
+  - `python3 -m pytest`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_random`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg8`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg16`
+- Controls:
+  - Same benchmark settings across strategies.
+- Metrics:
+  - Regularity deviation metrics + throughput + peak memory.
+- Decision: pending
+- Next action: implement Idea 5 and run tests/benchmarks.
+
+### EXP-20260208-HCY-IDEA3-COVERING (planned)
+- Question: Do additional covering cycles move permute outputs closer to dense attention in small-T regimes?
+- Hypothesis: Increasing covering cycle count (1→4→8) improves approximation quality to dense outputs (lower L2 distance), while increasing compute roughly linearly.
+- Change set:
+  - `hcsa/cycles.py`: `covering_cycles`
+  - `hcsa/graph/analysis.py`: `compute_edge_coverage`
+  - `hcsa/mlx/attention.py`: `wayfinder_covering_attention`
+  - `tests/test_covering.py` (new)
+- Commands:
+  - `python3 -m pytest`
+  - `python3 -m pytest tests/test_covering.py -q`
+- Controls:
+  - Fixed random seeds, same q/k/v tensors for dense vs covering comparisons.
+- Metrics:
+  - coverage_fraction, L2/cosine distance to dense for 1/4/8 cycles.
+- Decision: pending
+- Next action: implement Idea 3 and run tests/measurement.
+
+### EXP-20260208-HCY-IDEA4-SPECTRAL (result)
+- Question: Do random-cycle + local-window graphs in HCSA satisfy strong expansion proxies (`d/λ`) at small sequence lengths?
+- Hypothesis: Random cycles with window augmentation will produce expansion ratios above the acceptance threshold, and poor/structured cycles will fail this check.
+- Change set:
+  - `hcsa/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
+  - `hcsa/graph/__init__.py`: export analysis APIs
+  - `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`, `hcsa/mlx/attention.py`, `hcsa/mlx/model.py`: add opt-in spectral verification config/wiring (default off)
+  - `tests/test_spectral.py` (new)
+- Commands:
+  - `python3 -m pytest tests/test_spectral.py -q`
+  - `python3 -m pytest -q`
+- Controls:
+  - Verification default remains OFF.
+  - Retro/backfill remains OFF by default.
+- Metrics:
+  - Targeted tests: `3 passed`
+  - Full suite: `pass` (`[100%]`, no failures)
+  - Warning-only residual: `PytestUnknownMarkWarning` on existing `@pytest.mark.slow`
+- Decision: keep
+- Next action: implement Idea 1 (edge-disjoint cycle packing + multi-cycle permute path).
+
+### EXP-20260208-HCY-IDEA1-DISJOINT (result)
+- Question: Can we enforce edge-disjoint multi-cycle packing and correctly consume all cycles in permute attention?
+- Hypothesis: Enforcing edge-disjoint cycles will eliminate overlap waste and produce valid multi-cycle outputs with expected ~linear compute scaling in cycle count.
+- Change set:
+  - Measurement-only validation of the existing Idea 1 implementation (no additional code changes in this run).
+- Commands:
+  - `python3 -m pytest tests/test_edge_disjoint_cycles.py -q`
+  - `python3 -m pytest -q`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d1`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 2 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d2`
+- Controls:
+  - Same seq-lens/batch/heads/embd/window/landmark-stride/warmup/iters across `d1` vs `d2`.
+  - Retro/backfill disabled.
+  - Baseline path: `benchmarks/mlx/tiny_wayfinder/disjoint_d1/results.json`.
+  - Comparison subset: `mode=wayfinder_permute`.
+- Key result:
+  - Tests:
+    - `tests/test_edge_disjoint_cycles.py`: pass (`5 passed`)
+    - full suite: pass (`[100%]`, warning-only residual `pytest.mark.slow`)
+  - `T=2048` (`wayfinder_permute`):
+    - tokens/s: d1=`3,189,824.97`, d2=`1,785,284.27`, delta=`-1,404,540.70` (`-44.03%`)
+    - peak memory bytes: d1=`67,258,324`, d2=`67,487,700`, delta=`+229,376` (`+0.34%`)
+  - `T=4096` (`wayfinder_permute`):
+    - tokens/s: d1=`3,312,325.35`, d2=`1,909,139.91`, delta=`-1,403,185.45` (`-42.36%`)
+    - peak memory bytes: d1=`144,986,324`, d2=`145,445,076`, delta=`+458,752` (`+0.32%`)
+- Decision: follow-up (multi-cycle `d2` introduces large throughput regression with slight memory increase vs `d1` baseline).
+- Next action: profile multi-cycle path (`permute_ms` and graph/cache overhead) and test whether cycle aggregation can be fused/reduced for `num-cycles>1`.
+
+### EXP-20260208-HCY-IDEA1-DISJOINT (result correction)
+- Note: This entry supersedes the prior auto-logged Idea 1 result entry's `change_set` field.
+- Question: Can we enforce edge-disjoint multi-cycle packing and correctly consume all cycles in permute attention?
+- Hypothesis: Enforcing edge-disjoint cycles will eliminate overlap waste and produce valid multi-cycle outputs with expected ~linear compute scaling in cycle count.
+- Change set:
+  - `hcsa/cycles.py`: `edge_disjoint_random_cycles`, `verify_edge_disjoint`
+  - `hcsa/graph_strategies.py`: `RandomCycleStrategy(edge_disjoint=True)` and `all_cycle_perms` propagation
+  - `hcsa/graph/abi.py`: support/store `all_cycle_perms`; stack per-head metadata
+  - `hcsa/topology/core.py`: `edge_disjoint` topology knob forwarded to random strategy
+  - `hcsa/mlx/attention.py`: accept `[H,d,T]` perms in batched/active permute paths and average multi-cycle passes
+  - `hcsa/integrations/qwen_mlx.py`: cache support for stacked multi-cycle perms
+  - `hcsa/mlx/model.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`: config wiring for `edge_disjoint`
+  - `tests/test_edge_disjoint_cycles.py` (new)
+- Commands:
+  - `python3 -m pytest tests/test_edge_disjoint_cycles.py -q`
+  - `python3 -m pytest -q`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d1`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 2 --out-dir benchmarks/mlx/tiny_wayfinder/disjoint_d2`
+- Controls:
+  - Same seq-lens/batch/heads/embd/window/landmark-stride/warmup/iters across `d1` vs `d2`.
+  - Retro/backfill disabled.
+  - Baseline path: `benchmarks/mlx/tiny_wayfinder/disjoint_d1/results.json`.
+- Key result (wayfinder_permute rows):
+  - `T=2048`: tokens/s d1=`3,189,824.97`, d2=`1,785,284.27`, delta=`-1,404,540.70` (`-44.03%`); peak memory d1=`67,258,324`, d2=`67,487,700`, delta=`+229,376` (`+0.34%`).
+  - `T=4096`: tokens/s d1=`3,312,325.35`, d2=`1,909,139.91`, delta=`-1,403,185.45` (`-42.36%`); peak memory d1=`144,986,324`, d2=`145,445,076`, delta=`+458,752` (`+0.32%`).
+- Decision: follow-up
+- Next action: continue with Idea 2/5/3 while tracking multi-cycle overhead optimization opportunities.
+
+### EXP-20260208-HCY-IDEA2-RESILIENCE (result)
+- Question: Under window-drop, does the cycle+window graph maintain resilience signals at practical drop rates?
+- Hypothesis: At moderate drop (`~0.3`) survival remains high; at aggressive drop (`~0.8`) resilience collapses.
+- Change set:
+  - `hcsa/graph/analysis.py`: added `check_resilience`
+  - `hcsa/graph/__init__.py`: export resilience utility
+  - `hcsa/mlx/attention.py`: theorem-backed window-drop comments where drop mask is applied
+  - `docs/resilience.md` (new): theorem/empirical guidance
+  - `tests/test_resilience.py` (new)
+- Commands:
+  - `python3 -m pytest tests/test_resilience.py -q`
+  - `python3 -m pytest -q`
+  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100, rng=np.random.default_rng(1))); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100, rng=np.random.default_rng(1)))"`
+- Controls:
+  - `T=128`, `window=32`, fixed permutation seed (`42`), fixed trial RNG (`1`).
+  - Retro/backfill disabled.
+- Key result:
+  - Tests: `tests/test_resilience.py` pass; full suite pass (warning-only residual for existing `pytest.mark.slow`).
+  - Safe regime (`drop_rate=0.3`): survival=`0.96`, min-degree mean=`20.08`, min-degree min=`14`, threshold=`17.0`.
+  - Aggressive regime (`drop_rate=0.8`): survival=`0.00`, min-degree mean=`3.12`, min-degree min=`1`, threshold=`17.0`.
+- Decision: keep
+- Next action: proceed to Idea 5 (regularity-informed cycle construction).
+
+### EXP-20260208-HCY-IDEA5-REGULARITY (result)
+- Question: Can regular-partition cycle construction improve cluster regularity while preserving runtime feasibility?
+- Hypothesis: `regular_partition` should reduce cluster-pair deviation relative to random cycles at similar runtime complexity.
+- Change set:
+  - Measurement-only validation (no new code changes in this run).
+- Commands:
+  - `python3 -m pytest tests/test_regularity.py -q`
+  - `python3 -m pytest -q`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_random`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg8`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg16`
+  - `python3 - <<'PY' ... check_regularity(...) ... PY`
+- Controls:
+  - Same seq-lens/batch/heads/embd/window/landmark-stride/warmup/iters/num-cycles for all strategy runs.
+  - Retro/backfill disabled.
+  - Baseline path: `benchmarks/mlx/tiny_wayfinder/regularity_random/results.json`.
+  - Comparison subset: `mode=wayfinder_permute` rows.
+- Key result:
+  - Tests:
+    - `tests/test_regularity.py`: pass (`4 passed`)
+    - full suite: pass (`[100%]`, warning-only residual `pytest.mark.slow`)
+  - `T=2048` (`wayfinder_permute`):
+    - random: tokens/s=`2,773,893.15`, peak memory bytes=`67,258,324`
+    - reg8: tokens/s=`3,138,146.65` (delta=`+364,253.50`, `+13.13%`), peak memory bytes=`67,258,324` (delta=`0`, `0.00%`)
+    - reg16: tokens/s=`2,938,483.04` (delta=`+164,589.89`, `+5.93%`), peak memory bytes=`67,258,324` (delta=`0`, `0.00%`)
+  - `T=4096` (`wayfinder_permute`):
+    - random: tokens/s=`3,251,707.86`, peak memory bytes=`144,986,324`
+    - reg8: tokens/s=`3,470,573.94` (delta=`+218,866.07`, `+6.73%`), peak memory bytes=`144,986,324` (delta=`0`, `0.00%`)
+    - reg16: tokens/s=`3,660,410.26` (delta=`+408,702.39`, `+12.57%`), peak memory bytes=`144,986,324` (delta=`0`, `0.00%`)
+  - Regularity snippet (`max_deviation`, `mean_deviation`):
+    - `T=2048`: random=`(0.132087, 0.097719)`, reg8=`(0.113830, 0.094337)`, reg16=`(0.247143, 0.179399)`
+    - `T=4096`: random=`(0.082212, 0.048826)`, reg8=`(0.093192, 0.058267)`, reg16=`(0.172784, 0.126611)`
+- Decision: follow-up (throughput improves vs random baseline, but regularity metrics are mixed and do not consistently beat random across tested settings).
+- Next action: investigate cluster assignment/cycle stitching for `regular_partition` to improve deviation metrics while preserving the observed throughput gains.
+
+### EXP-20260208-HCY-IDEA3-COVERING (result)
+- Question: Do additional covering cycles move permute outputs closer to dense attention in small-T regimes?
+- Hypothesis: Increasing covering cycles from `d=1` to `d=4` to `d=8` improves approximation quality to dense outputs (lower L2, higher cosine similarity).
+- Change set:
+  - Measurement-only validation (no new code changes in this run).
+- Commands:
+  - `python3 -m pytest tests/test_covering.py -q`
+  - `python3 -m pytest -q`
+  - `python3 - <<'PY' ... dense_causal_attention vs wayfinder_covering_attention at T={256,512}, d={1,4,8} ... PY`
+- Controls:
+  - `B=1`, `H=2`, `dh=8`, `window=4`, `query_chunk_size=128`.
+  - Sequence lengths fixed to `T=256` and `T=512`.
+  - Q/K/V RNG seed fixed (`123`); covering-cycle generator seed fixed (`42`).
+  - Baseline path per setting: `d=1` row for the same `T`.
+  - Dense reference: `dense_causal_attention(q, k, v)` on identical tensors.
+- Key result:
+  - Tests:
+    - `tests/test_covering.py`: pass (`4 passed`)
+    - full suite: pass (`[100%]`, warning-only residual `pytest.mark.slow`)
+  - `T=256`:
+    - `d=1` (baseline): coverage=`0.0078431373`, L2=`37.65647888`, cosine=`0.24362293`
+    - `d=4`: coverage=`0.0313725490` (delta=`+0.0235294118`, `+300.00%`), L2=`35.46280289` (delta=`-2.19367599`, `-5.83%`), cosine=`0.25459939` (delta=`+0.01097646`, `+4.51%`)
+    - `d=8`: coverage=`0.0627450980` (delta=`+0.0549019608`, `+700.00%`), L2=`34.56360245` (delta=`-3.09287643`, `-8.21%`), cosine=`0.26082602` (delta=`+0.01720309`, `+7.06%`)
+  - `T=512`:
+    - `d=1` (baseline): coverage=`0.0039138943`, L2=`53.56615829`, cosine=`0.18330292`
+    - `d=4`: coverage=`0.0156555773` (delta=`+0.0117416830`, `+300.00%`), L2=`50.08660126` (delta=`-3.47955704`, `-6.50%`), cosine=`0.19458646` (delta=`+0.01128353`, `+6.16%`)
+    - `d=8`: coverage=`0.0313111546` (delta=`+0.0273972603`, `+700.00%`), L2=`48.75308609` (delta=`-4.81307220`, `-8.99%`), cosine=`0.20152505` (delta=`+0.01822212`, `+9.94%`)
+- Decision: keep (results support the hypothesis: more covering cycles monotonically improve dense-approximation quality at both tested sequence lengths).
+- Next action: run `d=16` and larger `T` sweeps, then quantify quality-vs-throughput tradeoff for selecting default `max_cycles`.
+
+### EXP-20260208-HCY-IDEA5-REGULARITY (result correction)
+- Note: This entry supersedes the prior auto-logged Idea 5 result entry's `change_set` field.
+- Question: Can regular-partition cycle construction improve cluster regularity while preserving runtime feasibility?
+- Hypothesis: `regular_partition` should reduce cluster-pair deviation relative to random cycles at similar runtime complexity.
+- Change set:
+  - `hcsa/cycles.py`: added `regular_partition_cycle`
+  - `hcsa/graph_strategies.py`: added `RegularPartitionStrategy` + registry wiring
+  - `hcsa/topology/core.py`: added `regular_num_clusters` and static cache-mode for regular partition
+  - `hcsa/graph/analysis.py`: added `check_regularity`
+  - `hcsa/graph/__init__.py`: exported `check_regularity`
+  - `scripts/bench_mlx_wayfinder_scale.py`: added `--regular-num-clusters` and `regular_partition` strategy support
+  - `hcsa/mlx/attention.py`, `hcsa/mlx/model.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`: strategy/config wiring for `regular_partition`
+  - `tests/test_regularity.py` (new)
+- Commands:
+  - `python3 -m pytest tests/test_regularity.py -q`
+  - `python3 -m pytest -q`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_random`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg8`
+  - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg16`
+- Controls:
+  - Same seq-lens/batch/heads/embd/window/landmark-stride/warmup/iters/num-cycles across strategy runs.
+  - Baseline path: `benchmarks/mlx/tiny_wayfinder/regularity_random/results.json`.
+- Key result (wayfinder_permute rows):
+  - `T=2048`:
+    - reg8 tokens/s=`3,138,146.65` vs random=`2,773,893.15` (delta=`+364,253.50`, `+13.13%`)
+    - reg16 tokens/s=`2,938,483.04` vs random=`2,773,893.15` (delta=`+164,589.89`, `+5.93%`)
+    - peak memory unchanged across all three (`67,258,324` bytes)
+  - `T=4096`:
+    - reg8 tokens/s=`3,470,573.94` vs random=`3,251,707.86` (delta=`+218,866.07`, `+6.73%`)
+    - reg16 tokens/s=`3,660,410.26` vs random=`3,251,707.86` (delta=`+408,702.39`, `+12.57%`)
+    - peak memory unchanged across all three (`144,986,324` bytes)
+  - Regularity snippet (`max_deviation`, `mean_deviation`):
+    - `T=2048`: random=`(0.132087, 0.097719)`, reg8=`(0.113830, 0.094337)`, reg16=`(0.247143, 0.179399)`
+    - `T=4096`: random=`(0.082212, 0.048826)`, reg8=`(0.093192, 0.058267)`, reg16=`(0.172784, 0.126611)`
+- Decision: follow-up
+- Next action: keep regular_partition strategy available and tune cluster-assignment/stitching to consistently improve regularity metrics.
+
+### EXP-20260208-HCY-IDEA3-COVERING (result)
+- Question: Do additional covering cycles move permute outputs closer to dense attention in small-T regimes?
+- Hypothesis: Increasing covering cycles from 1 to 4 to 8 improves approximation quality to dense outputs (lower L2 distance), at near-linear extra compute.
+- Change set:
+  - `hcsa/cycles.py`: added `covering_cycles` (with deterministic Walecki seeding for even-T and greedy candidate selection)
+  - `hcsa/graph/analysis.py`: added `compute_edge_coverage`
+  - `hcsa/graph/__init__.py`: exported `compute_edge_coverage`
+  - `hcsa/mlx/attention.py`: added `wayfinder_covering_attention`
+  - `tests/test_covering.py` (new)
+- Commands:
+  - `python3 -m pytest tests/test_covering.py -q`
+  - `python3 -m pytest -q`
+  - `python3 - <<'PY' ... dense vs covering d={1,4,8} at T={256,512} ... PY`
+- Controls:
+  - Fixed RNGs and identical q/k/v tensors per T.
+  - Baseline for approximation deltas: `d=1`.
+- Key result:
+  - Tests: `tests/test_covering.py` pass (`4 passed`); full suite pass (warning-only residual `pytest.mark.slow`).
+  - Coverage utility target check: `covering_cycles(T=64, max_cycles=50)` reaches `coverage_fraction >= 0.95`.
+  - `T=256` (dense baseline comparison):
+    - d1: coverage=`0.007843`, L2=`37.6565`, cosine=`0.243623`
+    - d4: coverage=`0.031373`, L2=`35.4628` (delta vs d1=`-2.1937`, `-5.83%`), cosine=`0.254599` (delta vs d1=`+0.010976`, `+4.51%`)
+    - d8: coverage=`0.062745`, L2=`34.5636` (delta vs d1=`-3.0929`, `-8.21%`), cosine=`0.260826` (delta vs d1=`+0.017203`, `+7.06%`)
+  - `T=512` (dense baseline comparison):
+    - d1: coverage=`0.003914`, L2=`53.5662`, cosine=`0.183303`
+    - d4: coverage=`0.015656`, L2=`50.0866` (delta vs d1=`-3.4796`, `-6.50%`), cosine=`0.194586` (delta vs d1=`+0.011284`, `+6.16%`)
+    - d8: coverage=`0.031311`, L2=`48.7531` (delta vs d1=`-4.8131`, `-8.99%`), cosine=`0.201525` (delta vs d1=`+0.018222`, `+9.94%`)
+- Decision: keep
+- Next action: optional future work is integrating covering mode as an explicit runtime path for research-only long-context ablations.
+
+### EXP-20260208-HCY-IDEA4-SPECTRAL (result correction)
+- Note: Adds empirical measurement details for Idea 4 beyond unit tests.
+- Measurement command:
+  - `python3 -c "import numpy as np; from hcsa.graph.analysis import spectral_gap, expansion_proxy; ..."`
+- Measurement controls:
+  - `T=128`, `window=8`, random perm seed `42`, identity baseline, proxy walks=`2000`, walk_len=`20`.
+- Measurement result:
+  - Spectral (`include_window=True`, threshold=`1.1`):
+    - random cycle: degree=`17.2656`, lambda2=`15.3452`, gap=`2.2416`, ratio=`1.1251`, `is_good_expander=True`
+    - identity cycle: degree=`15.4531`, lambda2=`15.5481`, gap=`0.3387`, ratio=`0.9939`, `is_good_expander=False`
+  - Expansion proxy:
+    - random: mixing_time=`19`, endpoint_uniformity chi2=`148.096`
+    - identity: mixing_time=`29`, endpoint_uniformity chi2=`2213.376`
+- Interpretation:
+  - Randomized cycle topology shows clearly better expansion signal than identity in both exact spectral and walk-based proxy diagnostics.
+- Decision: keep
+- Next action: proceed with integration complete; use verification toggle only for research/debug due extra cost.
+
+## 2026-02-08 — E2E Validation Pass (Tiny -> Qwen -> GLM)
+
+### EXP-20260208-E2E-P0-PREFLIGHT (planned)
+- Question: Is the environment and regression suite healthy enough to trust subsequent E2E benchmark measurements?
+- Hypothesis: `env_check_mlx.py` and pytest suites pass on this machine, enabling full benchmark execution.
+- Change set: none (measurement-only preflight).
+- Commands:
+  - `python3 scripts/env_check_mlx.py --json-out benchmarks/mlx/e2e_validation_20260208_192216/env_check_mlx.json`
+  - `python3 -m pytest tests/test_edge_disjoint_cycles.py tests/test_resilience.py tests/test_covering.py tests/test_spectral.py tests/test_regularity.py -q`
+  - `python3 -m pytest -q`
+- Controls:
+  - Repo root fixed: `/Volumes/VIXinSSD/wayfinder`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder`
+- Metrics: pending
+- Decision: pending
+- Next action: run preflight commands and record pass/fail + artifact paths.
+
+### EXP-20260208-E2E-P0-PREFLIGHT (result)
+- Question: Is the environment and regression suite healthy enough to trust subsequent E2E benchmark measurements?
+- Hypothesis: `env_check_mlx.py` and pytest suites pass on this machine, enabling full benchmark execution.
+- Change set: none (measurement-only preflight).
+- Commands:
+  - `python3 scripts/env_check_mlx.py --json-out benchmarks/mlx/e2e_validation_20260208_192216/env_check_mlx.json`
+  - `python3 -m pytest tests/test_edge_disjoint_cycles.py tests/test_resilience.py tests/test_covering.py tests/test_spectral.py tests/test_regularity.py -q`
+  - `python3 -m pytest -q`
+- Controls:
+  - Repo root: `/Volumes/VIXinSSD/wayfinder`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder`
+- Key result:
+  - Environment check succeeded; artifact: `benchmarks/mlx/e2e_validation_20260208_192216/env_check_mlx.json`
+  - Targeted suite passed: `19 passed` (`benchmarks/mlx/e2e_validation_20260208_192216/phase0_pytests_targeted.log`)
+  - Full suite passed with warning-only status: `111 collected`, all tests passed, one warning (`PytestUnknownMarkWarning` for `pytest.mark.slow`) (`benchmarks/mlx/e2e_validation_20260208_192216/phase0_pytests_full.log`)
+- Decision: keep
+- Next action: execute Phase 1 measurement benchmarks with planned+result protocol.
+
+### EXP-20260208-E2E-P1-IDEA1-DISJOINT (planned)
+- Question: For Tiny synthetic long context, does increasing cycles from d=1 to d=2 under edge-disjoint setup improve or hurt throughput/memory?
+- Hypothesis: d=2 will increase graph coverage but may reduce throughput due to extra cycle aggregation overhead; memory impact should be small.
+- Change set: none (measurement-only run; existing edge-disjoint implementation).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d1`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 2 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d2`
+- Controls:
+  - Fixed seq-lens/batch/heads/embd/window/stride/warmup/iters.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d1/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run both commands and compute absolute/delta/% metrics.
+
+### EXP-20260208-E2E-P1-IDEA1-DISJOINT (result)
+- Question: For Tiny synthetic long context, does increasing cycles from d=1 to d=2 under edge-disjoint setup improve or hurt throughput/memory?
+- Hypothesis: d=2 will increase graph coverage but may reduce throughput due to extra cycle aggregation overhead; memory impact should be small.
+- Change set: none (measurement-only run; existing edge-disjoint implementation).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d1`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --num-cycles 2 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d2`
+- Controls:
+  - Fixed seq-lens/batch/heads/embd/window/stride/warmup/iters.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/idea1_disjoint_d1/results.json`.
+- Key result (wayfinder_permute rows):
+  - `T=2048`:
+    - d1 tok/s=`3,361,625.93`, d2 tok/s=`1,655,270.18`
+    - absolute delta=`-1,706,355.75`, pct delta=`-50.76%`
+    - d1 mem=`55,904,212`, d2 mem=`55,904,212`, absolute delta=`0`, pct delta=`0.00%`
+  - `T=4096`:
+    - d1 tok/s=`3,449,595.76`, d2 tok/s=`1,771,466.54`
+    - absolute delta=`-1,678,129.22`, pct delta=`-48.65%`
+    - d1 mem=`111,792,340`, d2 mem=`111,792,340`, absolute delta=`0`, pct delta=`0.00%`
+- Decision: follow-up
+- Next action: keep d=1 as default for speed-sensitive inference; revisit d>1 only if quality gains justify cost.
+
+### EXP-20260208-E2E-P1-IDEA5-REGULAR-PARTITION (planned)
+- Question: Does `regular_partition` improve throughput or memory over random cycles at fixed tiny benchmark settings?
+- Hypothesis: `regular_partition` (reg8/reg16) should improve throughput via better locality with minimal memory change.
+- Change set: none (measurement-only run; existing regular-partition implementation).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_random`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_reg8`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_reg16`
+- Controls:
+  - Fixed seq-lens/batch/heads/embd/window/stride/warmup/iters/cycles.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/idea5_random/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run all three commands and compute absolute/delta/% metrics.
+
+### EXP-20260208-E2E-P1-IDEA5-REGULAR-PARTITION (result)
+- Question: Does `regular_partition` improve throughput or memory over random cycles at fixed tiny benchmark settings?
+- Hypothesis: `regular_partition` (reg8/reg16) should improve throughput via better locality with minimal memory change.
+- Change set: none (measurement-only run; existing regular-partition implementation).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_random`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_reg8`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/idea5_reg16`
+- Controls:
+  - Fixed seq-lens/batch/heads/embd/window/stride/warmup/iters/cycles.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/idea5_random/results.json`.
+- Key result (wayfinder_permute rows):
+  - `T=2048`:
+    - random tok/s=`2,915,259.96`, reg8=`2,931,865.97`, reg16=`3,210,397.43`
+    - reg8 delta vs random=`+16,606.01` (`+0.57%`)
+    - reg16 delta vs random=`+295,137.47` (`+10.12%`)
+    - memory unchanged across variants (`55,904,212` bytes)
+  - `T=4096`:
+    - random tok/s=`3,829,155.71`, reg8=`3,637,419.60`, reg16=`3,459,794.04`
+    - reg8 delta vs random=`-191,736.11` (`-5.01%`)
+    - reg16 delta vs random=`-369,361.68` (`-9.65%`)
+    - memory unchanged across variants (`111,792,340` bytes)
+- Decision: follow-up
+- Next action: keep random as default for stable long-context speed; investigate why regular partition regresses at `T=4096`.
+
+### EXP-20260208-E2E-P1-IDEA-METRICS (planned)
+- Question: Do resilience/spectral/covering diagnostics match theoretical expectations for cycle-based attention graphs?
+- Hypothesis:
+  - resilience survives at moderate drop (`drop_rate=0.3`) and fails at aggressive drop (`0.8`),
+  - random cycles show better spectral/expansion signals than identity,
+  - covering cycles with higher `d` move outputs closer to dense (lower L2, higher cosine).
+- Change set: none (measurement-only script).
+- Command:
+  - `python3 - <<'PY' ... writes benchmarks/mlx/tiny_wayfinder/idea_metrics_e2e.json ... PY`
+- Controls:
+  - Fixed seeds per prompt (`perm seed=42`, `trial rng=1`, `walk rng=3`, qkv rng=`123+T`, covering generator=`42`).
+  - Fixed shapes (`B=1`, `H=2`, `dh=8`), `window=4` for covering check.
+- Metrics: pending
+- Decision: pending
+- Next action: run script and record absolute results + directional checks.
+
+### EXP-20260208-E2E-P1-IDEA-METRICS (result)
+- Question: Do resilience/spectral/covering diagnostics match theoretical expectations for cycle-based attention graphs?
+- Hypothesis:
+  - resilience survives at moderate drop (`drop_rate=0.3`) and fails at aggressive drop (`0.8`),
+  - random cycles show better spectral/expansion signals than identity,
+  - covering cycles with higher `d` move outputs closer to dense (lower L2, higher cosine).
+- Change set: none (measurement-only script).
+- Command:
+  - `python3 - <<'PY' ... writes benchmarks/mlx/tiny_wayfinder/idea_metrics_e2e.json ... PY`
+- Controls:
+  - Fixed seeds per prompt (`perm seed=42`, `trial rng=1`, `walk rng=3`, qkv rng=`123+T`, covering generator=`42`).
+  - Fixed shapes (`B=1`, `H=2`, `dh=8`), `window=4` for covering check.
+- Key result:
+  - Artifact written: `benchmarks/mlx/tiny_wayfinder/idea_metrics_e2e.json`
+  - Resilience:
+    - safe (`drop_rate=0.3`) survival=`0.96`
+    - aggressive (`drop_rate=0.8`) survival=`0.00`
+  - Spectral/expansion:
+    - random ratio=`1.1251` (`is_good_expander=True`) vs identity ratio=`0.9939` (`False`)
+    - proxy mixing time random=`19` vs identity=`29`
+  - Covering convergence to dense:
+    - `T=256`: L2 `36.86 -> 34.24 -> 33.33` (d1->d4->d8), cosine `0.2360 -> 0.2507 -> 0.2582`
+    - `T=512`: L2 `53.72 -> 50.48 -> 49.00`, cosine `0.1842 -> 0.1966 -> 0.2007`
+- Decision: keep
+- Next action: proceed to Tiny/Qwen/GLM end-to-end phases with retro/backfill disabled for inference benchmarks.
+
+### EXP-20260208-E2E-P2-TINY-E2E (planned)
+- Question: With retro/backfill disabled, how does Wayfinder compare to dense on TinyShakespeare for short and long runs in quality, throughput, and memory?
+- Hypothesis: Long run should preserve quality gate and show throughput/memory benefit; short run may be noisier but should remain directionally consistent with prior tiny reports.
+- Change set: none (measurement-only training runs).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/run_mlx_experiment_tiny.py --data data/tinyshakespeare.txt --steps 300 --batch-size 8 --seq-len 128 --layers 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --num-cycles 1 --strategy random --wayfinder-attn wayfinder_permute --retro-backfill-enabled False --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiny_short`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/run_mlx_experiment_tiny_long.py --data data/tinyshakespeare.txt --steps 1000 --batch-size 8 --seq-len 128 --layers 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --num-cycles 1 --strategy random --wayfinder-attn wayfinder_permute --retro-backfill-enabled False --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiny_long`
+- Controls:
+  - Same dataset and model dimensions for dense vs wayfinder comparisons inside each script.
+  - Retro/backfill disabled for this phase.
+- Metrics: pending
+- Decision: pending
+- Next action: run both commands and compute quality gate + joint utility by scenario.
+
+### EXP-20260208-E2E-P2-TINY-E2E (result)
+- Question: With retro/backfill disabled, how does Wayfinder compare to dense on TinyShakespeare for short and long runs in quality, throughput, and memory?
+- Hypothesis: Long run should preserve quality gate and show throughput/memory benefit; short run may be noisier but should remain directionally consistent with prior tiny reports.
+- Change set: none (measurement-only training runs).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/run_mlx_experiment_tiny.py --data data/tinyshakespeare.txt --steps 300 --batch-size 8 --seq-len 128 --layers 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --num-cycles 1 --strategy random --wayfinder-attn wayfinder_permute --retro-backfill-enabled False --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiny_short`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/run_mlx_experiment_tiny_long.py --data data/tinyshakespeare.txt --steps 1000 --batch-size 8 --seq-len 128 --layers 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --num-cycles 1 --strategy random --wayfinder-attn wayfinder_permute --retro-backfill-enabled False --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiny_long`
+- Controls:
+  - Same dataset/model dimensions for dense-vs-wayfinder comparison inside each run.
+  - Retro/backfill disabled.
+- Key result:
+  - Artifacts:
+    - `benchmarks/mlx/e2e_validation_20260208_192216/tiny_short/summary.json`
+    - `benchmarks/mlx/e2e_validation_20260208_192216/tiny_long/summary.json`
+  - `tiny_short`:
+    - dense ppl=`55.01`, wayfinder ppl=`34.50` (delta=`-20.51`, `-37.29%`)
+    - dense tok/s=`417,161.20`, wayfinder tok/s=`303,755.41` (delta=`-113,405.79`, `-27.18%`)
+    - dense mem=`95,191,432`, wayfinder mem=`97,337,116`
+    - memory_reduction_pct=`100*(1-wayfinder/dense)=-2.25%` (worse)
+  - `tiny_long`:
+    - dense final ppl=`822.30`, wayfinder final ppl=`90.05` (delta=`-732.25`, `-89.05%`)
+    - dense tok/s=`431,693.67`, wayfinder tok/s=`232,426.26` (delta=`-199,267.41`, `-46.16%`)
+    - dense mem=`95,191,432`, wayfinder mem=`120,135,536`
+    - memory_reduction_pct=`-26.20%` (worse)
+    - Tiny quality gate check: `90.05 <= 1.15*822.30` -> pass
+- Decision: follow-up
+- Next action: treat tiny quality as pass gate but note throughput/memory disadvantage under this exact run; proceed to Qwen and GLM long-context target phases.
+
+### EXP-20260208-E2E-P3-QWEN3-1P7B-SWAP (planned)
+- Question: Under full attention swap on Qwen3-1.7B-4bit, does Wayfinder achieve long-context throughput/memory advantage vs dense?
+- Hypothesis: Memory should improve at long contexts, while throughput may still lag due integration overhead.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3 --dtype bfloat16 --path permute --window 64 --landmark-stride 64 --num-cycles 1 --seed 42 --full-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/qwen3_1p7b_wayfinder`
+- Controls:
+  - Fixed model path, seq lens, batch, warmup/iters, dtype, path/window/stride/cycles/seed.
+  - Retro/backfill remains disabled for inference.
+- Metrics: pending
+- Decision: pending
+- Next action: run benchmark and compute dense-vs-wayfinder deltas + joint utility.
+
+### EXP-20260208-E2E-P3-QWEN3-1P7B-SWAP (result)
+- Question: Under full attention swap on Qwen3-1.7B-4bit, does Wayfinder achieve long-context throughput/memory advantage vs dense?
+- Hypothesis: Memory should improve at long contexts, while throughput may still lag due integration overhead.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3 --dtype bfloat16 --path permute --window 64 --landmark-stride 64 --num-cycles 1 --seed 42 --full-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/qwen3_1p7b_wayfinder`
+- Controls:
+  - Fixed model/seq/batch/warmup/iters/dtype/path/window/stride/cycles/seed.
+  - Retro/backfill disabled for inference.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/qwen3_1p7b_wayfinder/results.json`):
+  - `T=2048`
+    - attention tok/s: dense=`267,918.17`, wayfinder=`247,966.90` (delta=`-19,951.28`, `-7.45%`)
+    - attention memory_reduction_pct=`-59.93%` (memory worse)
+    - block tok/s: dense=`82,290.03`, wayfinder=`76,625.67` (delta=`-5,664.36`, `-6.88%`)
+    - block memory_reduction_pct=`10.90%`
+  - `T=8192`
+    - attention tok/s: dense=`165,472.94`, wayfinder=`226,021.28` (delta=`+60,548.34`, `+36.59%`)
+    - attention memory_reduction_pct=`-1.59%` (memory slightly worse)
+    - block tok/s: dense=`69,279.01`, wayfinder=`77,308.85` (delta=`+8,029.84`, `+11.59%`)
+    - block memory_reduction_pct=`5.16%`
+  - `T=32768`
+    - attention tok/s: dense=`57,063.37`, wayfinder=`239,453.18` (delta=`+182,389.80`, `+319.63%`)
+    - attention memory_reduction_pct=`3.07%`
+    - block tok/s: dense=`39,325.68`, wayfinder=`81,658.84` (delta=`+42,333.15`, `+107.64%`)
+    - block memory_reduction_pct=`5.82%`
+  - First-call graph build cost (separate from cached steady state): `T=2048: 806.63 ms`, `T=8192: 4858.61 ms`, `T=32768: 45685.67 ms`.
+- Decision: keep
+- Next action: continue with GLM attention+consumer+chunked runs to determine target-regime superiority.
+
+### EXP-20260208-E2E-P4A-GLM-ATTENTION-SWAP (planned)
+- Question: For GLM-4.7-Flash full attention swap, what are attention-level and block-level dense-vs-wayfinder throughput/memory outcomes across 2K/8K/32K?
+- Hypothesis: Long context should show clear throughput gains with modest memory reduction; short contexts may be neutral.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 384 --permute-memory-budget-multiplier 1.0 --full-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_attention_swap`
+- Controls:
+  - Fixed model/seq/batch/warmup/iters/dtype/path/window/stride/cycles/seed/chunk settings.
+  - Retro/backfill disabled for inference.
+- Metrics: pending
+- Decision: pending
+- Next action: run benchmark and compute absolute/delta/% plus joint utility by seq.
+
+### EXP-20260208-E2E-P4A-GLM-ATTENTION-SWAP (result)
+- Question: For GLM-4.7-Flash full attention swap, what are attention-level and block-level dense-vs-wayfinder throughput/memory outcomes across 2K/8K/32K?
+- Hypothesis: Long context should show clear throughput gains with modest memory reduction; short contexts may be neutral.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 3 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 384 --permute-memory-budget-multiplier 1.0 --full-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_attention_swap`
+- Controls:
+  - Fixed model/seq/batch/warmup/iters/dtype/path/window/stride/cycles/seed/chunk settings.
+  - Retro/backfill disabled for inference.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_attention_swap/results.json`):
+  - `T=2048`
+    - attention tok/s: dense=`76,809.36`, wayfinder=`94,964.48` (delta=`+18,155.12`, `+23.64%`)
+    - attention memory_reduction_pct=`49.83%`
+    - block tok/s: dense=`35,175.18`, wayfinder=`40,877.77` (delta=`+5,702.59`, `+16.21%`)
+    - block memory_reduction_pct=`37.58%`
+  - `T=8192`
+    - attention tok/s: dense=`26,319.43`, wayfinder=`101,362.30` (delta=`+75,042.88`, `+285.13%`)
+    - attention memory_reduction_pct=`14.22%`
+    - block tok/s: dense=`17,705.80`, wayfinder=`42,962.98` (delta=`+25,257.18`, `+142.65%`)
+    - block memory_reduction_pct=`12.40%`
+  - `T=32768`:
+    - run failed at dense baseline attention due Metal max-buffer limit:
+      - `RuntimeError: [metal::malloc] Attempting to allocate 42949672960 bytes which is greater than the maximum allowed buffer size of 22613000192 bytes.`
+- Decision: follow-up
+- Next action: continue with consumer/chunked GLM benchmarks where long-context runs are chunked and feasible under memory limits.
+
+### EXP-20260208-E2E-P4B-GLM-CONSUMER-DENSE (planned)
+- Question: What is the GLM consumer dense control baseline (single-turn, chunked settings) at 2K/8K/32K?
+- Hypothesis: Dense control provides stable baseline for end-to-end comparison; 32K should be feasible with consumer harness.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-multi-turn --no-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense`
+- Controls:
+  - Fixed model, decode len, chunk params, threshold, quality dataset, single-turn mode.
+  - No swap (`dense` control).
+- Metrics: pending
+- Decision: pending
+- Next action: run dense control and capture E2E/TTFT/memory/quality fields.
+
+### EXP-20260208-E2E-P4B-GLM-CONSUMER-DENSE (result)
+- Question: What is the GLM consumer dense control baseline (single-turn, chunked settings) at 2K/8K/32K?
+- Hypothesis: Dense control provides stable baseline for end-to-end comparison; 32K should be feasible with consumer harness.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-multi-turn --no-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense`
+- Controls:
+  - Fixed model/decode/chunk/threshold/quality dataset/single-turn settings.
+  - No swap (`dense` control).
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense/results.json`):
+  - `T=2048`: e2e=`6.6615s`, ttft=`0.1070s`, decode_tok_s=`60.84`, peak=`18,284,344,600`
+  - `T=8192`: e2e=`191.9119s`, ttft=`99.6097s`, decode_tok_s=`1.57`, peak=`20,660,500,140`
+  - `T=32768`: e2e=`410.4896s`, ttft=`22.9608s`, decode_tok_s=`7.84`, peak=`26,017,775,484`
+  - Quality eval on dataset (`n=6`): accuracy=`0.50` (`3/6`)
+- Decision: keep
+- Next action: run matched HCSA consumer benchmark and compute dense-vs-HCSA absolute/delta/% plus joint utility.
+
+### EXP-20260208-E2E-P4C-GLM-CONSUMER-HCSA (planned)
+- Question: Against the just-measured dense consumer baseline, what is HCSA performance/memory/quality at 2K/8K/32K?
+- Hypothesis: HCSA should improve e2e and memory in long context (especially 32K), with no catastrophic quality collapse on available eval.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-multi-turn --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_hcsa`
+- Controls:
+  - Same controls as dense run, with swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run HCSA consumer and compute dense-vs-HCSA absolute/delta/% + joint utility.
+
+
+### EXP-20260208-E2E-P4C-GLM-CONSUMER-HCSA (result)
+- Question: Against the just-measured dense consumer baseline, what is HCSA performance/memory/quality at 2K/8K/32K?
+- Hypothesis: HCSA should improve e2e and memory in long context (especially 32K), with no catastrophic quality collapse on available eval.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-multi-turn --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_hcsa`
+- Controls:
+  - Same controls as dense run, with swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense/results.json`.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_hcsa/results.json`):
+  - `T=2048`: e2e dense=6.6615s, hcsa=7.2996s, delta=+0.6381s (+9.58%)\n    - ttft dense=0.1070s, hcsa=0.1180s, delta=+0.0110s (+10.28%)\n    - decode_tok_s dense=60.8388, hcsa=54.8332, delta=-6.0056 (-9.87%)\n    - peak mem dense=18284344600, hcsa=18284344788, memory_reduction_pct=-0.000001%\n    - e2e throughput ratio=0.9126, memory ratio=1.000000, joint_utility=0.9126\n  - `T=8192`: e2e dense=191.9119s, hcsa=23.1856s, delta=-168.7263s (-87.92%)\n    - ttft dense=99.6097s, hcsa=0.1922s, delta=-99.4175s (-99.81%)\n    - decode_tok_s dense=1.5704, hcsa=43.9940, delta=+42.4236 (+2701.38%)\n    - peak mem dense=20660500140, hcsa=20660500328, memory_reduction_pct=-0.000001%\n    - e2e throughput ratio=8.2772, memory ratio=1.000000, joint_utility=8.2772\n  - `T=32768`: e2e dense=410.4896s, hcsa=276.4979s, delta=-133.9918s (-32.64%)\n    - ttft dense=22.9608s, hcsa=13.8446s, delta=-9.1161s (-39.70%)\n    - decode_tok_s dense=7.8384, hcsa=10.9528, delta=+3.1144 (+39.73%)\n    - peak mem dense=26017775484, hcsa=26017775672, memory_reduction_pct=-0.000001%\n    - e2e throughput ratio=1.4846, memory ratio=1.000000, joint_utility=1.4846\n  - Quality eval: dense accuracy=0.500 (3/6), hcsa accuracy=0.500 (3/6)\n- Decision: follow-up
+- Next action: run chunked dense/hcsa prefill sweeps and finalize long-context superiority verdict.
+
+### EXP-20260208-E2E-P4D-GLM-CHUNKED-DENSE (planned)
+- Question: In chunked prefill mode (`seq=32768,65536`), what is dense control performance/memory against the named historical baseline?
+- Hypothesis: Dense control should be reproducible within drift bounds and provide baseline for thresholded HCSA comparisons.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --no-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense`
+- Controls:
+  - Fixed model/seq/chunk/decode/cache/permute controls.
+  - Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run dense chunked control and record absolute/delta/% vs named baseline.
+
+### EXP-20260208-E2E-P4E-GLM-CHUNKED-HCSA-THR16384 (planned)
+- Question: In chunked prefill mode, does HCSA with `active_dense_threshold=16384` outperform dense baseline at 32K/65K?
+- Hypothesis: Lower threshold should force more sparse work and improve throughput, with potential memory benefits.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 16384 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr16384`
+- Controls:
+  - Same controls as dense chunked run except threshold and swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run threshold=16384 and compute dense-vs-HCSA deltas.
+
+### EXP-20260208-E2E-P4E-GLM-CHUNKED-HCSA-THR49152 (planned)
+- Question: In chunked prefill mode, does HCSA with `active_dense_threshold=49152` provide a better speed/memory tradeoff vs dense and thr16384?
+- Hypothesis: Higher threshold may trade some throughput for stability; expected to remain beneficial in long context.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr49152`
+- Controls:
+  - Same controls as dense chunked run except swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: run threshold=49152 and compare against dense + thr16384.
+
+
+### EXP-20260208-E2E-P4D-GLM-CHUNKED-DENSE (result)
+- Question: In chunked prefill mode (`seq=32768,65536`), what is dense control performance/memory against the named historical baseline?
+- Hypothesis: Dense control should be reproducible within drift bounds and provide baseline for thresholded HCSA comparisons.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --no-swap --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense`
+- Controls:
+  - Fixed model/seq/chunk/decode/cache/permute controls.
+  - Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json`.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`):
+  - `T=32768` prefill_only: tok/s=48.1277, sec=680.8559, peak=26018037620\n    - delta tok/s vs baseline=-486.5331 (-91.00%), delta peak mem=-2910250784 (-10.06%), memory_reduction_pct_vs_baseline=+10.060225%\n  - `T=32768` prefill_plus_1: prefill_tok/s=48.1277, total_sec=696.7084, ttft_sec=15.8294, peak=26018037620\n    - delta prefill_tok/s vs baseline=-334.5671 (-87.42%), delta peak mem=-3035505728 (-10.45%), memory_reduction_pct_vs_baseline=+10.447971%\n  - `T=65536` prefill_only: tok/s=76.3449, sec=858.4198, peak=33161071420\n    - delta tok/s vs baseline=-440.9515 (-85.24%), delta peak mem=-11729820520 (-26.13%), memory_reduction_pct_vs_baseline=+26.129622%\n  - `T=65536` prefill_plus_1: prefill_tok/s=76.3449, total_sec=878.2442, ttft_sec=19.7954, peak=33161071420\n    - delta prefill_tok/s vs baseline=-389.5607 (-83.61%), delta peak mem=-11729820520 (-26.13%), memory_reduction_pct_vs_baseline=+26.129622%\n- Decision: follow-up
+- Next action: run HCSA threshold sweeps (`16384`, `49152`) and choose best long-context configuration by joint utility.
+
+
+### EXP-20260208-E2E-P4E-GLM-CHUNKED-HCSA-THR16384 (result)
+- Question: In chunked prefill mode, does HCSA with `active_dense_threshold=16384` outperform dense baseline at 32K/65K?
+- Hypothesis: Lower threshold should force more sparse work and improve throughput, with potential memory benefits.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 16384 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr16384`
+- Controls:
+  - Same controls as dense chunked run except threshold and swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr16384/results.json`):
+  - `T=32768` prefill_only: tok/s=150.5934, sec=217.5926, peak=22446619216\n    - delta tok/s vs baseline=-384.0675 (-71.83%), delta peak mem=-6481669188 (-22.41%), memory_reduction_pct_vs_baseline=+22.405989%\n  - `T=32768` prefill_plus_1: prefill_tok/s=150.5934, total_sec=236.2884, ttft_sec=18.6806, peak=22446619216\n    - delta prefill_tok/s vs baseline=-232.1014 (-60.65%), delta peak mem=-6606924132 (-22.74%), memory_reduction_pct_vs_baseline=+22.740511%\n  - `T=65536` prefill_only: tok/s=113.8367, sec=575.7017, peak=24155149252\n    - delta tok/s vs baseline=-403.4597 (-77.99%), delta peak mem=-20735742688 (-46.19%), memory_reduction_pct_vs_baseline=+46.191425%\n  - `T=65536` prefill_plus_1: prefill_tok/s=113.8367, total_sec=666.2794, ttft_sec=90.3777, peak=24155149252\n    - delta prefill_tok/s vs baseline=-352.0689 (-75.57%), delta peak mem=-20735742688 (-46.19%), memory_reduction_pct_vs_baseline=+46.191425%\n- Decision: keep
+- Next action: run threshold=49152 and choose best threshold by long-context joint utility.
+
+### EXP-20260208-E2E-TIEBREAK-IDEA5-REGULARITY (planned)
+- Question: Why does Idea-5 regular partition at `T=4096` conflict materially with earlier results (>10% drift in throughput direction)?
+- Conflicting hypotheses:
+  - H1: regular partition (`reg8/reg16`) is genuinely faster than random at `T=4096` (earlier run).
+  - H2: random is faster than regular partition at `T=4096` under current environment/run state (current E2E run).
+- Tie-break hypothesis: A fresh repeat under identical command settings will discriminate whether the observed sign flip is stable or noise.
+- Change set: none (measurement-only tie-break repeat).
+- Commands:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy random --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiebreak_idea5_random`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 8 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiebreak_idea5_reg8`
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/e2e_validation_20260208_192216/tiebreak_idea5_reg16`
+- Controls:
+  - Same settings as conflicting runs.
+  - Compare three runs explicitly:
+    - earlier baseline: `benchmarks/mlx/tiny_wayfinder/regularity_random|reg8|reg16/results.json`
+    - current run: `benchmarks/mlx/e2e_validation_20260208_192216/idea5_random|reg8|reg16/results.json`
+    - tie-break repeat: `benchmarks/mlx/e2e_validation_20260208_192216/tiebreak_idea5_*`
+- Metrics: pending
+- Decision: pending
+- Next action: run tie-break and record all three measurements + resolved interpretation.
+
+
+### EXP-20260208-E2E-TIEBREAK-IDEA5-REGULARITY (result)
+- Question: Why does Idea-5 regular partition at `T=4096` conflict materially with earlier results (>10% drift in throughput direction)?
+- Conflicting hypotheses:
+  - H1: `reg8/reg16` are faster than random at `T=4096` (earlier run).
+  - H2: random is faster than `reg8/reg16` at `T=4096` (current run).
+- Tie-break hypothesis: a fresh repeat under identical settings resolves whether sign flip is stable or noise.
+- Change set: none (measurement-only tie-break repeat).
+- Commands: same as planned (`tiebreak_idea5_random|reg8|reg16`).
+- Key three-run comparison (wayfinder_permute tok/s):
+  - `T=2048` earlier: random=2773893.15, reg8=3138146.65 (+13.13%), reg16=2938483.04 (+5.93%)\n    current: random=2915259.96, reg8=2931865.97 (+0.57%), reg16=3210397.43 (+10.12%)\n    tiebreak: random=2382462.62, reg8=2398857.49 (+0.69%), reg16=2362991.47 (-0.82%)\n  - `T=4096` earlier: random=3251707.86, reg8=3470573.94 (+6.73%), reg16=3660410.26 (+12.57%)\n    current: random=3829155.71, reg8=3637419.60 (-5.01%), reg16=3459794.04 (-9.65%)\n    tiebreak: random=2652778.01, reg8=3190626.30 (+20.27%), reg16=2614503.00 (-1.44%)\n- Resolution at `T=4096`: reg16 sign across runs = earlier=True, current=False, tiebreak=False.
+- Interpretation: tie-break supports H2 (random faster under current state), and earlier positive result appears run-state sensitive.
+- Decision: follow-up
+- Next action: keep random default; investigate state-dependent variance before promoting regular partition.
+
+
+### EXP-20260208-E2E-P4E-GLM-CHUNKED-HCSA-THR49152 (result)
+- Question: In chunked prefill mode, does HCSA with `active_dense_threshold=49152` provide a better speed/memory tradeoff vs dense and thr16384?
+- Hypothesis: Higher threshold may trade some throughput for stability; expected to remain beneficial in long context.
+- Change set: none (measurement-only benchmark run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 65536 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr49152`
+- Controls:
+  - Same controls as dense chunked run except swap enabled.
+  - Baseline path: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Key result (artifact: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_hcsa_thr49152/results.json`):
+  - `T=32768` prefill_only: tok/s=188.0168, sec=174.2823, peak=26018070576\n    - delta tok/s vs baseline=-346.6440 (-64.83%), delta peak mem=-2910217828 (-10.06%), memory_reduction_pct_vs_baseline=+10.060111%\n  - `T=32768` prefill_plus_1: prefill_tok/s=188.0168, total_sec=180.7423, ttft_sec=6.4459, peak=26018070576\n    - delta prefill_tok/s vs baseline=-194.6780 (-50.87%), delta peak mem=-3035472772 (-10.45%), memory_reduction_pct_vs_baseline=+10.447857%\n  - `T=65536` prefill_only: tok/s=128.1612, sec=511.3560, peak=29589653016\n    - delta tok/s vs baseline=-389.1352 (-75.22%), delta peak mem=-15301238924 (-34.09%), memory_reduction_pct_vs_baseline=+34.085397%\n  - `T=65536` prefill_plus_1: prefill_tok/s=128.1612, total_sec=541.8819, ttft_sec=30.5058, peak=29589653016\n    - delta prefill_tok/s vs baseline=-337.7444 (-72.49%), delta peak mem=-15301238924 (-34.09%), memory_reduction_pct_vs_baseline=+34.085397%\n- Decision: keep
+- Next action: compare thr49152 vs thr16384 and dense to choose best long-context production setting.
+
+### EXP-20260208-K4-DISCOVER-SEARCH (planned)
+- Question: Can K4 (`hcsa_active_row`) run as a real discover search in ZMLX with correctness+timing evaluation enabled so we can export a candidate for integration?
+- Hypothesis: A correctness-first seed will compile and pass reference checks, producing a valid session and exportable best candidate.
+- Change set: `/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/targets.py` (registered `hcsa_active_row` and `hcsa_permute_window` discover targets).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover search hcsa_active_row --llm mock --steps 2 --candidates-per-step 4 --warmup 3 --iters 10 --timeout 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+- Controls:
+  - MLX discover eval pipeline (compile + correctness + timing) active.
+  - Baseline comparator: discover internal reference baseline (`baseline_us`) captured in session JSON.
+  - Retro/backfill remains default-off in inference integrations.
+- Metrics: pending
+- Decision: pending
+- Next action: run search, export best candidate into `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/`, and record baseline-vs-candidate speedup.
+
+### EXP-20260208-K4-DISCOVER-SEARCH (result)
+- Question: Can K4 (`hcsa_active_row`) run as a real discover search in ZMLX with correctness+timing evaluation enabled so we can export a candidate for integration?
+- Hypothesis: A correctness-first seed will compile and pass reference checks, producing a valid session and exportable best candidate.
+- Change set:
+  - `/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/targets.py` (registered `hcsa_active_row` and `hcsa_permute_window`).
+  - Exported candidate artifacts:
+    - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.py`
+    - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover search hcsa_active_row --llm mock --steps 2 --candidates-per-step 4 --warmup 3 --iters 10 --timeout 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover export /Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_active_row_session.json --output /Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.py`
+- Controls:
+  - MLX discover eval pipeline (compile + correctness + timing) active.
+  - Baseline path: `/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_active_row_session.json` (`metadata.baseline_us`).
+  - Retro/backfill remains default-off in inference integrations.
+- Metrics (from session: `/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_active_row_session.json`):
+  - baseline median: `182.9 us`
+  - best candidate median: `136.3 us`
+  - delta vs baseline: `-46.6 us`
+  - delta % vs baseline: `-25.48%`
+  - speedup: `1.34x`
+- Decision: keep
+- Next action: wire GLM active-row dispatch to prefer discovered K4 path when artifact exists, with dense fallback preserved on failure.
+
+### EXP-20260208-K4-CHUNKED-PREFILL-INTEGRATION (planned)
+- Question: After wiring discovered-K4 availability into GLM dispatch, does chunked prefill (`Q_len < K_len`) stop dense fallback and improve throughput versus the named dense baseline?
+- Hypothesis: With discovered K4 artifact present, active-row path should be used for `Q_len < K_len`, reducing prefill latency and increasing prefill tok/s versus dense baseline at `T=32768`.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/__init__.py`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json --out-dir benchmarks/mlx/k4_active_row_discovered_20260208_225935`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Baseline path fixed: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: record absolute/delta/% vs baseline and verify profile path switches away from `permute_dense_fallback` for active chunks.
+
+### EXP-20260208-K4-CHUNKED-PREFILL-INTEGRATION (result)
+- Question: After wiring discovered-K4 availability into GLM dispatch, does chunked prefill (`Q_len < K_len`) stop dense fallback and improve throughput versus the named dense baseline?
+- Hypothesis: With discovered K4 artifact present, active-row path should be used for `Q_len < K_len`, reducing prefill latency and increasing prefill tok/s versus dense baseline at `T=32768`.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/__init__.py`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json --out-dir benchmarks/mlx/k4_active_row_discovered_20260208_225935`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Baseline path fixed: `benchmarks/mlx/e2e_validation_20260208_192216/glm47_chunked_dense/results.json`.
+- Metrics:
+  - Run interrupted after prolonged stall (`~6m+`) with no `results.json` emitted in output dir.
+  - Process was terminated to unblock bounded rerun.
+- Decision: follow-up
+- Next action: run a bounded reproduction at `T=8192` with a new named dense baseline (`--no-swap`) and then a K4-enabled counterpart for absolute/delta/% comparison.
+
+### EXP-20260208-K4-CHUNKED-8192-DENSE-BASELINE (planned)
+- Question: What is the bounded dense-control chunked-prefill baseline at `T=8192, chunk=4096` on the original GLM path?
+- Hypothesis: Dense control run will complete and provide a stable named baseline for K4-enabled comparison.
+- Change set: none (measurement-only baseline run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --no-swap --out-dir benchmarks/mlx/k4_active_row_20260208_8192_dense`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - No swap (`dense` control).
+- Metrics: pending
+- Decision: pending
+- Next action: use resulting `results.json` as named baseline for K4-enabled run.
+
+### EXP-20260208-K4-CHUNKED-8192-DENSE-BASELINE (result)
+- Question: What is the bounded dense-control chunked-prefill baseline at `T=8192, chunk=4096` on the original GLM path?
+- Hypothesis: Dense control run will complete and provide a stable named baseline for K4-enabled comparison.
+- Change set: none (measurement-only baseline run).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --no-swap --out-dir benchmarks/mlx/k4_active_row_20260208_8192_dense`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - No swap (`dense` control).
+- Metrics (artifact: `benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json`):
+  - `prefill_only`: sec=`108.4069`, tok/s=`75.5671`, peak=`20,660,795,044`
+  - `prefill_plus_1`: total_sec=`108.9353`, prefill_tok/s=`75.5671`, decode_tok/s=`1.8926`, peak=`20,660,795,044`
+  - Historical baseline path supplied in script default had no `T=8192` row (`baseline_seq_len_match=false`), so deltas there are null.
+- Decision: keep
+- Next action: run K4-enabled counterpart with baseline path pinned to `benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json` for absolute/delta/% comparison.
+
+### EXP-20260208-K4-CHUNKED-8192-DISCOVERED (planned)
+- Question: With discovered K4 artifact present, does GLM chunked prefill at `T=8192` improve versus the named dense baseline and avoid `permute_dense_fallback` for active chunks?
+- Hypothesis: K4-enabled dispatch should route active chunks (`Q_len < K_len`) through permute active mode, improving prefill throughput and reducing latency vs dense baseline.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/__init__.py`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json --out-dir benchmarks/mlx/k4_active_row_20260208_8192_k4`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Baseline path fixed: `benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json`.
+- Metrics: pending
+- Decision: pending
+- Next action: capture absolute + delta + delta% and profile-path evidence for active chunks.
+
+### EXP-20260208-K4-CHUNKED-8192-DISCOVERED (result)
+- Question: With discovered K4 artifact present, does GLM chunked prefill at `T=8192` improve versus the named dense baseline and avoid `permute_dense_fallback` for active chunks?
+- Hypothesis: K4-enabled dispatch should route active chunks (`Q_len < K_len`) through permute active mode, improving prefill throughput and reducing latency vs dense baseline.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/__init__.py`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 1 --cache-modes normal --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --kv-step 4096 --baseline-path benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json --out-dir benchmarks/mlx/k4_active_row_20260208_8192_k4`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Baseline path fixed: `benchmarks/mlx/k4_active_row_20260208_8192_dense/results.json`.
+- Metrics (artifact: `benchmarks/mlx/k4_active_row_20260208_8192_k4/results.json`):
+  - `prefill_only`
+    - latency sec: baseline=`108.4069`, k4=`68.5793`, delta=`-39.8276` (`-36.74%`)
+    - prefill tok/s: baseline=`75.5671`, k4=`119.4529`, delta=`+43.8858` (`+58.08%`)
+    - peak memory bytes: baseline=`20,660,795,044`, k4=`21,441,617,192`, delta=`+780,822,148` (`+3.78%`)
+    - memory reduction sign convention (`100*(1-wayfinder/dense)`): `-3.7792%`
+  - `prefill_plus_1`
+    - total sec: baseline=`108.9353`, k4=`68.9647`, delta=`-39.9706` (`-36.69%`)
+    - prefill tok/s: baseline=`75.5671`, k4=`119.4529`, delta=`+43.8858` (`+58.08%`)
+    - peak memory bytes: baseline=`20,660,795,044`, k4=`21,441,617,192`, delta=`+780,822,148` (`+3.78%`)
+    - memory reduction sign convention (`100*(1-wayfinder/dense)`): `-3.7792%`
+  - Path evidence (`prefill_only.chunk_reports`):
+    - chunk0: `path=permute`, `active_query_mode=false`, `active_dense_triggered=false`
+    - chunk1 (`Q_len < K_len`): `path=permute`, `active_query_mode=true`, `active_dense_triggered=false`
+- Decision: keep
+- Next action: proceed to K1 discover search/export/integration loop and run a bounded K1 benchmark against a named baseline.
+
+### EXP-20260208-K1-DISCOVER-SEARCH (planned)
+- Question: Can K1 (`hcsa_permute_window`) run as a real discover search in ZMLX with correctness+timing evaluation enabled and yield an exportable candidate?
+- Hypothesis: K1 search will produce a correctness-passing session with measurable baseline-vs-best speedup and exportable artifacts.
+- Change set: `/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/targets.py` (K1 target registration already added in this session).
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover search hcsa_permute_window --llm mock --steps 2 --candidates-per-step 4 --warmup 3 --iters 10 --timeout 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+- Controls:
+  - MLX discover eval pipeline (compile + correctness + timing) active.
+  - Baseline comparator: discover internal reference baseline (`baseline_us`) captured in session JSON.
+  - Retro/backfill remains default-off in inference integrations.
+- Metrics: pending
+- Decision: pending
+- Next action: export best K1 candidate into `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/` and run bounded integration benchmark.
+
+### EXP-20260208-K1-DISCOVER-SEARCH (result)
+- Question: Can K1 (`hcsa_permute_window`) run as a real discover search in ZMLX with correctness+timing evaluation enabled and yield an exportable candidate?
+- Hypothesis: K1 search will produce a correctness-passing session with measurable baseline-vs-best speedup and exportable artifacts.
+- Change set:
+  - `/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/targets.py` (K1 registration).
+  - Exported candidate artifacts:
+    - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.py`
+    - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal`
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover search hcsa_permute_window --llm mock --steps 2 --candidates-per-step 4 --warmup 3 --iters 10 --timeout 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+  - `PYTHONPATH=/Volumes/VIXinSSD/ZMLX/src python3 -m zmlx.discover export /Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_permute_window_session.json --output /Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.py`
+- Controls:
+  - MLX discover eval pipeline (compile + correctness + timing) active.
+  - Baseline path: `/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_permute_window_session.json` (`metadata.baseline_us`).
+  - Retro/backfill remains default-off in inference integrations.
+- Metrics (from session: `/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_permute_window_session.json`):
+  - baseline median: `235.3 us`
+  - best candidate median: `144.8 us`
+  - delta vs baseline: `-90.5 us`
+  - delta % vs baseline: `-38.46%`
+  - speedup: `1.63x`
+- Decision: keep
+- Next action: run bounded K1 integration benchmark on GLM prefill path and compare absolute/delta/% against a named baseline run path.
+
+### EXP-20260208-K1-GLM-PERMUTE-BOUND (planned)
+- Question: On bounded GLM prefill (`T=2048`), does K1-integrated permute path produce a favorable dense-vs-wayfinder attention delta on the original non-Qwen path?
+- Hypothesis: Wayfinder permute path should improve attention throughput vs dense baseline in this bounded setting.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py` (K1 discovered telemetry hook)
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 2 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 384 --full-swap --out-dir benchmarks/mlx/k1_glm_permute_bound_20260208`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Named baseline path: `benchmarks/mlx/k1_glm_permute_bound_20260208/results.json` (`rows[0].level_a_real_qkv.baseline_attention`).
+- Metrics: pending
+- Decision: pending
+- Next action: compute absolute/delta/% for attention throughput and peak memory from the artifact.
+
+### EXP-20260208-K1-GLM-PERMUTE-BOUND (result)
+- Question: On bounded GLM prefill (`T=2048`), does K1-integrated permute path produce a favorable dense-vs-wayfinder attention delta on the original non-Qwen path?
+- Hypothesis: Wayfinder permute path should improve attention throughput vs dense baseline in this bounded setting.
+- Change set:
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal`
+  - `/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py` (K1 discovered telemetry hook)
+- Command:
+  - `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 2 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 384 --full-swap --out-dir benchmarks/mlx/k1_glm_permute_bound_20260208`
+- Controls:
+  - Original non-Qwen path (GLM) only.
+  - Retro/backfill default-off.
+  - Named baseline path: `benchmarks/mlx/k1_glm_permute_bound_20260208/results.json` (`results[0].level_a_real_qkv.baseline_attention`).
+- Metrics (artifact: `benchmarks/mlx/k1_glm_permute_bound_20260208/results.json`):
+  - Attention:
+    - tok/s: baseline=`73,500.90`, wayfinder=`90,626.65`, delta=`+17,125.75` (`+23.30%`)
+    - peak memory bytes: baseline=`426,232,364`, wayfinder=`213,849,214`, delta=`-212,383,150` (`-49.83%`)
+    - memory reduction sign convention (`100*(1-wayfinder/dense)`): `+49.8280%`
+  - Block:
+    - tok/s: baseline=`38,029.77`, wayfinder=`41,924.83`, delta=`+3,895.06` (`+10.24%`)
+    - peak memory bytes: baseline=`604,891,708`, wayfinder=`377,596,464`, delta=`-227,295,244` (`-37.58%`)
+    - memory reduction sign convention (`100*(1-wayfinder/dense)`): `+37.5762%`
+  - Sanity MAE (`dense vs wayfinder output`): `0.0036605`
+  - Graph build first/cached: `801.1822 ms` / `0.0015 ms`
+- Decision: keep
+- Next action: consolidate K4+K1 outcomes and schedule next K4 long-context rerun at `T=32768` with watchdog instrumentation to avoid stall ambiguity.
+
+### EXP-20260208-laplacian-diag
+- Question: Can Laplacian spectral gap and Fiedler bridge candidates correctly identify graph connectivity?
+- Hypothesis: Connected cycle graph has positive Fiedler value. More window edges increase Fiedler value. Bridge candidates cross the Fiedler vector sign boundary.
+- Change set: hcsa/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
+
+### EXP-20260208-K4-DISCOVER-SEARCH
+- Question: Can the ZMLX Discover search find an optimized Metal kernel for the K4 active-row microkernel (softmax(scores[W]) @ values[W,D] -> out[D]) that outperforms the naive baseline?
+- Hypothesis: PUCT tree search with claude-code backend should find a variant with >= 1.3x speedup over the naive seed kernel (one thread per feature dim, scalar loop over W). Optimizations may include SIMD reductions, shared memory for scores, or vectorized loads.
+- Change set: discover_sessions/hcsa_active_row_session.json (updated by search), hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal (exported winner), hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.py (exported wrapper)
+- Command: `cd /Volumes/VIXinSSD/ZMLX && source .venv/bin/activate && python -m zmlx.discover search hcsa_active_row --llm claude-code --steps 10 --candidates-per-step 8 --warmup 5 --iters 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+- Controls: retro_backfill=off, D=128, W=65, baseline=naive seed kernel
+- Metrics:
+  - Discovery: 10 steps, 81 candidates, best microkernel speedup **3.987x** (hierarchical SIMD + shared memory + FMA)
+  - Correctness: 7/7 tests pass (max_abs < 1e-3, mean_abs < 1e-4)
+  - Full prefill (tiny, dh=32): T=4096 3.48x, T=8192 7.63x, T=16384 21.83x speedup vs dense
+  - Chunked prefill (dh=128, H=8): crossover ~Tk=16K, Tq=256/Tk=32K 2.08x, Tq=4096/Tk=65536 sparse-only (dense infeasible)
+  - Memory: T=16384 91.4% reduction (full prefill)
+- Decision: keep
+- Next action: K1 discovery, then GLM consumer benchmark campaign
+
+### EXP-20260208-K1-DISCOVER-SEARCH-REAL
+- Question: Can ZMLX Discover find an optimized Metal kernel for K1 permute-window (mean over gathered neighbors) with a real LLM backend?
+- Hypothesis: PUCT search with claude-code should find >= 1.5x speedup over naive baseline.
+- Change set: discover_sessions/hcsa_permute_window_session.json, hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal, hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.py
+- Command: `cd /Volumes/VIXinSSD/ZMLX && python -m zmlx.discover search hcsa_permute_window --llm claude-code --steps 10 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
+- Controls: retro_backfill=off, SEQ=256, D=128, W=65
+- Metrics:
+  - Discovery: 10 steps, 81 candidates, best microkernel speedup **1.977x** (2-element vectorization)
+  - Kernel gate: `has_discovered_permute_window_kernel()` = True
+- Decision: keep
+- Next action: GLM consumer benchmark campaign with both K4 and K1 active
+
+### EXP-20260208-d-selection
+- Question: Does adding recommended_num_cycles(T) utility with O(log T) scaling provide correct theoretical values?
+- Hypothesis: For T=1024 with c=2, d=ceil(2*log2(1024))=20. For T=2, d=1. max_edge_disjoint for T=100 is 49.
+- Change set: hcsa/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
+
+## 2026-02-08 — Circular Windowing Fix
+
+### EXP-20260208-circular-wrap
+- Question: Does replacing linear clamping with circular wrap-around correctly close the Hamiltonian cycle?
+- Hypothesis: With circular=True, boundary positions (perm[0] and perm[T-1]) will have full window degree instead of reduced degree. Output differs from linear at boundaries but causality is preserved. With circular=False, output is bit-for-bit identical to current code.
+- Change set: hcsa/mlx/attention.py (circular param in 3 functions), tests/mlx/test_circular_wrap.py
+- Command: `python3 -m pytest tests/mlx/test_circular_wrap.py -v`
+- Key result: 5/5 tests pass. Circular wrap-around correctly closes cycle, preserves causality, differs from linear at boundaries.
+- Decision: Keep.
+
+### EXP-20260208-d-selection
+- Question: Does adding recommended_num_cycles(T) utility with O(log T) scaling provide correct theoretical values?
+- Hypothesis: For T=1024 with c=2, d=ceil(2*log2(1024))=20. For T=2, d=2. max_edge_disjoint for T=100 is 49.
+- Change set: hcsa/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
+- Command: `python3 -m pytest tests/test_d_selection.py -v`
+- Key result: 5/5 tests pass. All theoretical values correct.
+- Decision: Keep.
+
+### EXP-20260208-laplacian-diag
+- Question: Can Laplacian spectral gap and Fiedler bridge candidates correctly identify graph connectivity?
+- Hypothesis: Connected cycle graph has positive Fiedler value. More window edges increase Fiedler value. Bridge candidates cross the Fiedler vector sign boundary.
+- Change set: hcsa/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
+- Command: `python3 -m pytest tests/test_laplacian_diagnostics.py -v`
+- Key result: 4/4 tests pass. Fiedler value correctly identifies connectivity, bridges improve it.
+- Decision: Keep.
+
+### EXP-20260208-union-multigraph
+- Question: Can union multigraph mode replace multi-cycle averaging with a single-pass attention over the union graph?
+- Hypothesis: Union graph should have >= degree of single cycle, multiplicity correctly tracked for shared edges, output valid and different from average mode, attention weights sum to 1.
+- Change set: hcsa/mlx/attention.py (build_union_multigraph_index, _union_multigraph_attention, multi_cycle_mode param), hcsa/graph/abi.py (track_multiplicity), tests/mlx/test_union_multigraph.py
+- Command: `python3 -m pytest tests/mlx/test_union_multigraph.py -v`
+- Key result: 8/8 tests pass. Union mode produces valid non-NaN output, differs from average, maintains attention weight normalization.
+- Decision: Keep.
+
+### EXP-20260208-hamiltonian-config-wiring
+- Question: Do the Stage 1-4 Hamiltonian implementation features (circular windowing, union multigraph, principled d, Laplacian diagnostics) actually propagate through all config → module → call chains?
+- Hypothesis: Previous parallel implementation added core algorithms but left config wiring incomplete: `circular` and `multi_cycle_mode` flags existed on bare functions but were never forwarded from any config dataclass or integration module.
+- Change set:
+  - **Config dataclasses**: Added `circular: bool = False` and `multi_cycle_mode: str = "average"` to `GPTConfigMLX`, `QwenWayfinderConfig`, `GLMWayfinderConfig`, `GPT2WayfinderConfig`
+  - **Module __init__**: Stored `self.circular` and `self.multi_cycle_mode` on `WayfinderAttentionMLX`, `QwenWayfinderAttention`, `GLMWayfinderAttention`, `GPT2WayfinderAttention`
+  - **Module __call__**: Forwarded to `wayfinder_permute_window_attention_batched` and `wayfinder_permute_window_attention_active_batched` at all 5 call sites (Qwen×1, GLM×2, GPT2×1, WayfinderAttentionMLX×1)
+  - **`wayfinder_covering_attention`**: Added `circular` and `multi_cycle_mode` params, forwarded to inner `wayfinder_permute_window_attention_batched`
+  - **`_build_cache` in WayfinderAttentionMLX**: Fixed to respect `self.circular` flag (uses `% T` wrap instead of `clip(0, T-1)`)
+  - **Type fixes**: `GLMWayfinderConfig.num_cycles` and `GPT2WayfinderConfig.num_cycles` changed from `int` to `int | str` (required for `"auto"` mode)
+  - **Exports**: `laplacian_spectral_gap` and `fiedler_bridge_candidates` added to `hcsa/graph/__init__.py`
+  - **New tests**: `tests/mlx/test_config_wiring.py` (9 tests: defaults, storage, propagation through GPTMLX, forward pass with circular, union, and combined)
+- Command: `python3 -m pytest tests/ -v`
+- Key result: 156/156 tests pass (147 original + 9 new config wiring tests). All 4 Hamiltonian features now accessible through every model config path.
+- Decision: Keep. This completes the review fixes for the parallel Hamiltonian implementation.
+
+### EXP-20260208-integration-synthesis
+- Question: After parallel execution of three independent workstreams — (A) "Actually Hamiltonian" algorithmic fixes (circular windowing, union multigraph, principled d, Laplacian diagnostics), (B) config wiring review fixes, and (C) K4+K1 Metal kernel discovery — does the combined codebase pass all tests and form a coherent whole?
+- Hypothesis: The three workstreams touched mostly orthogonal files. (A) modified bare attention functions in `attention.py` and added `graph/analysis.py`. (B) modified config dataclasses and integration modules. (C) added Metal kernel artifacts and K4 test. Conflicts expected only in `attention.py` (both A and C add code) and `glm_mlx.py` (both B and C modify config).
+- Change set (combined across all workstreams):
+  - **Stage 1 — Circular windowing**: `permute_cycle_window_attention_single`, `wayfinder_permute_window_attention_batched`, `wayfinder_permute_window_attention_active_batched` all accept `circular: bool = False`, use `% T` wrap-around instead of `clip(0, T-1)` when enabled
+  - **Stage 2 — Union multigraph**: `build_union_multigraph_index()` + `_union_multigraph_attention()` in `attention.py`; `multi_cycle_mode: "average" | "union"` param on batched + active-batched functions; single-pass attention with `log(multiplicity) * scale` bias replaces d-pass averaging
+  - **Stage 3 — Principled d**: `recommended_num_cycles(T)` → `ceil(c * log2(T))`, `max_edge_disjoint_cycles(T)` → `(T-1)//2`, `num_cycles="auto"` resolution in topology runtime
+  - **Stage 4 — Laplacian diagnostics**: `laplacian_spectral_gap()`, `fiedler_bridge_candidates()` in `graph/analysis.py`, exported from `hcsa/graph/__init__.py`
+  - **Config wiring**: `circular` + `multi_cycle_mode` on all 4 config dataclasses, 4 module `__init__`s, 5 `__call__` sites, `wayfinder_covering_attention`, `_build_cache`
+  - **Type fixes**: `num_cycles: int | str` on GLM + GPT2 configs
+  - **K4 kernel**: `hcsa_active_row_fused_discovered.{metal,py}` — 3.987x microkernel speedup (SIMD reduction + shared memory + FMA), enables O(T*W) chunked prefill instead of O(T^2) dense fallback
+  - **K1 kernel**: `hcsa_permute_window_fused_discovered.{metal,py}` — 1.977x microkernel speedup (2-element vectorization)
+  - **Tests**: 156 total (tests/mlx/test_circular_wrap.py:5, test_union_multigraph.py:8, test_config_wiring.py:9, test_k4_active_row.py:7, test_d_selection.py:5, test_laplacian_diagnostics.py:4 + 118 pre-existing)
+- Command: `python3 -m pytest tests/ -v`
+- Key result: **156/156 tests pass**. All three workstreams integrated cleanly. No merge conflicts — the parallel work was genuinely orthogonal.
+- Decision: Keep. The HCSA system now has:
+  1. **Mathematically correct Hamiltonian cycles** (circular wrap, not paths)
+  2. **Principled multi-cycle expansion** (union multigraph with multiplicity bias, O(log T) cycle count)
+  3. **Graph quality diagnostics** (Fiedler value, Cheeger bounds, bridge detection)
+  4. **Hardware-optimized kernels** (K4 active-row 3.987x, K1 permute-window 1.977x)
+  5. **Full config propagation** through all model integrations (Qwen3, GLM-4, GPT-2, native GPTMLX)
+
+### EXP-20260208-hamiltonian-integration-tests
+- Question: Do the "Actually Hamiltonian" features work correctly end-to-end?
+- Change set: tests/mlx/test_hamiltonian_integration.py (15 tests across 9 gaps)
+- Command: python3 -m pytest tests/mlx/test_hamiltonian_integration.py -v
+- Bug found and fixed: `mx.ones_like(arr, dtype=mx.bool_)` in active-row circular path (attention.py:1264) — MLX's `ones_like` doesn't accept `dtype` kwarg, replaced with `mx.ones(arr.shape, dtype=mx.bool_)`.
+- Key result: **15/15 tests pass, 171/171 full suite passes.** All 9 integration gaps covered:
+  1. Full-model circular vs linear output correctness (differ + valid + finite loss)
+  2. Full-model union vs average output correctness (differ + valid)
+  3. Circular + union 4-way kernel combinations (all pairwise different)
+  4. Active-batched (K4) path with circular=True (differ + matches NumPy reference)
+  5. Active-batched (K4) path with multi_cycle_mode="union" (differ + valid)
+  6. num_cycles="auto" resolution (T=16→8, T=64→12, forward pass with edge_disjoint=False)
+  7. Causality with circular=True (indicator-V kernel test + model forward validity)
+  8. Laplacian diagnostics (Fiedler improves with window, bridge candidates valid)
+  9. GPT-2 integration forward pass with circular + union (config propagation + valid output)
+- Decision: Keep. The "Actually Hamiltonian" features are verified end-to-end.

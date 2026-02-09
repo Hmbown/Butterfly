@@ -1,0 +1,128 @@
+[
+  {
+    "B": 1,
+    "H": 12,
+    "T": 2048,
+    "dh": 64,
+    "window": 64,
+    "W": 129,
+    "head_chunk_size": 8,
+    "query_chunk_size": 256,
+    "num_head_chunks": 2,
+    "num_query_chunks": 8,
+    "total_eval_syncs_inference_fast_path": 18,
+    "current_path": {
+      "total_ms": 5.321707993745804,
+      "gather_ms": 0.142208993434906,
+      "mask_ms": 0.14882902055978775,
+      "sdpa_ms": 0.04508198797702789,
+      "eval_sync_ms": 4.58966401219368,
+      "unpermute_ms": 0.277708001434803,
+      "eval_count": 18,
+      "peak_memory_bytes": 16812328
+    },
+    "lazy_path": {
+      "total_ms": 1.9937499910593033,
+      "gather_ms": 0.07729297131299973,
+      "mask_ms": 0.08716700971126556,
+      "sdpa_ms": 0.027457982301712036,
+      "eval_sync_ms": 1.7721239998936653,
+      "unpermute_ms": 0.005499996244907379,
+      "eval_count": 2,
+      "peak_memory_bytes": 38424400
+    },
+    "max_abs_diff": 0.0,
+    "speedup_lazy_over_current": 2.6691952439424544,
+    "memory_ratio_lazy_over_current": 2.285489552666353,
+    "dense_baseline": {
+      "total_ms": 1.465540997684002,
+      "peak_memory_bytes": 28985620
+    },
+    "ratio_current_vs_dense": 0.27538921703451974,
+    "ratio_lazy_vs_dense": 0.7350675883415766
+  },
+  {
+    "B": 1,
+    "H": 12,
+    "T": 4096,
+    "dh": 64,
+    "window": 64,
+    "W": 129,
+    "head_chunk_size": 8,
+    "query_chunk_size": 256,
+    "num_head_chunks": 2,
+    "num_query_chunks": 16,
+    "total_eval_syncs_inference_fast_path": 34,
+    "current_path": {
+      "total_ms": 10.575874999165535,
+      "gather_ms": 0.22533295303583145,
+      "mask_ms": 0.36724500358104706,
+      "sdpa_ms": 0.10137096792459488,
+      "eval_sync_ms": 9.319790005683899,
+      "unpermute_ms": 0.36970800161361694,
+      "eval_count": 34,
+      "peak_memory_bytes": 30640424
+    },
+    "lazy_path": {
+      "total_ms": 3.6032499969005585,
+      "gather_ms": 0.14741503447294235,
+      "mask_ms": 0.16499799489974976,
+      "sdpa_ms": 0.05383298546075821,
+      "eval_sync_ms": 3.197000004351139,
+      "unpermute_ms": 0.006250008940696716,
+      "eval_count": 2,
+      "peak_memory_bytes": 76915088
+    },
+    "max_abs_diff": 0.0,
+    "speedup_lazy_over_current": 2.935093320825001,
+    "memory_ratio_lazy_over_current": 2.5102488137892607,
+    "dense_baseline": {
+      "total_ms": 5.008250005543232,
+      "peak_memory_bytes": 81611796
+    },
+    "ratio_current_vs_dense": 0.47355419820472505,
+    "ratio_lazy_vs_dense": 1.3899257641993272
+  },
+  {
+    "B": 1,
+    "H": 12,
+    "T": 8192,
+    "dh": 64,
+    "window": 64,
+    "W": 129,
+    "head_chunk_size": 8,
+    "query_chunk_size": 256,
+    "num_head_chunks": 2,
+    "num_query_chunks": 32,
+    "total_eval_syncs_inference_fast_path": 66,
+    "current_path": {
+      "total_ms": 17.844458997249603,
+      "gather_ms": 0.47324900329113007,
+      "mask_ms": 0.6044089496135712,
+      "sdpa_ms": 0.17716098576784134,
+      "eval_sync_ms": 15.850584000349045,
+      "unpermute_ms": 0.35850001871585846,
+      "eval_count": 66,
+      "peak_memory_bytes": 59380800
+    },
+    "lazy_path": {
+      "total_ms": 4.8640410006046295,
+      "gather_ms": 0.3128800019621849,
+      "mask_ms": 0.40487494319677353,
+      "sdpa_ms": 0.1220410019159317,
+      "eval_sync_ms": 3.9465419948101044,
+      "unpermute_ms": 0.01083400845527649,
+      "eval_count": 2,
+      "peak_memory_bytes": 118858584
+    },
+    "max_abs_diff": 0.0,
+    "speedup_lazy_over_current": 3.6686489680147494,
+    "memory_ratio_lazy_over_current": 2.001633255193598,
+    "dense_baseline": {
+      "total_ms": 10.020999990403652,
+      "peak_memory_bytes": 161696532
+    },
+    "ratio_current_vs_dense": 0.5615748839428646,
+    "ratio_lazy_vs_dense": 2.060221118439993
+  }
+]

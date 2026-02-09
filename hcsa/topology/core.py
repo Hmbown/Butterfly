@@ -42,6 +42,8 @@ class Topology:
         n_heads: int,
         strategy: str = "random",
         num_cycles: int = 1,
+        edge_disjoint: bool = True,
+        regular_num_clusters: int = 8,
         seed: int = 0,
         window: int = 64,
         landmark_stride: Optional[int] = 64,
@@ -50,6 +52,8 @@ class Topology:
         self.n_heads = int(n_heads)
         self.strategy = str(strategy)
         self.num_cycles = int(num_cycles)
+        self.edge_disjoint = bool(edge_disjoint)
+        self.regular_num_clusters = int(max(1, regular_num_clusters))
         self.seed = int(seed)
         self.window = int(window)
         self.landmark_stride = landmark_stride
@@ -58,19 +62,27 @@ class Topology:
 
     @property
     def cache_mode(self) -> str:
-        return "static" if self.strategy == "random" else "dynamic"
+        return "static" if self.strategy in {"random", "regular_partition"} else "dynamic"
 
     def _make_strategy(self, head_idx: int):
         if self.strategy == "random":
             return build_strategy(
                 "random",
                 num_cycles=self.num_cycles,
+                edge_disjoint=self.edge_disjoint,
                 seed=self.seed + 7919 * head_idx,
             )
         if self.strategy == "greedy":
             return build_strategy("greedy", num_cycles=self.num_cycles)
         if self.strategy == "online_insertion":
             return build_strategy("online_insertion", seed=self.seed + 7919 * head_idx)
+        if self.strategy == "regular_partition":
+            return build_strategy(
+                "regular_partition",
+                num_clusters=self.regular_num_clusters,
+                num_cycles=self.num_cycles,
+                seed=self.seed + 7919 * head_idx,
+            )
         raise ValueError(f"Unknown strategy: {self.strategy}")
 
     def _normalize_routing(
@@ -155,6 +167,8 @@ class Topology:
                 "window": self.window,
                 "landmark_stride": self.landmark_stride,
                 "num_cycles": self.num_cycles,
+                "edge_disjoint": self.edge_disjoint,
+                "regular_num_clusters": self.regular_num_clusters,
             },
         )
 
@@ -243,4 +257,3 @@ class Topology:
             source="compiled",
             artifact_dir=str(src if src.is_dir() else src.parent),
         )
-

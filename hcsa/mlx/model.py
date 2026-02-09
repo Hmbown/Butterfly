@@ -27,7 +27,9 @@ class GPTConfigMLX:
     strategy: str = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
-    num_cycles: int = 1
+    num_cycles: int | str = 1
+    edge_disjoint: bool = True
+    regular_num_clusters: int = 8
     routing_dim: Optional[int] = None
     seed: int = 0
     window_drop: float = 0.0
@@ -38,6 +40,10 @@ class GPTConfigMLX:
     retro_backfill_alpha: float = 0.0
     retro_backfill_training_only: bool = True
     retro_backfill_causal_only: bool = True
+    circular: bool = False
+    multi_cycle_mode: str = "average"
+    verify_spectral_gap: bool = False
+    spectral_gap_threshold: float = 4.0
 
 
 class DenseCausalAttentionMLX(nn.Module):
@@ -106,6 +112,8 @@ class BlockMLX(nn.Module):
                 landmark_stride=cfg.landmark_stride,
                 strategy=cfg.strategy,
                 num_cycles=cfg.num_cycles,
+                edge_disjoint=cfg.edge_disjoint,
+                regular_num_clusters=cfg.regular_num_clusters,
                 seed=cfg.seed + 1337 * layer_idx,
                 path=path,
                 edge_bias=cfg.edge_bias,
@@ -115,6 +123,10 @@ class BlockMLX(nn.Module):
                 retro_backfill_alpha=cfg.retro_backfill_alpha,
                 retro_backfill_training_only=cfg.retro_backfill_training_only,
                 retro_backfill_causal_only=cfg.retro_backfill_causal_only,
+                circular=cfg.circular,
+                multi_cycle_mode=cfg.multi_cycle_mode,
+                verify_spectral_gap=cfg.verify_spectral_gap,
+                spectral_gap_threshold=cfg.spectral_gap_threshold,
             )
         else:
             raise ValueError(f"Unknown attention type: {cfg.attn}")

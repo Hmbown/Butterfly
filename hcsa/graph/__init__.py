@@ -9,6 +9,15 @@ from .abi import (
     validate_hamiltonian_backbone,
     graph_metrics,
 )
+from .analysis import (
+    check_regularity,
+    check_resilience,
+    compute_edge_coverage,
+    expansion_proxy,
+    fiedler_bridge_candidates,
+    laplacian_spectral_gap,
+    spectral_gap,
+)
 
 __all__ = [
     "EdgeType",
@@ -18,4 +27,11 @@ __all__ = [
     "validate_graph_abi",
     "validate_hamiltonian_backbone",
     "graph_metrics",
+    "spectral_gap",
+    "expansion_proxy",
+    "check_resilience",
+    "check_regularity",
+    "compute_edge_coverage",
+    "laplacian_spectral_gap",
+    "fiedler_bridge_candidates",
 ]

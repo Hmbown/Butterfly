@@ -1,0 +1,41 @@
+{
+  "controls": {
+    "attention_benchmark_executed": false,
+    "inference_executed": false,
+    "models_loaded": false,
+    "retro_backfill_default_off": true
+  },
+  "hypothesis": "A fused kernel should reduce Python/dispatch overhead while preserving correctness.",
+  "next_command_template": "python -m zmlx.discover search hcsa_wayfinder_ttt --llm claude-code --steps 10",
+  "notes": [
+    "Setup scaffold only; no model loading and no inference.",
+    "Run Discover from ZMLX once kernels are ready to be searched."
+  ],
+  "question": "Can we fuse HCSA attention and TTT updates to improve global propagation and memory?",
+  "repo_root": "/Volumes/VIXinSSD/wayfinder",
+  "status": "setup_only",
+  "target": {
+    "discover_target": "hcsa_wayfinder_ttt",
+    "expected_inputs": [
+      "x [B,H,T,dh]",
+      "perm [H,T]",
+      "W_ttt [H,F,F]",
+      "window int",
+      "alpha float",
+      "lr float"
+    ],
+    "expected_outputs": [
+      "out [B,H,T,dh]",
+      "W_ttt_next [H,F,F]"
+    ],
+    "id": "k5",
+    "kernel_name": "hcsa_wayfinder_ttt_fused",
+    "priority": "P2",
+    "quality_gate_ref": "Q1,Q2,Q5",
+    "question": "Can we fuse HCSA attention and TTT updates to improve global propagation and memory?",
+    "reference_path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/ttt/kernel.py",
+    "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_wayfinder_ttt_fused.metal",
+    "session_stub_name": "hcsa_wayfinder_ttt_session.stub.json"
+  },
+  "zmlx_root": "/Volumes/VIXinSSD/ZMLX"
+}

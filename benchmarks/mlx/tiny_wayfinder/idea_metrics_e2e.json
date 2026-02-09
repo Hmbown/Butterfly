@@ -1,0 +1,120 @@
+{
+  "resilience_safe": {
+    "nodes": 128,
+    "window": 32,
+    "drop_rate": 0.3,
+    "num_trials": 100,
+    "survival_rate": 0.96,
+    "connected_rate": 1.0,
+    "min_degree_mean": 20.08,
+    "min_degree_min": 14,
+    "base_degree_mean": 56.921875,
+    "base_degree_min": 34.0,
+    "theoretical_threshold": 17.0,
+    "dirac_threshold": 64
+  },
+  "resilience_aggressive": {
+    "nodes": 128,
+    "window": 32,
+    "drop_rate": 0.8,
+    "num_trials": 100,
+    "survival_rate": 0.0,
+    "connected_rate": 1.0,
+    "min_degree_mean": 3.12,
+    "min_degree_min": 1,
+    "base_degree_mean": 56.921875,
+    "base_degree_min": 34.0,
+    "theoretical_threshold": 17.0,
+    "dirac_threshold": 64
+  },
+  "spectral_random_w8": {
+    "nodes": 128,
+    "include_window": true,
+    "window": 8,
+    "degree": 17.265625,
+    "degree_min": 10.0,
+    "degree_max": 18.0,
+    "lambda_1": 17.58687365940811,
+    "lambda_2": 15.345235996406261,
+    "spectral_gap": 2.241637663001848,
+    "expansion_ratio": 1.1251456154889687,
+    "is_good_expander": true,
+    "expander_threshold": 1.1,
+    "eigen_method": "numpy.linalg.eigvalsh"
+  },
+  "spectral_identity_w8": {
+    "nodes": 128,
+    "include_window": true,
+    "window": 8,
+    "degree": 15.453125,
+    "degree_min": 9.0,
+    "degree_max": 16.0,
+    "lambda_1": 15.886817565499207,
+    "lambda_2": 15.548127486606457,
+    "spectral_gap": 0.3386900788927498,
+    "expansion_ratio": 0.9938897795449455,
+    "is_good_expander": false,
+    "expander_threshold": 1.1,
+    "eigen_method": "numpy.linalg.eigvalsh"
+  },
+  "proxy_random_w8": {
+    "nodes": 128,
+    "window": 8,
+    "num_walks": 2000,
+    "walk_len": 20,
+    "mixing_time_estimate": 19,
+    "endpoint_uniformity": 148.096,
+    "is_fast_mixer": false,
+    "mixing_threshold_steps": 14.0,
+    "chi2_threshold": 158.75,
+    "largest_component": 128
+  },
+  "proxy_identity_w8": {
+    "nodes": 128,
+    "window": 8,
+    "num_walks": 2000,
+    "walk_len": 20,
+    "mixing_time_estimate": 29,
+    "endpoint_uniformity": 2213.376,
+    "is_fast_mixer": false,
+    "mixing_threshold_steps": 14.0,
+    "chi2_threshold": 158.75,
+    "largest_component": 128
+  },
+  "covering": {
+    "256": {
+      "d1": {
+        "coverage_fraction": 0.00784313725490196,
+        "l2_to_dense": 36.862953186035156,
+        "cosine_to_dense": 0.2360485743404934
+      },
+      "d4": {
+        "coverage_fraction": 0.03137254901960784,
+        "l2_to_dense": 34.23536682128906,
+        "cosine_to_dense": 0.25069779942732306
+      },
+      "d8": {
+        "coverage_fraction": 0.06274509803921569,
+        "l2_to_dense": 33.333316802978516,
+        "cosine_to_dense": 0.2582050178544471
+      }
+    },
+    "512": {
+      "d1": {
+        "coverage_fraction": 0.003913894324853229,
+        "l2_to_dense": 53.71562576293945,
+        "cosine_to_dense": 0.18418719276362475
+      },
+      "d4": {
+        "coverage_fraction": 0.015655577299412915,
+        "l2_to_dense": 50.476871490478516,
+        "cosine_to_dense": 0.1965639442166277
+      },
+      "d8": {
+        "coverage_fraction": 0.03131115459882583,
+        "l2_to_dense": 49.001094818115234,
+        "cosine_to_dense": 0.20067784093116858
+      }
+    }
+  }
+}

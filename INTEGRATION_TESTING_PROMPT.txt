@@ -1,0 +1,192 @@
+HCSA Integration Testing Prompt
+================================
+
+You are testing the HCSA (Hamiltonian Cycle Sparse Attention) framework after three major
+parallel workstreams were merged:
+
+  (A) "Actually Hamiltonian" — circular windowing, union multigraph, principled d, Laplacian diagnostics
+  (B) Config wiring fixes — circular + multi_cycle_mode propagated through all integration modules
+  (C) K4 + K1 Metal kernel discovery — fused active-row and permute-window kernels
+
+Your job: write and run tests that verify these features ACTUALLY WORK end-to-end, not just that
+they don't crash. Current test suite (156 tests) passes but has critical gaps listed below.
+
+
+CONTEXT
+-------
+Repository: /Volumes/VIXinSSD/wayfinder
+Package: hcsa
+Python: must use python3 (not python)
+Test runner: pytest
+Line length: 100 chars (ruff)
+
+Key files:
+  hcsa/mlx/attention.py        — bare attention functions (circular, multi_cycle_mode, union)
+  hcsa/mlx/model.py            — GPTMLX model with GPTConfigMLX
+  hcsa/integrations/qwen_mlx.py — QwenWayfinderConfig, QwenWayfinderAttention
+  hcsa/integrations/glm_mlx.py  — GLMWayfinderConfig, GLMWayfinderAttention
+  hcsa/integrations/gpt2_mlx.py — GPT2WayfinderConfig, GPT2WayfinderAttention
+  hcsa/cycles.py                — recommended_num_cycles, max_edge_disjoint_cycles
+  hcsa/graph/analysis.py        — laplacian_spectral_gap, fiedler_bridge_candidates
+
+
+WHAT EXISTS AND WORKS
+---------------------
+These are already tested and pass:
+
+- permute_cycle_window_attention_single with circular=True differs from circular=False (kernel level)
+- wayfinder_permute_window_attention_batched with multi_cycle_mode="union" differs from "average"
+- build_union_multigraph_index produces correct shapes, multiplicity, causality
+- Circular causality: no future attention even with wrap-around (kernel level)
+- K4 active-row correctness: 7 tests matching naive reference implementation
+- Config defaults and propagation through GPTConfigMLX -> GPTMLX
+- Forward pass doesn't crash with circular=True, union, or both combined
+- recommended_num_cycles and max_edge_disjoint_cycles return correct values
+
+
+GAPS YOU MUST FILL
+------------------
+Write tests in a new file tests/mlx/test_hamiltonian_integration.py. Each gap is a test or
+group of tests. Run them with: python3 -m pytest tests/mlx/test_hamiltonian_integration.py -v
+
+
+GAP 1: Full-model circular output correctness
+----------------------------------------------
+Create two GPTMLX models with IDENTICAL weights but circular=True vs circular=False.
+Run the SAME input through both. Verify:
+  a) Outputs differ (max absolute difference > 1e-6)
+  b) Both outputs have valid shape and no NaN
+  c) The loss (with targets) is finite for both
+
+How to share weights between models:
+  cfg_linear = GPTConfigMLX(vocab_size=32, n_embd=32, n_heads=2, n_layers=1, seq_len=16,
+                            attn="wayfinder_permute", window=4, circular=False)
+  cfg_circ = GPTConfigMLX(... circular=True)
+  model_linear = GPTMLX(cfg_linear)
+  model_circ = GPTMLX(cfg_circ)
+  model_circ.update(model_linear.parameters())  # copy weights
+  mx.eval(model_circ.parameters())
+
+Then compare model_linear(idx)["logits"] vs model_circ(idx)["logits"].
+
+
+GAP 2: Full-model union vs average output correctness
+------------------------------------------------------
+Same approach as Gap 1 but with multi_cycle_mode="union" vs "average", num_cycles=2.
+Verify outputs differ meaningfully. Both must be valid (no NaN, correct shape).
+
+
+GAP 3: Circular + union combined at kernel level
+-------------------------------------------------
+Call wayfinder_permute_window_attention_batched directly with:
+  - circular=True, multi_cycle_mode="union", num_cycles=2 (perm shape [H, 2, T])
+  - circular=True, multi_cycle_mode="average"
+  - circular=False, multi_cycle_mode="union"
+  - circular=False, multi_cycle_mode="average" (baseline)
+Verify all four produce valid output and that they're pairwise different.
+
+
+GAP 4: Active-batched (K4) path with circular=True
+---------------------------------------------------
+Call wayfinder_permute_window_attention_active_batched with circular=True.
+Compare output to the same call with circular=False. They should differ.
+Both outputs must match a naive reference implementation within tolerance (atol=1e-3).
+
+Minimal setup:
+  from hcsa.mlx.attention import wayfinder_permute_window_attention_active_batched
+  B, Hq, Hkv, dh, T, W = 1, 2, 2, 32, 64, 8
+  Tq = 4
+  q = mx.array(rng.standard_normal((B, Hq, Tq, dh)).astype(np.float32))
+  k = mx.array(rng.standard_normal((B, Hkv, T, dh)).astype(np.float32))
+  v = mx.array(rng.standard_normal((B, Hkv, T, dh)).astype(np.float32))
+  query_positions = mx.arange(T - Tq, T, dtype=mx.int32)
+  perms = mx.array(np.stack([rng.permutation(T).astype(np.int32) for _ in range(Hq)])[..., None, :])
+  # shape [Hq, 1, T] for single cycle
+
+The naive reference for circular: for each query at permuted position p, gather K/V from
+circular window [(p-W)%T ... (p+W)%T], apply causal mask (original index j <= i), softmax, matmul.
+
+
+GAP 5: Active-batched (K4) path with multi_cycle_mode="union"
+--------------------------------------------------------------
+Same as Gap 4 but with multi_cycle_mode="union" and 2 permutations per head (perm shape [H, 2, T]).
+Verify output is valid and differs from multi_cycle_mode="average".
+
+
+GAP 6: num_cycles="auto" resolution
+------------------------------------
+Create a WayfinderAttentionMLX with num_cycles="auto".
+Run forward passes with two different sequence lengths (T=16 and T=64).
+Verify:
+  a) No error during forward pass
+  b) The resolved num_cycles differs between the two T values (read from the attention
+     module's graph_runtime or internal state)
+  c) For T=16: num_cycles should be ceil(2 * log2(16)) = 8
+  d) For T=64: num_cycles should be ceil(2 * log2(64)) = 12
+
+
+GAP 7: Causality at full model level with circular
+---------------------------------------------------
+Run a GPTMLX model with circular=True. Use a sequence of length T.
+For each position i, zero out all tokens after position i and run forward.
+Compare logits[0, i, :] with the full-sequence logits[0, i, :].
+They should be identical (within tolerance), proving position i doesn't attend to future tokens.
+
+Simpler alternative: use the model in generation mode (model.generate) and verify the generated
+sequence is deterministic when temperature is fixed and the same seed is used.
+
+
+GAP 8: Laplacian diagnostics with circular graph
+-------------------------------------------------
+Build a Hamiltonian cycle graph with circular=True and compute laplacian_spectral_gap.
+Compare Fiedler value to the same graph with circular=False.
+The circular graph should have a higher Fiedler value (better connectivity)
+because the wrap-around edge adds a connection between the first and last permuted positions.
+
+  from hcsa.graph.analysis import laplacian_spectral_gap
+  from hcsa.graph.abi import build_graph_abi_from_cycle
+  # Build ABI with circular=True, compute Fiedler, compare to circular=False
+
+
+GAP 9: GPT2 integration forward pass with circular
+---------------------------------------------------
+Create a mock GPT-2 attention module, wrap it with GPT2WayfinderAttention(cfg=GPT2WayfinderConfig(circular=True)).
+Run a forward pass and verify the output is valid. This doesn't require loading a real GPT-2 model.
+
+Mock structure needed:
+  class MockGPT2Attn(nn.Module):
+      def __init__(self):
+          super().__init__()
+          self.n_head = 2
+          self.n_embd = 32
+          self.scale = (32 // 2) ** -0.5
+          self.c_attn = nn.Linear(32, 32 * 3)
+          self.c_proj = nn.Linear(32, 32)
+
+
+EXECUTION INSTRUCTIONS
+----------------------
+1. Read all existing test files listed above to understand patterns and imports.
+2. Write tests/mlx/test_hamiltonian_integration.py covering Gaps 1-9.
+3. Run: python3 -m pytest tests/mlx/test_hamiltonian_integration.py -v
+4. Fix any failures — they indicate real bugs, not test bugs.
+5. Run the full suite: python3 -m pytest tests/ -v
+6. Report results per gap.
+
+If a test FAILS, this means the feature is broken. Investigate:
+  - Check if the circular/multi_cycle_mode flag is actually reaching the kernel function
+  - Add print statements in the attention function to verify the code path is taken
+  - If the output doesn't differ when it should, the flag may not be wired correctly
+  - If you get NaN, check the softmax: circular wrap can produce empty attention sets for
+    certain permutations at position 0
+
+IMPORTANT: Do not weaken tests to make them pass. If outputs don't differ when they should,
+that's a real bug. If causality is violated, that's a critical bug. Report everything.
+
+After all tests pass, update notes/LAB_NOTEBOOK.md with an entry:
+  ### EXP-20260208-hamiltonian-integration-tests
+  - Question: Do the "Actually Hamiltonian" features work correctly end-to-end?
+  - Change set: tests/mlx/test_hamiltonian_integration.py
+  - Command: python3 -m pytest tests/mlx/test_hamiltonian_integration.py -v
+  - Key result: X/Y tests pass. [details]
+  - Decision: Keep/Fix [based on results]

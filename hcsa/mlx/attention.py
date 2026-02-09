@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import time
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -14,6 +15,7 @@ import mlx.core as mx
 import mlx.nn as nn
 
 from hcsa.graph.abi import WayfinderGraphABI, validate_graph_abi
+from hcsa.graph.analysis import expansion_proxy, spectral_gap
 from hcsa.mlx.graph_abi import (
     MLXGraphABI,
     causal_neighbor_mask,
@@ -43,8 +45,8 @@ class _GraphCache:
     # permute path artifacts
     perm_mx: List[mx.array]  # H arrays, each [T]
     inv_perm: List[mx.array]  # H arrays, each [T]
-    all_perms: mx.array  # [H, T]
-    all_inv_perms: mx.array  # [H, T]
+    all_perms: mx.array  # [H, T] or [H, d, T]
+    all_inv_perms: mx.array  # [H, T] or [H, d, T]
     pi_idx_clamped: List[mx.array]  # H arrays, each [T, W]
     valid_mask: List[mx.array]  # H arrays, each [T, W]
     causal_masks: List[mx.array]  # H arrays, each [T, W]
@@ -167,6 +169,147 @@ def dense_causal_attention(
     return y, None
 
 
+def build_union_multigraph_index(
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    *,
+    window: int,
+    circular: bool = False,
+) -> Tuple[mx.array, mx.array, mx.array]:
+    """Build union neighbor index from multiple cycle permutations.
+
+    For each query position i (original space), computes the set of keys
+    reachable through any of the d cycles' windows, with multiplicity.
+
+    Args:
+        all_perms: [H, d, T] cycle permutations
+        all_inv_perms: [H, d, T] inverse permutations
+        window: half-window size
+        circular: use modular wrap-around
+
+    Returns:
+        union_neigh_idx: [H, T, D_union] neighbor indices (-1 = pad)
+        multiplicity: [H, T, D_union] edge multiplicity per neighbor
+        valid_mask: [H, T, D_union] boolean mask
+    """
+    H, d, T = all_perms.shape
+
+    # Work in numpy for the graph construction (runs on CPU)
+    perms_np = np.array(all_perms, dtype=np.int64)
+    inv_perms_np = np.array(all_inv_perms, dtype=np.int64)
+
+    # For each head, build union neighbor set
+    all_rows: list[list[list[int]]] = []  # [H][T][neighbors]
+    all_mults: list[list[list[int]]] = []  # [H][T][multiplicities]
+    max_deg = 0
+
+    for h in range(H):
+        head_rows: list[list[int]] = []
+        head_mults: list[list[int]] = []
+        for i in range(T):
+            neigh_count: dict[int, int] = {}
+            for c in range(d):
+                rank_i = int(inv_perms_np[h, c, i])
+                for off in range(-window, window + 1):
+                    rank_j = rank_i + off
+                    if circular:
+                        rank_j = rank_j % T
+                    elif rank_j < 0 or rank_j >= T:
+                        continue
+                    j = int(perms_np[h, c, rank_j])
+                    if j > i:
+                        continue  # causal: only attend to j <= i
+                    neigh_count[j] = neigh_count.get(j, 0) + 1
+            neighbors = sorted(neigh_count.keys())
+            mults = [neigh_count[n] for n in neighbors]
+            head_rows.append(neighbors)
+            head_mults.append(mults)
+            max_deg = max(max_deg, len(neighbors))
+        all_rows.append(head_rows)
+        all_mults.append(head_mults)
+
+    if max_deg == 0:
+        max_deg = 1
+
+    # Pad to uniform degree
+    neigh_idx = np.full((H, T, max_deg), -1, dtype=np.int32)
+    mult = np.zeros((H, T, max_deg), dtype=np.int32)
+    valid = np.zeros((H, T, max_deg), dtype=np.bool_)
+
+    for h in range(H):
+        for i in range(T):
+            row = all_rows[h][i]
+            m = all_mults[h][i]
+            n = len(row)
+            if n > 0:
+                neigh_idx[h, i, :n] = row
+                mult[h, i, :n] = m
+                valid[h, i, :n] = True
+
+    return (
+        mx.array(neigh_idx),
+        mx.array(mult),
+        mx.array(valid),
+    )
+
+
+def _union_multigraph_attention(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    union_neigh_idx: mx.array,
+    multiplicity: mx.array,
+    valid_mask: mx.array,
+    multiplicity_bias_scale: float = 1.0,
+) -> mx.array:
+    """Single-pass attention over union multigraph with multiplicity bias.
+
+    Args:
+        q: [B, H, T, dh]
+        k, v: [B, Hkv, T, dh]
+        union_neigh_idx: [H, T, D] neighbor indices
+        multiplicity: [H, T, D] edge multiplicities
+        valid_mask: [H, T, D] boolean
+        multiplicity_bias_scale: scale for log(multiplicity) bias
+
+    Returns:
+        y: [B, H, T, dh]
+    """
+    B, Hq, T, dh = q.shape
+    Hkv = k.shape[1]
+    gqa_ratio = Hq // Hkv
+
+    ys: list[mx.array] = []
+    for h in range(Hq):
+        kv_h = h // gqa_ratio
+        q_h = q[:, h]  # [B, T, dh]
+        k_h = k[:, kv_h]  # [B, T, dh]
+        v_h = v[:, kv_h]  # [B, T, dh]
+
+        idx_h = mx.clip(union_neigh_idx[h], 0, T - 1)  # [T, D], safe gather
+        mask_h = valid_mask[h]  # [T, D]
+
+        k_g = k_h[:, idx_h]  # [B, T, D, dh]
+        v_g = v_h[:, idx_h]  # [B, T, D, dh]
+
+        scores = mx.sum(
+            q_h[:, :, None, :].astype(mx.float32) * k_g.astype(mx.float32),
+            axis=-1,
+        ) / math.sqrt(dh)  # [B, T, D]
+
+        # Add multiplicity bias: log(m) scaled
+        mult_h = multiplicity[h].astype(mx.float32)  # [T, D]
+        mult_bias = mx.log(mx.maximum(mult_h, mx.array(1.0))) * multiplicity_bias_scale
+        scores = scores + mult_bias[None, :, :]
+
+        w = stable_masked_softmax(scores, mask_h[None, :, :], axis=-1)
+        y_h = mx.sum(w[:, :, :, None] * v_g.astype(mx.float32), axis=2)
+        ys.append(y_h.astype(v.dtype))
+
+    return mx.stack(ys, axis=1)
+
+
 def sparse_gather_attention(
     q: mx.array,
     k: mx.array,
@@ -271,6 +414,7 @@ def permute_cycle_window_attention_single(
     edge_type_bias_scalar: Optional[float] = None,
     window_drop_prob: float = 0.0,
     training: bool = False,
+    circular: bool = False,
 ) -> Tuple[mx.array, mx.array | None, float, float]:
     """Single-head permute-to-cycle-order local-window attention.
 
@@ -278,6 +422,7 @@ def permute_cycle_window_attention_single(
     Optional pre_* params skip recomputation of permute artifacts.
     edge_type_bias_scalar: approximate cycle bias for permute path (offset ±1 = cycle).
     window_drop_prob: fraction of non-cycle, non-self window offsets to drop during training.
+    circular: use modular wrap-around instead of linear clamping for cycle boundaries.
     """
     _B, T, dh = q_h.shape
 
@@ -298,8 +443,12 @@ def permute_cycle_window_attention_single(
         W = 2 * window + 1
         offsets = mx.arange(-window, window + 1, dtype=mx.int32)
         pi_idx = mx.arange(T, dtype=mx.int32).reshape(T, 1) + offsets.reshape(1, W)
-        valid = (pi_idx >= 0) & (pi_idx < T)
-        pi_idx_clamped = mx.clip(pi_idx, 0, T - 1)
+        if circular:
+            pi_idx_clamped = pi_idx % T
+            valid = mx.ones((T, W), dtype=mx.bool_)
+        else:
+            valid = (pi_idx >= 0) & (pi_idx < T)
+            pi_idx_clamped = mx.clip(pi_idx, 0, T - 1)
         permute_ms = _now_ms() - t0
 
     q_pi = q_h[:, perm_mx]
@@ -378,6 +527,7 @@ def wayfinder_permute_window_attention(
     _B, H, T, _dh = q.shape
 
     cycle_perms = graph.meta.get("cycle_perms")
+    all_cycle_perms = graph.meta.get("all_cycle_perms")
     if not isinstance(cycle_perms, list) or len(cycle_perms) < H:
         raise ValueError("graph.meta['cycle_perms'] is required for permute path")
 
@@ -387,33 +537,54 @@ def wayfinder_permute_window_attention(
     attention_ms = 0.0
 
     for h in range(H):
-        perm = cycle_perms[h]
-        if perm is None:
-            raise ValueError(f"Missing cycle permutation for head {h}")
+        perms_h: list[Any] = []
+        if (
+            isinstance(all_cycle_perms, list)
+            and h < len(all_cycle_perms)
+            and isinstance(all_cycle_perms[h], list)
+            and len(all_cycle_perms[h]) > 0
+        ):
+            perms_h = list(all_cycle_perms[h])
+        else:
+            perm = cycle_perms[h]
+            if perm is None:
+                raise ValueError(f"Missing cycle permutation for head {h}")
+            perms_h = [perm]
 
-        kwargs: Dict[str, Any] = {
-            "perm": perm,
-            "window": window,
-            "return_weights": return_weights,
-            "edge_type_bias_scalar": edge_type_bias_scalar,
-            "window_drop_prob": window_drop_prob,
-            "training": training,
-        }
-        if cache is not None:
-            kwargs["pre_perm_mx"] = cache.perm_mx[h]
-            kwargs["pre_inv_perm"] = cache.inv_perm[h]
-            kwargs["pre_pi_idx_clamped"] = cache.pi_idx_clamped[h]
-            kwargs["pre_valid_mask"] = cache.valid_mask[h]
-            kwargs["pre_causal_mask"] = cache.causal_masks[h]
+        y_passes: list[mx.array] = []
+        w_passes: list[mx.array] = []
+        for perm in perms_h:
+            kwargs: Dict[str, Any] = {
+                "perm": perm,
+                "window": window,
+                "return_weights": return_weights,
+                "edge_type_bias_scalar": edge_type_bias_scalar,
+                "window_drop_prob": window_drop_prob,
+                "training": training,
+            }
+            if cache is not None and len(perms_h) == 1:
+                kwargs["pre_perm_mx"] = cache.perm_mx[h]
+                kwargs["pre_inv_perm"] = cache.inv_perm[h]
+                kwargs["pre_pi_idx_clamped"] = cache.pi_idx_clamped[h]
+                kwargs["pre_valid_mask"] = cache.valid_mask[h]
+                kwargs["pre_causal_mask"] = cache.causal_masks[h]
 
-        y_h, w_h, p_ms, a_ms = permute_cycle_window_attention_single(
-            q[:, h], k[:, h], v[:, h], **kwargs
-        )
-        ys.append(y_h)
-        permute_ms += p_ms
-        attention_ms += a_ms
-        if return_weights and w_h is not None:
-            ws.append(w_h)
+            y_h, w_h, p_ms, a_ms = permute_cycle_window_attention_single(
+                q[:, h], k[:, h], v[:, h], **kwargs
+            )
+            y_passes.append(y_h.astype(mx.float32))
+            permute_ms += p_ms
+            attention_ms += a_ms
+            if return_weights and w_h is not None:
+                w_passes.append(w_h.astype(mx.float32))
+
+        y_head = y_passes[0] if len(y_passes) == 1 else mx.mean(mx.stack(y_passes, axis=0), axis=0)
+        ys.append(y_head.astype(v.dtype))
+        if return_weights:
+            if len(w_passes) == 1:
+                ws.append(w_passes[0].astype(mx.float32))
+            elif len(w_passes) > 1:
+                ws.append(mx.mean(mx.stack(w_passes, axis=0), axis=0).astype(mx.float32))
 
     y = mx.stack(ys, axis=1)  # [B,H,T,dh]
     if return_weights:
@@ -444,6 +615,8 @@ def wayfinder_permute_window_attention_batched(
     retro_backfill_training_only: bool = True,
     retro_backfill_causal_only: bool = True,
     log_progress: bool = False,
+    circular: bool = False,
+    multi_cycle_mode: Literal["average", "union"] = "average",
 ) -> Tuple[mx.array, mx.array | None]:
     """Chunked permute-window attention across heads and query positions.
 
@@ -466,9 +639,12 @@ def wayfinder_permute_window_attention_batched(
         memory_budget_bytes: optional peak-memory budget for planner in `auto` mode
         retro_backfill_enabled: enable optional future->past backfill in cycle order
         retro_backfill_alpha: residual scale for retrocausal contribution
-        retro_backfill_training_only: apply retro backfill only when training=True (causal-safe default)
+        retro_backfill_training_only: apply retro backfill only when training=True
         retro_backfill_causal_only: enforce original-index causality for backfill edges
         log_progress: emit chunk-level progress prints
+        circular: use modular wrap-around instead of linear clamping for cycle boundaries
+        multi_cycle_mode: "average" runs d independent passes and averages (default),
+            "union" builds a single union multigraph with multiplicity bias
     Returns:
         y: [B, H, T, dh]
         weights: None (not supported in batched path)
@@ -482,10 +658,73 @@ def wayfinder_permute_window_attention_batched(
         raise ValueError("q/k/v head_dim must match")
     if Hv != Hkv:
         raise ValueError("k and v must have same head count")
+    if all_perms.ndim == 3:
+        if all_inv_perms.ndim != 3:
+            raise ValueError(
+                "all_inv_perms must be 3D when all_perms is 3D, got "
+                f"{all_inv_perms.shape}"
+            )
+        if all_perms.shape[0] != Hq or all_perms.shape[2] != T:
+            raise ValueError(
+                f"all_perms must be shape ({Hq}, d, {T}), got {all_perms.shape}"
+            )
+        if all_inv_perms.shape != all_perms.shape:
+            raise ValueError(
+                f"all_inv_perms must match all_perms shape {all_perms.shape}, "
+                f"got {all_inv_perms.shape}"
+            )
+
+        if multi_cycle_mode == "union":
+            union_idx, mult, vmask = build_union_multigraph_index(
+                all_perms, all_inv_perms, window=window, circular=circular,
+            )
+            return _union_multigraph_attention(
+                q, k, v,
+                union_neigh_idx=union_idx,
+                multiplicity=mult,
+                valid_mask=vmask,
+            ), None
+
+        # Default: average mode
+        d = int(all_perms.shape[1])
+        ys: list[mx.array] = []
+        for c in range(d):
+            y_c, _ = wayfinder_permute_window_attention_batched(
+                q,
+                k,
+                v,
+                all_perms=all_perms[:, c, :],
+                all_inv_perms=all_inv_perms[:, c, :],
+                all_pi_idx=all_pi_idx,
+                all_valid=all_valid,
+                all_causal=all_causal,
+                window=window,
+                edge_type_bias_scalar=edge_type_bias_scalar,
+                window_drop_prob=window_drop_prob,
+                training=training,
+                head_chunk_size=head_chunk_size,
+                query_chunk_size=query_chunk_size,
+                prepermute_mode=prepermute_mode,
+                memory_budget_bytes=memory_budget_bytes,
+                retro_backfill_enabled=retro_backfill_enabled,
+                retro_backfill_alpha=retro_backfill_alpha,
+                retro_backfill_training_only=retro_backfill_training_only,
+                retro_backfill_causal_only=retro_backfill_causal_only,
+                log_progress=log_progress,
+                circular=circular,
+                multi_cycle_mode=multi_cycle_mode,
+            )
+            ys.append(y_c.astype(mx.float32))
+        if len(ys) == 1:
+            return ys[0].astype(v.dtype), None
+        return mx.mean(mx.stack(ys, axis=0), axis=0).astype(v.dtype), None
+
     if all_perms.shape != (Hq, T):
-        raise ValueError(f"all_perms must be shape ({Hq}, {T}), got {all_perms.shape}")
+        raise ValueError(f"all_perms must be shape ({Hq}, {T}) or [H,d,T], got {all_perms.shape}")
     if all_inv_perms.shape != (Hq, T):
-        raise ValueError(f"all_inv_perms must be shape ({Hq}, {T}), got {all_inv_perms.shape}")
+        raise ValueError(
+            f"all_inv_perms must be shape ({Hq}, {T}) or [H,d,T], got {all_inv_perms.shape}"
+        )
     if Hq % Hkv != 0:
         raise ValueError(f"Hq={Hq} must be divisible by Hkv={Hkv} for GQA")
 
@@ -616,31 +855,64 @@ def wayfinder_permute_window_attention_batched(
             e = min(T, s + q_chunk)
             ks = max(0, s - window)
             ke = min(T, e + window)
+            if circular:
+                k_range_raw = mx.arange(
+                    s - window, e + window, dtype=mx.int32,
+                )
+                k_range = k_range_raw % T
+                Kblk = int(k_range.shape[0])
+            else:
+                Kblk = ke - ks
 
             if log_progress:
+                k_desc = (
+                    f"k_circ[{Kblk}]" if circular
+                    else f"k[{ks}:{ke}]"
+                )
                 print(
-                    f"        permute_batched: heads[{h0}:{h1}] q_chunk {q_chunk_idx}/{q_chunk_count} "
-                    f"q[{s}:{e}] k[{ks}:{ke}]",
+                    f"        permute_batched: heads[{h0}:{h1}] "
+                    f"q_chunk {q_chunk_idx}/{q_chunk_count} "
+                    f"q[{s}:{e}] {k_desc}",
                     flush=True,
                 )
 
             q_idx = perms_c[:, s:e]  # [hc, Qblk]
-            k_idx = perms_c[:, ks:ke]  # [hc, Kblk]
+            if circular:
+                k_idx = mx.take(perms_c, k_range, axis=1)
+            else:
+                k_idx = perms_c[:, ks:ke]  # [hc, Kblk]
             if prepermute_q:
                 q_blk = q_pi_buf[:, :, s:e, :]  # type: ignore[index]
             else:
-                q_gidx = mx.broadcast_to(q_idx[None, :, :, None], (B, hc, e - s, 1))
+                q_gidx = mx.broadcast_to(
+                    q_idx[None, :, :, None], (B, hc, e - s, 1),
+                )
                 q_blk = mx.take_along_axis(q_c, q_gidx, axis=2)
             if prepermute_kv:
-                k_blk = k_pi_buf[:, :, ks:ke, :]  # type: ignore[index]
-                v_blk = v_pi_buf[:, :, ks:ke, :]  # type: ignore[index]
+                if circular:
+                    k_blk = mx.take(
+                        k_pi_buf, k_range, axis=2,  # type: ignore
+                    )
+                    v_blk = mx.take(
+                        v_pi_buf, k_range, axis=2,  # type: ignore
+                    )
+                else:
+                    k_blk = k_pi_buf[:, :, ks:ke, :]  # type: ignore
+                    v_blk = v_pi_buf[:, :, ks:ke, :]  # type: ignore
             else:
-                k_gidx = mx.broadcast_to(k_idx[None, :, :, None], (B, hc, ke - ks, 1))
+                k_gidx = mx.broadcast_to(
+                    k_idx[None, :, :, None], (B, hc, Kblk, 1),
+                )
                 k_blk = mx.take_along_axis(k_c, k_gidx, axis=2)
                 v_blk = mx.take_along_axis(v_c, k_gidx, axis=2)
 
-            q_pos = mx.arange(s, e, dtype=mx.int32).reshape(1, e - s, 1)
-            k_pos = mx.arange(ks, ke, dtype=mx.int32).reshape(1, 1, ke - ks)
+            q_pos = mx.arange(s, e, dtype=mx.int32)
+            q_pos = q_pos.reshape(1, e - s, 1)
+            if circular:
+                k_pos = k_range_raw.reshape(1, 1, Kblk)
+            else:
+                k_pos = mx.arange(ks, ke, dtype=mx.int32)
+                k_pos = k_pos.reshape(1, 1, Kblk)
             rel = k_pos - q_pos  # [1, Qblk, Kblk]
 
             in_window = (rel >= -window) & (rel <= window)
@@ -651,12 +923,16 @@ def wayfinder_permute_window_attention_batched(
             use_fused_local_sdpa = (
                 hasattr(mx, "fast")
                 and hasattr(mx.fast, "scaled_dot_product_attention")
-                and (edge_type_bias_scalar is None or edge_type_bias_scalar == 0.0)
+                and (edge_type_bias_scalar is None
+                     or edge_type_bias_scalar == 0.0)
                 and (window_drop_prob <= 0.0 or (not training))
             )
             if training and window_drop_prob > 0.0:
                 preserve = (rel == 0) | (rel == -1) | (rel == 1)
-                drop_rand = mx.random.uniform(shape=(hc, e - s, ke - ks)) < window_drop_prob
+                drop_rand = (
+                    mx.random.uniform(shape=(hc, e - s, Kblk))
+                    < window_drop_prob
+                )
                 drop = drop_rand & in_window & (~preserve)
                 mask_eff = mask_eff & (~drop)
 
@@ -747,6 +1023,49 @@ def wayfinder_permute_window_attention_batched(
     return mx.concatenate(y_chunks, axis=1), None
 
 
+def wayfinder_covering_attention(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    window: int,
+    edge_type_bias_scalar: Optional[float] = None,
+    window_drop_prob: float = 0.0,
+    training: bool = False,
+    head_chunk_size: Optional[int] = None,
+    query_chunk_size: int = 256,
+    prepermute_mode: Literal["auto", "off", "kv", "qkv", "on"] = "auto",
+    memory_budget_bytes: Optional[int] = None,
+    circular: bool = False,
+    multi_cycle_mode: Literal["average", "union"] = "average",
+) -> Tuple[mx.array, mx.array | None]:
+    """Covering-mode attention by averaging one permute-window pass per cycle."""
+    return wayfinder_permute_window_attention_batched(
+        q,
+        k,
+        v,
+        all_perms=all_perms,
+        all_inv_perms=all_inv_perms,
+        window=window,
+        edge_type_bias_scalar=edge_type_bias_scalar,
+        window_drop_prob=window_drop_prob,
+        training=training,
+        head_chunk_size=head_chunk_size,
+        query_chunk_size=query_chunk_size,
+        prepermute_mode=prepermute_mode,
+        memory_budget_bytes=memory_budget_bytes,
+        circular=circular,
+        multi_cycle_mode=multi_cycle_mode,
+        retro_backfill_enabled=False,
+        retro_backfill_alpha=0.0,
+        retro_backfill_training_only=True,
+        retro_backfill_causal_only=True,
+        log_progress=False,
+    )
+
+
 def wayfinder_permute_window_attention_active_batched(
     q: mx.array,
     k: mx.array,
@@ -764,6 +1083,8 @@ def wayfinder_permute_window_attention_active_batched(
     prepermute_mode: Literal["auto", "off", "kv", "qkv", "on"] = "auto",
     memory_budget_bytes: Optional[int] = None,
     log_progress: bool = False,
+    circular: bool = False,
+    multi_cycle_mode: Literal["average", "union"] = "average",
 ) -> Tuple[mx.array, mx.array | None]:
     """Permute-window attention for active query rows (Q_len <= K_len).
 
@@ -771,9 +1092,9 @@ def wayfinder_permute_window_attention_active_batched(
     k, v: [B, Hkv, Tk, dh] for currently available cache prefix
     all_perms/all_inv_perms: [Hq, Tg] with Tg >= Tk (adaptive graph horizon)
     query_positions: [Tq] original token positions for each query row in q
+    circular: use modular wrap-around instead of linear clamping.
+    multi_cycle_mode: "average" or "union" for multi-cycle handling.
     """
-    del memory_budget_bytes  # Not used in the active-row path.
-
     B, Hq, Tq, dh = q.shape
     Bk, Hkv, Tk, dhk = k.shape
     Bv, Hv, Tv, dhv = v.shape
@@ -785,11 +1106,96 @@ def wayfinder_permute_window_attention_active_batched(
         raise ValueError("k and v must have same head count")
     if Hq % Hkv != 0:
         raise ValueError(f"Hq={Hq} must be divisible by Hkv={Hkv} for GQA")
+    if all_perms.ndim == 3:
+        if all_inv_perms.ndim != 3:
+            raise ValueError(
+                "all_inv_perms must be 3D when all_perms is 3D, got "
+                f"{all_inv_perms.shape}"
+            )
+        if all_perms.shape[0] != Hq:
+            raise ValueError(f"all_perms first dim must be {Hq}, got {all_perms.shape}")
+        if all_inv_perms.shape != all_perms.shape:
+            raise ValueError(
+                f"all_inv_perms must match all_perms shape {all_perms.shape}, "
+                f"got {all_inv_perms.shape}"
+            )
+
+        if multi_cycle_mode == "union":
+            Tg = int(all_perms.shape[2])
+            union_idx, mult, vmask = build_union_multigraph_index(
+                all_perms, all_inv_perms, window=window, circular=circular,
+            )
+            # For active queries: expand k/v to full Tg, run union attention,
+            # then select only the query_positions rows from the output.
+            # Pad k/v to Tg if needed.
+            if Tk < Tg:
+                pad_shape = (B, Hkv, Tg - Tk, dh)
+                k_full = mx.concatenate([k, mx.zeros(pad_shape, dtype=k.dtype)], axis=2)
+                v_full = mx.concatenate([v, mx.zeros(pad_shape, dtype=v.dtype)], axis=2)
+            else:
+                k_full = k[:, :, :Tg, :]
+                v_full = v[:, :, :Tg, :]
+            # Build full Q at Tg (zeros for non-query positions)
+            q_full = mx.zeros((B, Hq, Tg, dh), dtype=q.dtype)
+            qp_np = np.array(query_positions, dtype=np.int64)
+            for qi in range(Tq):
+                pos = int(qp_np[qi])
+                if 0 <= pos < Tg:
+                    q_full[:, :, pos, :] = q[:, :, qi, :]
+            y_full = _union_multigraph_attention(
+                q_full, k_full, v_full,
+                union_neigh_idx=union_idx,
+                multiplicity=mult,
+                valid_mask=vmask,
+            )
+            # Extract query rows
+            y_rows = []
+            for qi in range(Tq):
+                pos = int(qp_np[qi])
+                y_rows.append(y_full[:, :, pos, :])
+            return mx.stack(y_rows, axis=2), None
+
+        # Default: average mode
+        d = int(all_perms.shape[1])
+        ys: list[mx.array] = []
+        for c in range(d):
+            y_c, _ = wayfinder_permute_window_attention_active_batched(
+                q,
+                k,
+                v,
+                all_perms=all_perms[:, c, :],
+                all_inv_perms=all_inv_perms[:, c, :],
+                query_positions=query_positions,
+                window=window,
+                edge_type_bias_scalar=edge_type_bias_scalar,
+                window_drop_prob=window_drop_prob,
+                training=training,
+                head_chunk_size=head_chunk_size,
+                query_chunk_size=query_chunk_size,
+                prepermute_mode=prepermute_mode,
+                memory_budget_bytes=memory_budget_bytes,
+                log_progress=log_progress,
+                circular=circular,
+                multi_cycle_mode=multi_cycle_mode,
+            )
+            ys.append(y_c.astype(mx.float32))
+        if len(ys) == 1:
+            return ys[0].astype(v.dtype), None
+        return (
+            mx.mean(mx.stack(ys, axis=0), axis=0).astype(v.dtype),
+            None,
+        )
+
     if all_perms.shape[0] != Hq:
-        raise ValueError(f"all_perms first dim must be {Hq}, got {all_perms.shape}")
+        raise ValueError(
+            f"all_perms first dim must be {Hq}, got {all_perms.shape}"
+        )
+    del memory_budget_bytes  # Not used in the 2-D path.
     Tg = int(all_perms.shape[1])
     if all_inv_perms.shape != (Hq, Tg):
-        raise ValueError(f"all_inv_perms must be shape ({Hq}, {Tg}), got {all_inv_perms.shape}")
+        raise ValueError(
+            f"all_inv_perms must be shape ({Hq}, {Tg}) or [H,d,T], got {all_inv_perms.shape}"
+        )
     if Tg < Tk:
         raise ValueError(f"graph sequence length Tg={Tg} must be >= Tk={Tk}")
     if tuple(query_positions.shape) != (Tq,):
@@ -853,8 +1259,14 @@ def wayfinder_permute_window_attention_active_batched(
 
                 q_rank = mx.take(inv_h, q_pos, axis=0)  # [Qblk], in [0, Tg)
                 k_rank = q_rank.reshape(-1, 1) + offsets  # [Qblk, W]
-                valid = (k_rank >= 0) & (k_rank < Tg)
-                k_rank_clipped = mx.clip(k_rank, 0, Tg - 1).astype(mx.int32)
+                if circular:
+                    k_rank_clipped = (k_rank % Tg).astype(mx.int32)
+                    valid = mx.ones(k_rank.shape, dtype=mx.bool_)
+                else:
+                    valid = (k_rank >= 0) & (k_rank < Tg)
+                    k_rank_clipped = mx.clip(
+                        k_rank, 0, Tg - 1,
+                    ).astype(mx.int32)
 
                 # Convert local cycle-window ranks back to original token indices.
                 k_orig = mx.take(perm_h, k_rank_clipped, axis=0).astype(mx.int32)  # [Qblk, W]
@@ -867,6 +1279,8 @@ def wayfinder_permute_window_attention_active_batched(
                 v_blk = mx.take(v_src, gather_idx, axis=1)  # [B, Qblk, W, dh]
 
                 if training and window_drop_prob > 0.0:
+                    # Same resilience-preserving rule as batched permute path:
+                    # keep self and cycle-adjacent offsets, drop only others.
                     preserve = (
                         (k_rank == q_rank.reshape(-1, 1))
                         | (k_rank == (q_rank.reshape(-1, 1) - 1))
@@ -959,8 +1373,10 @@ class WayfinderAttentionMLX(nn.Module):
         dropout: float = 0.0,
         window: int = 64,
         landmark_stride: Optional[int] = 64,
-        strategy: Literal["random", "greedy", "online_insertion"] = "random",
-        num_cycles: int = 1,
+        strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random",
+        num_cycles: int | str = 1,
+        edge_disjoint: bool = True,
+        regular_num_clusters: int = 8,
         seed: int = 0,
         path: Literal["sparse", "permute"] = "sparse",
         edge_bias: bool = False,
@@ -972,6 +1388,10 @@ class WayfinderAttentionMLX(nn.Module):
         retro_backfill_causal_only: bool = True,
         permute_head_chunk_size: Optional[int] = None,
         permute_query_chunk_size: int = 256,
+        circular: bool = False,
+        multi_cycle_mode: Literal["average", "union"] = "average",
+        verify_spectral_gap: bool = False,
+        spectral_gap_threshold: float = 4.0,
     ):
         super().__init__()
         if n_embd % n_heads != 0:
@@ -984,7 +1404,10 @@ class WayfinderAttentionMLX(nn.Module):
         self.window = int(window)
         self.landmark_stride = landmark_stride
         self.strategy = strategy
-        self.num_cycles = int(num_cycles)
+        self._num_cycles_raw = num_cycles
+        self.num_cycles = 1 if num_cycles == "auto" else int(num_cycles)
+        self.edge_disjoint = bool(edge_disjoint)
+        self.regular_num_clusters = int(max(1, regular_num_clusters))
         self.seed = int(seed)
         self.path = path
         self.window_drop_prob = float(window_drop)
@@ -993,6 +1416,10 @@ class WayfinderAttentionMLX(nn.Module):
         self.retro_backfill_alpha = float(retro_backfill_alpha)
         self.retro_backfill_training_only = bool(retro_backfill_training_only)
         self.retro_backfill_causal_only = bool(retro_backfill_causal_only)
+        self.circular = bool(circular)
+        self.multi_cycle_mode = str(multi_cycle_mode)
+        self.verify_spectral_gap = bool(verify_spectral_gap)
+        self.spectral_gap_threshold = float(max(0.0, spectral_gap_threshold))
         self.permute_head_chunk_size = (
             None if permute_head_chunk_size is None else int(max(1, permute_head_chunk_size))
         )
@@ -1013,6 +1440,8 @@ class WayfinderAttentionMLX(nn.Module):
             n_heads=self.n_heads,
             strategy=self.strategy,
             num_cycles=self.num_cycles,
+            edge_disjoint=self.edge_disjoint,
+            regular_num_clusters=self.regular_num_clusters,
             seed=self.seed,
             window=self.window,
             landmark_stride=self.landmark_stride,
@@ -1052,11 +1481,34 @@ class WayfinderAttentionMLX(nn.Module):
         """'static' for input-independent strategies, 'dynamic' otherwise."""
         return self.topology.cache_mode
 
+    def _resolve_and_sync_num_cycles(self, T: int) -> None:
+        """Resolve 'auto' num_cycles at graph-construction time and rebuild topology."""
+        if self._num_cycles_raw != "auto":
+            return
+        from hcsa.cycles import recommended_num_cycles
+
+        resolved = recommended_num_cycles(T)
+        if resolved != self.num_cycles:
+            self.num_cycles = resolved
+            self.topology = Topology(
+                n_heads=self.n_heads,
+                strategy=self.strategy,
+                num_cycles=resolved,
+                edge_disjoint=self.edge_disjoint,
+                regular_num_clusters=self.regular_num_clusters,
+                seed=self.seed,
+                window=self.window,
+                landmark_stride=self.landmark_stride,
+                enforce_hamiltonian=True,
+            )
+
     def _cache_key_from_T(self, T: int) -> tuple:
         return (
             T,
             self.strategy,
             self.num_cycles,
+            self.edge_disjoint,
+            self.regular_num_clusters,
             self.window,
             self.landmark_stride,
             self.seed,
@@ -1086,36 +1538,62 @@ class WayfinderAttentionMLX(nn.Module):
         causal_masks_list: List[mx.array] = []
 
         cycle_perms = mlx_graph.meta.get("cycle_perms", [])
+        all_cycle_perms = mlx_graph.meta.get("all_cycle_perms", [])
         W = 2 * self.window + 1
         offsets = mx.arange(-self.window, self.window + 1, dtype=mx.int32)
+        per_head_perms: list[list[mx.array]] = []
+        per_head_invs: list[list[mx.array]] = []
+        max_d = 1
 
         for h in range(self.n_heads):
-            perm = None
+            perms_h: list[mx.array] = []
+            invs_h: list[mx.array] = []
+
+            perms_src = None
             if (
+                isinstance(all_cycle_perms, list)
+                and h < len(all_cycle_perms)
+                and isinstance(all_cycle_perms[h], list)
+                and len(all_cycle_perms[h]) > 0
+            ):
+                perms_src = all_cycle_perms[h]
+            elif (
                 isinstance(cycle_perms, list)
                 and h < len(cycle_perms)
                 and cycle_perms[h] is not None
             ):
-                perm = cycle_perms[h]
-            if perm is not None:
-                perm_arr = np.asarray(perm, dtype=np.int32)
-                p_mx = mx.array(perm_arr, dtype=mx.int32)
-                ip = mx.argsort(p_mx)
-                pi_idx = mx.arange(T, dtype=mx.int32).reshape(T, 1) + offsets.reshape(1, W)
-                valid = (pi_idx >= 0) & (pi_idx < T)
-                pi_clamped = mx.clip(pi_idx, 0, T - 1)
-                # Causal mask in permuted space
-                orig_idx = p_mx
-                neigh_orig = orig_idx[pi_clamped]
-                query_orig = orig_idx.reshape(T, 1)
-                causal_h = neigh_orig <= query_orig
-            else:
+                perms_src = [cycle_perms[h]]
+
+            if perms_src is None:
                 p_mx = mx.zeros((T,), dtype=mx.int32)
                 ip = mx.zeros((T,), dtype=mx.int32)
-                pi_clamped = mx.zeros((T, W), dtype=mx.int32)
-                valid = mx.zeros((T, W), dtype=mx.bool_)
-                causal_h = mx.zeros((T, W), dtype=mx.bool_)
+                perms_h.append(p_mx)
+                invs_h.append(ip)
+            else:
+                for perm in perms_src:
+                    perm_arr = np.asarray(perm, dtype=np.int32)
+                    p_mx = mx.array(perm_arr, dtype=mx.int32)
+                    perms_h.append(p_mx)
+                    invs_h.append(mx.argsort(p_mx))
 
+            p_mx = perms_h[0]
+            ip = invs_h[0]
+            pi_idx = mx.arange(T, dtype=mx.int32).reshape(T, 1) + offsets.reshape(1, W)
+            if self.circular:
+                pi_clamped = pi_idx % T
+                valid = mx.ones((T, W), dtype=mx.bool_)
+            else:
+                valid = (pi_idx >= 0) & (pi_idx < T)
+                pi_clamped = mx.clip(pi_idx, 0, T - 1)
+            # Causal mask in permuted space
+            orig_idx = p_mx
+            neigh_orig = orig_idx[pi_clamped]
+            query_orig = orig_idx.reshape(T, 1)
+            causal_h = neigh_orig <= query_orig
+
+            max_d = max(max_d, len(perms_h))
+            per_head_perms.append(perms_h)
+            per_head_invs.append(invs_h)
             perm_mx_list.append(p_mx)
             inv_perm_list.append(ip)
             pi_idx_clamped_list.append(pi_clamped)
@@ -1126,8 +1604,20 @@ class WayfinderAttentionMLX(nn.Module):
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
         for arr in perm_mx_list + inv_perm_list + pi_idx_clamped_list + valid_mask_list + causal_masks_list:
             persistent_bytes += _mx_nbytes(arr)
-        all_perms = mx.stack(perm_mx_list, axis=0)
-        all_inv_perms = mx.stack(inv_perm_list, axis=0)
+        if max_d == 1:
+            all_perms = mx.stack([p[0] for p in per_head_perms], axis=0)
+            all_inv_perms = mx.stack([p[0] for p in per_head_invs], axis=0)
+        else:
+            perm_heads: list[mx.array] = []
+            inv_heads: list[mx.array] = []
+            for perms_h, invs_h in zip(per_head_perms, per_head_invs):
+                while len(perms_h) < max_d:
+                    perms_h.append(perms_h[0])
+                    invs_h.append(invs_h[0])
+                perm_heads.append(mx.stack(perms_h, axis=0))
+                inv_heads.append(mx.stack(invs_h, axis=0))
+            all_perms = mx.stack(perm_heads, axis=0)
+            all_inv_perms = mx.stack(inv_heads, axis=0)
         persistent_bytes += _mx_nbytes(all_perms) + _mx_nbytes(all_inv_perms)
 
         return _GraphCache(
@@ -1177,6 +1667,7 @@ class WayfinderAttentionMLX(nn.Module):
             except json.JSONDecodeError:
                 meta = {}
         meta.setdefault("cycle_perms", [])
+        meta.setdefault("all_cycle_perms", [])
         meta.setdefault("max_degree", int(neigh_idx.shape[-1]))
         meta.setdefault("seq_len", int(T))
         meta.setdefault("n_heads", int(self.n_heads))
@@ -1233,6 +1724,7 @@ class WayfinderAttentionMLX(nn.Module):
     def _build_graph_abi(self, x: mx.array) -> Tuple[MLXGraphABI, WayfinderGraphABI]:
         """Build graph ABI on CPU from routing embeddings for this forward."""
         _B, T, _C = x.shape
+        self._resolve_and_sync_num_cycles(int(T))
 
         routing_by_head: list[torch.Tensor] | None = None
         if self.strategy in {"greedy", "online_insertion"}:
@@ -1246,6 +1738,46 @@ class WayfinderAttentionMLX(nn.Module):
             routing_by_head=routing_by_head,
         )
         abi = topo_graph.abi
+        if self.verify_spectral_gap:
+            perm = None
+            all_cycle_perms = abi.meta.get("all_cycle_perms")
+            if isinstance(all_cycle_perms, list) and all_cycle_perms:
+                first_head = all_cycle_perms[0]
+                if isinstance(first_head, list) and first_head:
+                    first_cycle = first_head[0]
+                    if first_cycle is not None:
+                        perm = first_cycle
+            cycle_perms = abi.meta.get("cycle_perms")
+            if perm is None and isinstance(cycle_perms, list) and cycle_perms:
+                if cycle_perms[0] is not None:
+                    perm = cycle_perms[0]
+
+            if perm is not None:
+                perm_np = np.asarray(perm, dtype=np.int64)
+                if int(T) <= 4096:
+                    gap_info = spectral_gap(
+                        perm_np,
+                        include_window=True,
+                        window=self.window,
+                        expander_threshold=self.spectral_gap_threshold,
+                    )
+                else:
+                    gap_info = expansion_proxy(
+                        perm_np,
+                        window=self.window,
+                        num_walks=512,
+                        walk_len=max(20, int(np.ceil(2.0 * np.log2(max(2, int(T)))))),
+                    )
+                    gap_info["expander_threshold"] = self.spectral_gap_threshold
+                    gap_info["is_good_expander"] = bool(gap_info.get("is_fast_mixer", False))
+                abi.meta["spectral_verification"] = gap_info
+                if not bool(gap_info.get("is_good_expander", False)):
+                    warnings.warn(
+                        "Cycle expansion check failed: "
+                        f"{gap_info}",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
         self.last_graph_abi = abi
         return to_mlx_graph_abi(abi, heads=self.n_heads, validate=False), abi
 
@@ -1350,6 +1882,8 @@ class WayfinderAttentionMLX(nn.Module):
                 retro_backfill_alpha=self.retro_backfill_alpha,
                 retro_backfill_training_only=self.retro_backfill_training_only,
                 retro_backfill_causal_only=self.retro_backfill_causal_only,
+                circular=self.circular,
+                multi_cycle_mode=self.multi_cycle_mode,
             )
             permute_ms = _now_ms() - t_perm0
         else:

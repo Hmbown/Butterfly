@@ -1,0 +1,233 @@
+{
+  "created_at": "2026-02-08T18:42:13.530267+00:00",
+  "command": "scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 4 --strategy regular_partition --regular-num-clusters 16 --num-cycles 1 --out-dir benchmarks/mlx/tiny_wayfinder/regularity_reg16",
+  "config": {
+    "seq_lens": [
+      2048,
+      4096
+    ],
+    "batch": 2,
+    "heads": 4,
+    "embd": 128,
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "strategy": "regular_partition",
+    "regular_num_clusters": 16,
+    "warmup": 2,
+    "iters": 4,
+    "graph_spec": null
+  },
+  "attention": [
+    {
+      "mode": "dense",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 1427851.3318313556,
+      "tokens_per_sec_mean": 1372881.716668505,
+      "tokens_per_sec_std": 99553.60731382482,
+      "total_ms": 2.868645991839003,
+      "attention_ms": 2.868645991839003,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 0.0,
+      "graph_build_ms_cached": 0.0,
+      "cache_hit_rate": 0.0,
+      "peak_memory_bytes": 156516384,
+      "persistent_cache_bytes": 0,
+      "step_intermediate_bytes": 156516384,
+      "largest_intermediate_bytes_proxy": 134217728,
+      "memory_proxy": {
+        "scores_fp32": 134217728,
+        "weights_fp32": 134217728,
+        "largest": 134217728
+      }
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 426761.13187746826,
+      "tokens_per_sec_mean": 423191.76706929767,
+      "tokens_per_sec_std": 6979.4066536293985,
+      "total_ms": 9.597875003237277,
+      "attention_ms": 0.0972914919257164,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 191.88916701078415,
+      "graph_build_ms_cached": 0.006166502833366394,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 483426628,
+      "persistent_cache_bytes": 11354112,
+      "step_intermediate_bytes": 472072516,
+      "largest_intermediate_bytes_proxy": 102760448,
+      "memory_proxy": {
+        "kv_gather": 102760448,
+        "scores_fp32": 6422528,
+        "weights_fp32": 6422528,
+        "largest": 102760448
+      }
+    },
+    {
+      "mode": "wayfinder_permute",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 2938483.0438047084,
+      "tokens_per_sec_mean": 2891953.8845825647,
+      "tokens_per_sec_std": 503862.5975924708,
+      "total_ms": 1.3939165000920184,
+      "attention_ms": 1.1185419857501984,
+      "permute_ms": 1.118146002292633,
+      "graph_build_ms_first": 179.7795000076294,
+      "graph_build_ms_cached": 0.0030834898352622986,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 67258324,
+      "persistent_cache_bytes": 11354112,
+      "step_intermediate_bytes": 55904212,
+      "largest_intermediate_bytes_proxy": 102760448,
+      "memory_proxy": {
+        "kv_gather": 102760448,
+        "scores_fp32": 6422528,
+        "weights_fp32": 6422528,
+        "largest": 102760448
+      }
+    },
+    {
+      "mode": "dense",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 729271.6854097325,
+      "tokens_per_sec_mean": 730480.9722028109,
+      "tokens_per_sec_std": 11360.0817419614,
+      "total_ms": 11.233124998398125,
+      "attention_ms": 11.233124998398125,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 0.0,
+      "graph_build_ms_cached": 0.0,
+      "cache_hit_rate": 0.0,
+      "peak_memory_bytes": 601096236,
+      "persistent_cache_bytes": 0,
+      "step_intermediate_bytes": 601096236,
+      "largest_intermediate_bytes_proxy": 536870912,
+      "memory_proxy": {
+        "scores_fp32": 536870912,
+        "weights_fp32": 536870912,
+        "largest": 536870912
+      }
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 267150.94303268596,
+      "tokens_per_sec_mean": 266690.8450643375,
+      "tokens_per_sec_std": 3052.4106063357317,
+      "total_ms": 30.664312493172474,
+      "attention_ms": 0.25416649878025055,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 501.0111669898033,
+      "graph_build_ms_cached": 0.006520994007587433,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 1552466244,
+      "persistent_cache_bytes": 33193984,
+      "step_intermediate_bytes": 1519272260,
+      "largest_intermediate_bytes_proxy": 339738624,
+      "memory_proxy": {
+        "kv_gather": 339738624,
+        "scores_fp32": 21233664,
+        "weights_fp32": 21233664,
+        "largest": 339738624
+      }
+    },
+    {
+      "mode": "wayfinder_permute",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 3660410.2586552086,
+      "tokens_per_sec_mean": 3710003.1096036397,
+      "tokens_per_sec_std": 190244.74854833673,
+      "total_ms": 2.238000502984505,
+      "attention_ms": 2.022625505924225,
+      "permute_ms": 2.0223755091428757,
+      "graph_build_ms_first": 508.9351669996977,
+      "graph_build_ms_cached": 0.002437502145767212,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 144986324,
+      "persistent_cache_bytes": 33193984,
+      "step_intermediate_bytes": 111792340,
+      "largest_intermediate_bytes_proxy": 339738624,
+      "memory_proxy": {
+        "kv_gather": 339738624,
+        "scores_fp32": 21233664,
+        "weights_fp32": 21233664,
+        "largest": 339738624
+      }
+    }
+  ],
+  "block": [
+    {
+      "mode": "dense",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 1126983.9324014902,
+      "block_latency_ms": 3.63447950076079,
+      "block_peak_memory_bytes": 177253420,
+      "block_persistent_cache_bytes": 0,
+      "block_step_intermediate_bytes": 177253420
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 404347.6856032325,
+      "block_latency_ms": 10.129895992577076,
+      "block_peak_memory_bytes": 504163652,
+      "block_persistent_cache_bytes": 11354112,
+      "block_step_intermediate_bytes": 492809540
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 2127654.0508732237,
+      "block_latency_ms": 1.9251249977969564,
+      "block_peak_memory_bytes": 75412436,
+      "block_persistent_cache_bytes": 11354112,
+      "block_step_intermediate_bytes": 64058324
+    },
+    {
+      "mode": "dense",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 667903.2221513981,
+      "block_latency_ms": 12.265250006748829,
+      "block_peak_memory_bytes": 641780780,
+      "block_persistent_cache_bytes": 0,
+      "block_step_intermediate_bytes": 641780780
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 259811.9281000366,
+      "block_latency_ms": 31.53050000400981,
+      "block_peak_memory_bytes": 1582419156,
+      "block_persistent_cache_bytes": 33193984,
+      "block_step_intermediate_bytes": 1549225172
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 2370213.314905912,
+      "block_latency_ms": 3.456229002040345,
+      "block_peak_memory_bytes": 160505044,
+      "block_persistent_cache_bytes": 33193984,
+      "block_step_intermediate_bytes": 127311060
+    }
+  ]
+}

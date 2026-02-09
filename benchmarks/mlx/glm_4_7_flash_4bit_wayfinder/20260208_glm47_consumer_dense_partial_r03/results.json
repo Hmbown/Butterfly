@@ -1,0 +1,57 @@
+{
+  "created_at": "2026-02-08T13:47:40.696059+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --no-swap --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_partial_r03",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 2.109183792010299,
+      "ttft_sec": 0.08452150000084657,
+      "itl_p50_sec": 0.015611208000336774,
+      "itl_p95_sec": 0.01575116599269677,
+      "decode_sec": 4.071546374994796,
+      "e2e_sec": 6.180730167005095,
+      "decode_tok_s": 62.87537373323599,
+      "peak_memory_bytes": 18355369054,
+      "sample_output_text": "marize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 12.327026583006955,
+      "ttft_sec": 0.1559395840013167,
+      "itl_p50_sec": 0.01952825000626035,
+      "itl_p95_sec": 0.019843874993966892,
+      "decode_sec": 5.150240749993827,
+      "e2e_sec": 17.477267333000782,
+      "decode_tok_s": 49.70641420991957,
+      "peak_memory_bytes": 21800155168,
+      "sample_output_text": "three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 144.89245291700354,
+      "ttft_sec": 5.4200870000058785,
+      "itl_p50_sec": 0.03420008400280494,
+      "itl_p95_sec": 0.03455466699961107,
+      "decode_sec": 14.225212833000114,
+      "e2e_sec": 159.11766575000365,
+      "decode_tok_s": 17.996215803964834,
+      "peak_memory_bytes": 35716954144,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

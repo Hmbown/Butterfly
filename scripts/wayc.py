@@ -10,6 +10,7 @@ from typing import Any
 
 from hcsa.compiler import compile_graph_spec, load_graph_ir
 from hcsa.compiler.passes import normalize_pass, validate_pass
+from hcsa.discover import prepare_discovery_workspace, resolve_targets
 
 
 def _json_default(x: Any) -> Any:
@@ -121,6 +122,48 @@ def cmd_bench(args: argparse.Namespace) -> None:
     print(json.dumps(payload, indent=2))
 
 
+def cmd_discover_targets(args: argparse.Namespace) -> None:
+    targets = resolve_targets(args.targets)
+    payload = {
+        "setup_only": True,
+        "targets": [t.to_dict() for t in targets],
+    }
+    text = json.dumps(payload, indent=2, default=_json_default)
+    print(text)
+    if args.json_out is not None:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(text + "\n", encoding="utf-8")
+
+
+def cmd_discover_setup(args: argparse.Namespace) -> None:
+    targets = resolve_targets(args.targets)
+    manifest = prepare_discovery_workspace(
+        repo_root=args.repo_root.resolve(),
+        zmlx_root=args.zmlx_root.resolve(),
+        sessions_root=args.sessions_root.resolve(),
+        kernel_out_root=args.kernel_out_root.resolve(),
+        targets=targets,
+        strict=args.strict,
+        dry_run=args.dry_run,
+        overwrite=args.overwrite,
+    )
+    text = json.dumps(manifest, indent=2, default=_json_default)
+    print(text)
+    if args.json_out is not None:
+        args.json_out.parent.mkdir(parents=True, exist_ok=True)
+        args.json_out.write_text(text + "\n", encoding="utf-8")
+    if args.strict and (not bool(manifest.get("ready", False))):
+        raise SystemExit(2)
+
+
+def cmd_discover_status(args: argparse.Namespace) -> None:
+    manifest_path = args.manifest.resolve()
+    if not manifest_path.exists():
+        raise SystemExit(f"Manifest not found: {manifest_path}")
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    print(json.dumps(payload, indent=2, default=_json_default))
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="wayc: compile Wayfinder .wf graph specs")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -156,6 +199,54 @@ def build_parser() -> argparse.ArgumentParser:
     p_bench.add_argument("--iters", type=int, default=10)
     p_bench.add_argument("--out-root", type=Path, default=Path(".cache/wayfinder"))
     p_bench.set_defaults(func=cmd_bench)
+
+    p_discover_targets = sub.add_parser(
+        "discover-targets",
+        help="List fused-kernel discovery target metadata (setup-only).",
+    )
+    p_discover_targets.add_argument(
+        "--targets",
+        nargs="*",
+        default=["all"],
+        help="Target ids/names (k1..k5) or all.",
+    )
+    p_discover_targets.add_argument("--json-out", type=Path, default=None)
+    p_discover_targets.set_defaults(func=cmd_discover_targets)
+
+    p_discover_setup = sub.add_parser(
+        "discover-setup",
+        help="Validate setup and write discovery session stubs (no model loading/inference).",
+    )
+    p_discover_setup.add_argument(
+        "--targets",
+        nargs="*",
+        default=["all"],
+        help="Target ids/names (k1..k5) or all.",
+    )
+    p_discover_setup.add_argument("--repo-root", type=Path, default=Path.cwd())
+    p_discover_setup.add_argument("--zmlx-root", type=Path, default=Path("/Volumes/VIXinSSD/ZMLX"))
+    p_discover_setup.add_argument("--sessions-root", type=Path, default=Path("discover_sessions"))
+    p_discover_setup.add_argument(
+        "--kernel-out-root",
+        type=Path,
+        default=Path("hcsa/mlx/kernels/metal"),
+    )
+    p_discover_setup.add_argument("--strict", action="store_true")
+    p_discover_setup.add_argument("--dry-run", action="store_true")
+    p_discover_setup.add_argument("--overwrite", action="store_true")
+    p_discover_setup.add_argument("--json-out", type=Path, default=None)
+    p_discover_setup.set_defaults(func=cmd_discover_setup)
+
+    p_discover_status = sub.add_parser(
+        "discover-status",
+        help="Read and print a discovery setup manifest.",
+    )
+    p_discover_status.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("discover_sessions/manifest.json"),
+    )
+    p_discover_status.set_defaults(func=cmd_discover_status)
 
     return p
 

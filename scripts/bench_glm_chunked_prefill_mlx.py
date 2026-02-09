@@ -135,6 +135,19 @@ def _memory_reduction_pct(candidate: Optional[float], baseline: Optional[float])
     return float(100.0 * (1.0 - (candidate / baseline)))
 
 
+def _percentile(values: Sequence[float], q: float) -> Optional[float]:
+    if not values:
+        return None
+    if q <= 0:
+        return float(min(values))
+    if q >= 100:
+        return float(max(values))
+    xs = sorted(float(v) for v in values)
+    idx = int(round((q / 100.0) * (len(xs) - 1)))
+    idx = max(0, min(idx, len(xs) - 1))
+    return float(xs[idx])
+
+
 def _load_baseline_rows(path: Optional[Path]) -> Dict[int, Dict[str, Any]]:
     if path is None:
         return {}
@@ -210,6 +223,9 @@ def _compare_prefill_decode(
     baseline_prefill_tok_s = None if baseline_scenario is None else baseline_scenario.get("prefill_tok_s")
     baseline_decode_tok_s = None if baseline_scenario is None else baseline_scenario.get("decode_tok_s")
     baseline_peak = None if baseline_scenario is None else baseline_scenario.get("peak_memory_bytes")
+    baseline_ttft_sec = None if baseline_scenario is None else baseline_scenario.get("ttft_sec")
+    baseline_itl_p50_sec = None if baseline_scenario is None else baseline_scenario.get("itl_p50_sec")
+    baseline_itl_p95_sec = None if baseline_scenario is None else baseline_scenario.get("itl_p95_sec")
 
     return {
         "prefill_sec": _compare_scalar(candidate.get("prefill_sec"), baseline_prefill_sec),
@@ -217,6 +233,9 @@ def _compare_prefill_decode(
         "total_sec": _compare_scalar(candidate.get("total_sec"), baseline_total_sec),
         "prefill_tok_s": _compare_scalar(candidate.get("prefill_tok_s"), baseline_prefill_tok_s),
         "decode_tok_s": _compare_scalar(candidate.get("decode_tok_s"), baseline_decode_tok_s),
+        "ttft_sec": _compare_scalar(candidate.get("ttft_sec"), baseline_ttft_sec),
+        "itl_p50_sec": _compare_scalar(candidate.get("itl_p50_sec"), baseline_itl_p50_sec),
+        "itl_p95_sec": _compare_scalar(candidate.get("itl_p95_sec"), baseline_itl_p95_sec),
         "peak_memory_bytes": _compare_scalar(candidate.get("peak_memory_bytes"), baseline_peak),
         "memory_reduction_pct_vs_baseline": _memory_reduction_pct(
             candidate.get("peak_memory_bytes"), baseline_peak
@@ -314,7 +333,14 @@ def _run_decode(
 ) -> Dict[str, Any]:
     """True incremental autoregressive decode: decode_len x 1-token steps."""
     if decode_len <= 0:
-        return {"decode_sec": 0.0, "decode_tok_s": None, "per_token_sec": []}
+        return {
+            "decode_sec": 0.0,
+            "decode_tok_s": None,
+            "per_token_sec": [],
+            "ttft_sec": None,
+            "itl_p50_sec": None,
+            "itl_p95_sec": None,
+        }
 
     per_token_sec: list[float] = []
     t0 = time.perf_counter()
@@ -329,10 +355,14 @@ def _run_decode(
         per_token_sec.append(time.perf_counter() - t_step)
     _clear_workspace()
     decode_sec = time.perf_counter() - t0
+    itl_values = per_token_sec[1:] if len(per_token_sec) > 1 else per_token_sec
     return {
         "decode_sec": float(decode_sec),
         "decode_tok_s": float((batch * decode_len) / max(decode_sec, 1e-12)),
         "per_token_sec": per_token_sec,
+        "ttft_sec": float(per_token_sec[0]) if per_token_sec else None,
+        "itl_p50_sec": _percentile(itl_values, 50.0),
+        "itl_p95_sec": _percentile(itl_values, 95.0),
     }
 
 
@@ -675,6 +705,9 @@ def main() -> None:
                             "chunk_reports": prefill["chunk_reports"],
                             "cache_state_after_prefill": prefill["cache_state_end"],
                             "cache_state_end": _cache_state(cache),
+                            "ttft_sec": decode_step.get("ttft_sec"),
+                            "itl_p50_sec": decode_step.get("itl_p50_sec"),
+                            "itl_p95_sec": decode_step.get("itl_p95_sec"),
                         }
                         baseline_s = _extract_baseline_scenario(
                             baseline_row, decode_len=int(target_decode_len)

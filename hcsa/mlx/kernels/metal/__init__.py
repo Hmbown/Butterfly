@@ -6,9 +6,25 @@ signatures expected for a future custom-op drop-in.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import mlx.core as mx
+
+
+_KERNEL_DIR = Path(__file__).resolve().parent
+_ACTIVE_ROW_DISCOVERED = _KERNEL_DIR / "hcsa_active_row_fused_discovered.metal"
+_PERMUTE_WINDOW_DISCOVERED = _KERNEL_DIR / "hcsa_permute_window_fused_discovered.metal"
+
+
+def has_discovered_active_row_kernel() -> bool:
+    """True when a post-search K4 artifact has been exported."""
+    return _ACTIVE_ROW_DISCOVERED.exists()
+
+
+def has_discovered_permute_window_kernel() -> bool:
+    """True when a post-search K1 artifact has been exported."""
+    return _PERMUTE_WINDOW_DISCOVERED.exists()
 
 
 def sparse_row_attention_fused(

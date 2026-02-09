@@ -1,0 +1,77 @@
+{
+  "created_at": "2026-02-07T17:11:59.729199+00:00",
+  "command": "scripts/bench_gpt2_wayfinder_mlx.py --model-path openai-community/gpt2 --seq-lens 4096 --batch 1 --warmup 2 --iters 6 --path permute --window 32 --landmark-stride 32 --seed 42 --out-dir benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_window32_v3",
+  "model_path": "openai-community/gpt2",
+  "tokenizer_name": "<cache>/hub/models--openai-community--gpt2/snapshots/607a30d783dfa663caf39e06633721c8d4cfcd7e",
+  "model_config": {
+    "model_type": "gpt2",
+    "n_head": 12,
+    "n_layer": 12,
+    "n_embd": 768,
+    "n_positions": 1024,
+    "vocab_size": 50257
+  },
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 8,
+    "query_chunk_size": 256,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true
+  },
+  "results": [
+    {
+      "seq_len": 4096,
+      "batch": 1,
+      "level_a_real_qkv": {
+        "sanity_mae": 4.051251411437988,
+        "baseline_attention": {
+          "tokens_per_sec": 706379.4113304557,
+          "latency_ms": 5.798583501018584,
+          "peak_memory_bytes": 91238432
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 244756.19128404657,
+          "latency_ms": 16.735020995838568,
+          "peak_memory_bytes": 120289528,
+          "graph_build_ms_first": 1621.5474169924855,
+          "graph_build_ms_cached": 0.003667004406452179,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "baseline": {
+          "tokens_per_sec": 375010.0137050114,
+          "latency_ms": 10.922375004156493,
+          "peak_memory_bytes": 236758084
+        },
+        "wayfinder": {
+          "tokens_per_sec": 152163.9488937467,
+          "latency_ms": 26.918334006040823,
+          "peak_memory_bytes": 211592260,
+          "cache_persistent_bytes": 393216,
+          "edge_utilization_proxy": {
+            "cycle": 0.0,
+            "window": 0.0,
+            "landmark": 0.0,
+            "rewire": 0.0
+          },
+          "graph_metrics": {}
+        }
+      }
+    }
+  ]
+}

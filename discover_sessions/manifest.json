@@ -1,0 +1,300 @@
+{
+  "blocked": false,
+  "dry_run": false,
+  "kernel_out_root": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal",
+  "readiness": {
+    "optional_missing": [],
+    "path_checks": [
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "attention_reference",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/attention.py",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "metal_seam",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/__init__.py",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "glm_integration",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "qwen_integration",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "lab_notebook",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/notes/LAB_NOTEBOOK.md",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "experiments_log",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/notes/experiments.ndjson",
+        "required": true
+      },
+      {
+        "category": "repo",
+        "exists": true,
+        "label": "quality_script_base",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/scripts/eval_gpt2_quality.py",
+        "required": true
+      },
+      {
+        "category": "zmlx",
+        "exists": true,
+        "label": "discover_targets",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/targets.py",
+        "required": true
+      },
+      {
+        "category": "zmlx",
+        "exists": true,
+        "label": "discover_prompts",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/prompts.py",
+        "required": true
+      },
+      {
+        "category": "zmlx",
+        "exists": true,
+        "label": "discover_tree",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/tree.py",
+        "required": true
+      },
+      {
+        "category": "zmlx",
+        "exists": true,
+        "label": "discover_evaluate",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/discover/evaluate.py",
+        "required": true
+      },
+      {
+        "category": "zmlx",
+        "exists": true,
+        "label": "discover_playbook",
+        "ok": true,
+        "path": "/Volumes/VIXinSSD/ZMLX/docs/DISCOVER_PLAYBOOK.md",
+        "required": true
+      }
+    ],
+    "ready": true,
+    "repo_root": "/Volumes/VIXinSSD/wayfinder",
+    "required_failures": [],
+    "retro_checks": [
+      {
+        "found": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/model.py",
+        "required_snippet": "retro_backfill_enabled: bool = False"
+      },
+      {
+        "found": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+        "required_snippet": "retro_backfill_enabled: bool = False"
+      },
+      {
+        "found": true,
+        "path": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+        "required_snippet": "retro_backfill_enabled: bool = False"
+      }
+    ],
+    "retro_defaults_ok": true,
+    "strict": true,
+    "timestamp_utc": "2026-02-08T22:37:21.168624+00:00",
+    "zmlx_root": "/Volumes/VIXinSSD/ZMLX"
+  },
+  "ready": true,
+  "repo_root": "/Volumes/VIXinSSD/wayfinder",
+  "sessions_root": "/Volumes/VIXinSSD/wayfinder/discover_sessions",
+  "status": "setup_only",
+  "strict": true,
+  "targets": [
+    {
+      "discover_target": "hcsa_permute_window",
+      "expected_inputs": [
+        "q_pi [B,H,T,dh]",
+        "k_pi [B,H,T,dh]",
+        "v_pi [B,H,T,dh]",
+        "perm [H,T]",
+        "inv_perm [H,T]",
+        "window int"
+      ],
+      "expected_outputs": [
+        "out [B,H,T,dh]"
+      ],
+      "id": "k1",
+      "kernel_name": "hcsa_permute_window_fused",
+      "priority": "P0",
+      "quality_gate_ref": "Q1,Q2",
+      "question": "Can we fuse permute+window+attention+unpermute into one Metal kernel?",
+      "reference_path": "hcsa/mlx/attention.py:260",
+      "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_permute_window_fused.metal",
+      "session_stub_name": "hcsa_permute_window_session.stub.json"
+    },
+    {
+      "discover_target": "hcsa_sparse_gather",
+      "expected_inputs": [
+        "q [B,H,T,dh]",
+        "k [B,H,T,dh]",
+        "v [B,H,T,dh]",
+        "neigh_idx [H,T,D] int32",
+        "edge_type [H,T,D] optional"
+      ],
+      "expected_outputs": [
+        "out [B,H,T,dh]"
+      ],
+      "id": "k2",
+      "kernel_name": "hcsa_sparse_gather_fused",
+      "priority": "P2",
+      "quality_gate_ref": "Q1,Q3,Q4",
+      "question": "Can we fuse sparse gather attention (general path) into one Metal kernel?",
+      "reference_path": "hcsa/mlx/attention.py:170",
+      "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_sparse_gather_fused.metal",
+      "session_stub_name": "hcsa_sparse_gather_session.stub.json"
+    },
+    {
+      "discover_target": "hcsa_graph_construct",
+      "expected_inputs": [
+        "T int",
+        "H int",
+        "seed int"
+      ],
+      "expected_outputs": [
+        "perm [H,T] int32",
+        "inv_perm [H,T] int32",
+        "window_idx [H,T,W] int32"
+      ],
+      "id": "k3",
+      "kernel_name": "hcsa_graph_construct",
+      "priority": "P1",
+      "quality_gate_ref": "Q5",
+      "question": "Can cycle permutations and inverse indices be built on GPU to remove CPU stalls?",
+      "reference_path": "hcsa/cycles.py",
+      "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_graph_construct.metal",
+      "session_stub_name": "hcsa_graph_construct_session.stub.json"
+    },
+    {
+      "discover_target": "hcsa_active_row",
+      "expected_inputs": [
+        "q_active [B,H,Q,dh]",
+        "k_cache [B,H,K,dh]",
+        "v_cache [B,H,K,dh]",
+        "query_positions [Q]",
+        "perm [H,K]",
+        "inv_perm [H,K]",
+        "window int"
+      ],
+      "expected_outputs": [
+        "out [B,H,Q,dh]"
+      ],
+      "id": "k4",
+      "kernel_name": "hcsa_active_row_fused",
+      "priority": "P1",
+      "quality_gate_ref": "Q1,Q2",
+      "question": "Can we support Q_len < K_len without dense fallback in chunked prefill?",
+      "reference_path": "hcsa/mlx/attention.py:866",
+      "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_active_row_fused.metal",
+      "session_stub_name": "hcsa_active_row_session.stub.json"
+    },
+    {
+      "discover_target": "hcsa_wayfinder_ttt",
+      "expected_inputs": [
+        "x [B,H,T,dh]",
+        "perm [H,T]",
+        "W_ttt [H,F,F]",
+        "window int",
+        "alpha float",
+        "lr float"
+      ],
+      "expected_outputs": [
+        "out [B,H,T,dh]",
+        "W_ttt_next [H,F,F]"
+      ],
+      "id": "k5",
+      "kernel_name": "hcsa_wayfinder_ttt_fused",
+      "priority": "P2",
+      "quality_gate_ref": "Q1,Q2,Q5",
+      "question": "Can we fuse HCSA attention and TTT updates to improve global propagation and memory?",
+      "reference_path": "/Volumes/VIXinSSD/ZMLX/src/zmlx/ttt/kernel.py",
+      "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_wayfinder_ttt_fused.metal",
+      "session_stub_name": "hcsa_wayfinder_ttt_session.stub.json"
+    }
+  ],
+  "writes": [
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/seeds/hcsa_permute_window_fused.metal",
+      "type": "seed_kernel",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_permute_window_session.stub.json",
+      "type": "session_stub",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/seeds/hcsa_sparse_gather_fused.metal",
+      "type": "seed_kernel",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_sparse_gather_session.stub.json",
+      "type": "session_stub",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/seeds/hcsa_graph_construct.metal",
+      "type": "seed_kernel",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_graph_construct_session.stub.json",
+      "type": "session_stub",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/seeds/hcsa_active_row_fused.metal",
+      "type": "seed_kernel",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_active_row_session.stub.json",
+      "type": "session_stub",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/kernels/metal/seeds/hcsa_wayfinder_ttt_fused.metal",
+      "type": "seed_kernel",
+      "written": true
+    },
+    {
+      "path": "/Volumes/VIXinSSD/wayfinder/discover_sessions/hcsa_wayfinder_ttt_session.stub.json",
+      "type": "session_stub",
+      "written": true
+    }
+  ],
+  "zmlx_root": "/Volumes/VIXinSSD/ZMLX"
+}

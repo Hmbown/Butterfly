@@ -1,0 +1,10 @@
+{
+  "policy": "h1_q384",
+  "h_chunk": 1,
+  "q_chunk": 384,
+  "completed_seq_lens": 2,
+  "total_seq_lens": 2,
+  "last_seq_len": 8192,
+  "elapsed_sec": 8.662835749997612,
+  "updated_at": "2026-02-07T15:41:41.508263+00:00"
+}

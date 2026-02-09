@@ -70,6 +70,7 @@ def _build_attn(
     landmark_stride: int | None,
     num_cycles: int,
     strategy: str,
+    regular_num_clusters: int,
     compiled_graph_dir: str | None,
 ):
     if mode == "dense":
@@ -83,6 +84,7 @@ def _build_attn(
         landmark_stride=landmark_stride,
         num_cycles=num_cycles,
         strategy=strategy,
+        regular_num_clusters=regular_num_clusters,
         path=path,
         dropout=0.0,
         compiled_graph_dir=compiled_graph_dir,
@@ -100,6 +102,7 @@ def _bench_attention_mode(
     landmark_stride: int | None,
     num_cycles: int,
     strategy: str,
+    regular_num_clusters: int,
     warmup: int,
     iters: int,
     compiled_graph_dir: str | None,
@@ -112,6 +115,7 @@ def _bench_attention_mode(
         landmark_stride=landmark_stride,
         num_cycles=num_cycles,
         strategy=strategy,
+        regular_num_clusters=regular_num_clusters,
         compiled_graph_dir=compiled_graph_dir,
     )
     if hasattr(attn, "eval"):
@@ -215,6 +219,7 @@ def _bench_block_mode(
     landmark_stride: int | None,
     num_cycles: int,
     strategy: str,
+    regular_num_clusters: int,
     warmup: int,
     iters: int,
     compiled_graph_dir: str | None,
@@ -236,6 +241,7 @@ def _bench_block_mode(
         window=window,
         landmark_stride=landmark_stride,
         num_cycles=num_cycles,
+        regular_num_clusters=regular_num_clusters,
         compiled_graph_dir=compiled_graph_dir,
     )
     model = GPTMLX(cfg)
@@ -346,8 +352,9 @@ def main() -> None:
         "--strategy",
         type=str,
         default="random",
-        choices=["random", "greedy", "online_insertion"],
+        choices=["random", "greedy", "online_insertion", "regular_partition"],
     )
+    p.add_argument("--regular-num-clusters", type=int, default=8)
     p.add_argument("--warmup", type=int, default=4)
     p.add_argument("--iters", type=int, default=10)
     p.add_argument("--skip-4096", action="store_true")
@@ -390,6 +397,7 @@ def main() -> None:
                 landmark_stride=lm_stride,
                 num_cycles=args.num_cycles,
                 strategy=args.strategy,
+                regular_num_clusters=args.regular_num_clusters,
                 warmup=args.warmup,
                 iters=args.iters,
                 compiled_graph_dir=compiled_dir,
@@ -406,6 +414,7 @@ def main() -> None:
                 landmark_stride=lm_stride,
                 num_cycles=args.num_cycles,
                 strategy=args.strategy,
+                regular_num_clusters=args.regular_num_clusters,
                 warmup=max(1, args.warmup // 2),
                 iters=max(2, args.iters // 2),
                 compiled_graph_dir=compiled_dir,
@@ -424,6 +433,7 @@ def main() -> None:
             "landmark_stride": lm_stride,
             "num_cycles": args.num_cycles,
             "strategy": args.strategy,
+            "regular_num_clusters": int(max(1, args.regular_num_clusters)),
             "warmup": args.warmup,
             "iters": args.iters,
             "graph_spec": None if args.graph_spec is None else str(args.graph_spec),

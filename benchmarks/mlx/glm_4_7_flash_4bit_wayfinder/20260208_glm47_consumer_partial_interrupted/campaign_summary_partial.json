@@ -1,0 +1,112 @@
+{
+  "hcsa_partial_artifact": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_hcsa_partial_r04/results.json",
+  "dense_partial_artifact": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm47_consumer_dense_partial_r03/results.json",
+  "comparison_rows": [
+    {
+      "seq_len": 2048,
+      "hcsa_e2e_sec": 6.580195457994705,
+      "dense_e2e_sec": 6.180730167005095,
+      "delta_e2e_sec": 0.39946529098961037,
+      "delta_e2e_pct_vs_dense": 6.463076047585707,
+      "hcsa_ttft_sec": 0.07041787498746999,
+      "dense_ttft_sec": 0.08452150000084657,
+      "delta_ttft_sec": -0.014103625013376586,
+      "delta_ttft_pct_vs_dense": -16.68643482810329,
+      "hcsa_itl_p95_sec": 0.016194625000935048,
+      "dense_itl_p95_sec": 0.01575116599269677,
+      "delta_itl_p95_sec": 0.00044345900823827833,
+      "delta_itl_p95_pct_vs_dense": 2.8154043227269256,
+      "hcsa_decode_tok_s": 61.76317644830569,
+      "dense_decode_tok_s": 62.87537373323599,
+      "delta_decode_tok_s": -1.1121972849302963,
+      "delta_decode_tok_s_pct_vs_dense": -1.7688917280222665,
+      "hcsa_peak_memory_bytes": 18284328404,
+      "dense_peak_memory_bytes": 18355369054,
+      "memory_reduction_pct": 0.38702926533922266
+    },
+    {
+      "seq_len": 8192,
+      "hcsa_e2e_sec": 21.117382583994186,
+      "dense_e2e_sec": 17.477267333000782,
+      "delta_e2e_sec": 3.6401152509934036,
+      "delta_e2e_pct_vs_dense": 20.827713976315366,
+      "hcsa_ttft_sec": 0.12969600000360515,
+      "dense_ttft_sec": 0.1559395840013167,
+      "delta_ttft_sec": -0.02624358399771154,
+      "delta_ttft_pct_vs_dense": -16.829327951451987,
+      "hcsa_itl_p95_sec": 0.019928583002183586,
+      "dense_itl_p95_sec": 0.019843874993966892,
+      "delta_itl_p95_sec": 8.4708008216694e-05,
+      "delta_itl_p95_pct_vs_dense": 0.42687231320721214,
+      "hcsa_decode_tok_s": 49.704650095747674,
+      "dense_decode_tok_s": 49.70641420991957,
+      "delta_decode_tok_s": -0.0017641141718982567,
+      "delta_decode_tok_s_pct_vs_dense": -0.0035490674592781315,
+      "hcsa_peak_memory_bytes": 20660500328,
+      "dense_peak_memory_bytes": 21800155168,
+      "memory_reduction_pct": 5.227737285433987
+    },
+    {
+      "seq_len": 32768,
+      "hcsa_e2e_sec": 151.54713583301054,
+      "dense_e2e_sec": 159.11766575000365,
+      "delta_e2e_sec": -7.5705299169931095,
+      "delta_e2e_pct_vs_dense": -4.757818612603004,
+      "hcsa_ttft_sec": 0.21713554199959617,
+      "dense_ttft_sec": 5.4200870000058785,
+      "delta_ttft_sec": -5.202951458006282,
+      "delta_ttft_pct_vs_dense": -95.99387349318636,
+      "hcsa_itl_p95_sec": 0.03416904200275894,
+      "dense_itl_p95_sec": 0.03455466699961107,
+      "delta_itl_p95_sec": -0.0003856249968521297,
+      "delta_itl_p95_pct_vs_dense": -1.115985278794526,
+      "hcsa_decode_tok_s": 28.901470624780256,
+      "dense_decode_tok_s": 17.996215803964834,
+      "delta_decode_tok_s": 10.905254820815422,
+      "delta_decode_tok_s_pct_vs_dense": 60.597488603203075,
+      "hcsa_peak_memory_bytes": 30027907880,
+      "dense_peak_memory_bytes": 35716954144,
+      "memory_reduction_pct": 15.92813945182302
+    }
+  ],
+  "interrupted_n3_summary": {
+    "2048": {
+      "n": 3,
+      "e2e_median_sec": 7.467,
+      "e2e_std_sec": 0.04115823125451349,
+      "e2e_cv": 0.005512017042254385,
+      "ttft_median_sec": 0.107,
+      "itl_p95_median_sec": 0.0187,
+      "peak_memory_bytes": 18284328404
+    },
+    "8192": {
+      "n": 3,
+      "e2e_median_sec": 21.172,
+      "e2e_std_sec": 0.9852439066320365,
+      "e2e_cv": 0.046535230806349734,
+      "ttft_median_sec": 0.1538,
+      "itl_p95_median_sec": 0.0199,
+      "peak_memory_bytes": 20660500328
+    },
+    "32768": {
+      "n": 3,
+      "e2e_median_sec": 198.556,
+      "e2e_std_sec": 14.771301191462063,
+      "e2e_cv": 0.07439362795111738,
+      "ttft_median_sec": 5.6082,
+      "itl_p95_median_sec": 0.0347,
+      "peak_memory_bytes": 30027907880
+    }
+  },
+  "gates": {
+    "full_required_lengths_present": [
+      2048,
+      8192,
+      32768
+    ],
+    "contains_65536": false,
+    "contains_multi_turn": false,
+    "contains_quality": false,
+    "repeats_per_required_cfg": 1
+  }
+}

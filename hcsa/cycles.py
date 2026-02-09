@@ -17,6 +17,7 @@ All cycle edges are undirected; causality is enforced later in attention.
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+import numpy as np
 import torch
 
 
@@ -69,6 +70,216 @@ def random_cycle(T: int, *, generator: Optional[torch.Generator] = None, device:
     device = device or torch.device("cpu")
     perm = torch.randperm(T, generator=generator, device=device)
     return perm.to(torch.long)
+
+
+def _edge_set_from_perm_np(perm: np.ndarray) -> set[tuple[int, int]]:
+    p = np.asarray(perm, dtype=np.int64).reshape(-1)
+    t = int(p.shape[0])
+    edges: set[tuple[int, int]] = set()
+    if t <= 1:
+        return edges
+    for i in range(t):
+        u = int(p[i])
+        v = int(p[(i + 1) % t])
+        if u == v:
+            continue
+        a, b = (u, v) if u < v else (v, u)
+        edges.add((a, b))
+    return edges
+
+
+def _as_numpy_rng(generator: Optional[object]) -> np.random.Generator:
+    if isinstance(generator, np.random.Generator):
+        return generator
+    if isinstance(generator, torch.Generator):
+        seed = int(
+            torch.randint(
+                low=0,
+                high=2**31 - 1,
+                size=(1,),
+                generator=generator,
+                device=torch.device("cpu"),
+                dtype=torch.int64,
+            ).item()
+        )
+        return np.random.default_rng(seed)
+    return np.random.default_rng()
+
+
+def _sample_cycle_np(T: int, *, generator: Optional[object] = None) -> np.ndarray:
+    if isinstance(generator, torch.Generator):
+        return torch.randperm(T, generator=generator, device=torch.device("cpu")).cpu().numpy()
+    if isinstance(generator, np.random.Generator):
+        return generator.permutation(T).astype(np.int64)
+    return np.random.default_rng().permutation(T).astype(np.int64)
+
+
+def _walecki_even_cycles(T: int) -> list[np.ndarray]:
+    """Construct edge-disjoint Hamilton cycles for complete graph K_T (T even)."""
+    if T % 2 != 0 or T < 4:
+        return []
+    m = T // 2
+    mod = T - 1
+    inf = T - 1
+    out: list[np.ndarray] = []
+    for i in range(m - 1):
+        seq: list[int] = [inf]
+        for t in range(1, m):
+            seq.append((i - (t - 1)) % mod)
+            seq.append((i + t) % mod)
+        seq.append((i - (m - 1)) % mod)
+        out.append(np.asarray(seq, dtype=np.int64))
+    return out
+
+
+def edge_disjoint_random_cycles(
+    T: int,
+    num_cycles: int,
+    *,
+    max_retries: int = 100,
+    generator=None,
+) -> list[np.ndarray]:
+    """Generate edge-disjoint random Hamiltonian cycles."""
+    if T <= 0:
+        raise ValueError("T must be positive")
+    if num_cycles <= 0:
+        raise ValueError("num_cycles must be positive")
+    if max_retries <= 0:
+        raise ValueError("max_retries must be positive")
+
+    cycles: list[np.ndarray] = []
+    used_edges: set[tuple[int, int]] = set()
+
+    for cycle_idx in range(num_cycles):
+        accepted = False
+        for _retry in range(max_retries):
+            candidate = _sample_cycle_np(T, generator=generator).astype(np.int64, copy=False)
+            edges = _edge_set_from_perm_np(candidate)
+            if used_edges.isdisjoint(edges):
+                cycles.append(candidate)
+                used_edges |= edges
+                accepted = True
+                break
+        if not accepted:
+            raise ValueError(
+                "Failed to generate edge-disjoint cycles "
+                f"(T={T}, num_cycles={num_cycles}, cycle_idx={cycle_idx}, max_retries={max_retries})"
+            )
+
+    return cycles
+
+
+def verify_edge_disjoint(cycles: list[np.ndarray]) -> tuple[bool, int]:
+    """Check if cycles are pairwise edge-disjoint."""
+    edge_counts: dict[tuple[int, int], int] = {}
+    for perm in cycles:
+        for edge in _edge_set_from_perm_np(np.asarray(perm, dtype=np.int64)):
+            edge_counts[edge] = int(edge_counts.get(edge, 0) + 1)
+    shared = int(sum(1 for c in edge_counts.values() if c > 1))
+    return shared == 0, shared
+
+
+def regular_partition_cycle(
+    T: int,
+    num_clusters: int = 8,
+    *,
+    generator=None,
+) -> np.ndarray:
+    """Construct a cluster-balanced Hamiltonian cycle permutation."""
+    if T <= 0:
+        raise ValueError("T must be positive")
+    k = int(max(1, min(num_clusters, T)))
+    rng = _as_numpy_rng(generator)
+
+    vertices = np.arange(T, dtype=np.int64)
+    clusters = [np.asarray(c, dtype=np.int64) for c in np.array_split(vertices, k)]
+    shuffled: list[np.ndarray] = []
+    for c in clusters:
+        if c.size <= 1:
+            shuffled.append(c.copy())
+        else:
+            shuffled.append(rng.permutation(c))
+
+    cursor = [0 for _ in range(k)]
+    out: list[int] = []
+    while len(out) < T:
+        progressed = False
+        cluster_order = rng.permutation(k).tolist()
+        for cidx in cluster_order:
+            pos = cursor[cidx]
+            if pos >= int(shuffled[cidx].shape[0]):
+                continue
+            out.append(int(shuffled[cidx][pos]))
+            cursor[cidx] = pos + 1
+            progressed = True
+        if not progressed:  # pragma: no cover
+            break
+
+    perm = np.asarray(out, dtype=np.int64)
+    if perm.shape[0] != T:
+        raise RuntimeError(f"regular_partition_cycle failed to produce length {T}, got {perm.shape[0]}")
+    if np.unique(perm).shape[0] != T:
+        raise RuntimeError("regular_partition_cycle produced duplicate vertices")
+    return perm
+
+
+def covering_cycles(
+    T: int,
+    *,
+    max_cycles: int = 20,
+    coverage_target: float = 0.99,
+    generator=None,
+) -> tuple[list[np.ndarray], float]:
+    """Generate random cycles until target edge coverage is reached."""
+    if T <= 1:
+        return [np.arange(max(T, 1), dtype=np.int64)], 1.0
+    max_c = int(max(1, max_cycles))
+    target = float(min(1.0, max(0.0, coverage_target)))
+
+    total_possible = int(T * (T - 1) // 2)
+    covered: set[tuple[int, int]] = set()
+    cycles: list[np.ndarray] = []
+    seeded = _walecki_even_cycles(T)
+    for perm in seeded:
+        if len(cycles) >= max_c:
+            break
+        cycles.append(perm)
+        covered |= _edge_set_from_perm_np(perm)
+        frac = float(len(covered)) / float(max(total_possible, 1))
+        if frac >= target:
+            return cycles, frac
+
+    if T <= 64:
+        candidate_trials = 8192
+    elif T <= 128:
+        candidate_trials = 4096
+    else:
+        candidate_trials = 64
+
+    for _ in range(max(0, max_c - len(cycles))):
+        best_perm: np.ndarray | None = None
+        best_edges: set[tuple[int, int]] | None = None
+        best_gain = -1
+        for _c in range(candidate_trials):
+            perm = _sample_cycle_np(T, generator=generator).astype(np.int64, copy=False)
+            edges = _edge_set_from_perm_np(perm)
+            gain = int(len(edges - covered))
+            if gain > best_gain:
+                best_gain = gain
+                best_perm = perm
+                best_edges = edges
+                if gain == T:
+                    break
+        if best_perm is None or best_edges is None:  # pragma: no cover
+            break
+        cycles.append(best_perm)
+        covered |= best_edges
+        frac = float(len(covered)) / float(max(total_possible, 1))
+        if frac >= target:
+            return cycles, frac
+
+    frac = float(len(covered)) / float(max(total_possible, 1))
+    return cycles, frac
 
 
 def greedy_cycle(r: torch.Tensor, *, start: int = 0) -> torch.Tensor:
@@ -174,3 +385,34 @@ def online_insertion_cycle(r: torch.Tensor, *, init: str = "sequential") -> Onli
         return state
 
     raise ValueError(f"Unknown init: {init}")
+
+
+def recommended_num_cycles(T: int, *, expansion_constant: float = 2.0) -> int:
+    """Return the theoretically-motivated number of edge-disjoint cycles.
+
+    Based on expander graph theory: d = ceil(c * log2(T)) edge-disjoint
+    Hamiltonian cycles give an (n, 2d, O(sqrt(d)))-graph, guaranteeing:
+    - Spectral gap d/lambda = Omega(sqrt(d))
+    - Diameter O(log T)
+    - Resilience: survives dropping up to ~half the edges
+
+    The expansion_constant c controls the trade-off:
+    - c=1: minimal expansion, d~=log2(T)
+    - c=2: good expansion (recommended default)
+    - c=3: strong expansion, higher compute cost
+
+    Returns:
+        int: recommended number of cycles, >= 1
+    """
+    import math
+
+    return max(1, math.ceil(expansion_constant * math.log2(max(2, T))))
+
+
+def max_edge_disjoint_cycles(T: int) -> int:
+    """Theoretical maximum edge-disjoint Hamiltonian cycles for K_T.
+
+    For T even: floor((T-1)/2) (Walecki decomposition)
+    For T odd:  floor(T/2)
+    """
+    return (T - 1) // 2 if T >= 4 else (1 if T >= 3 else 0)

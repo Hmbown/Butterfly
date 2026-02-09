@@ -1,0 +1,39 @@
+{
+  "controls": {
+    "attention_benchmark_executed": false,
+    "inference_executed": false,
+    "models_loaded": false,
+    "retro_backfill_default_off": true
+  },
+  "hypothesis": "A fused kernel should reduce Python/dispatch overhead while preserving correctness.",
+  "next_command_template": "python -m zmlx.discover search hcsa_graph_construct --llm claude-code --steps 10",
+  "notes": [
+    "Setup scaffold only; no model loading and no inference.",
+    "Run Discover from ZMLX once kernels are ready to be searched."
+  ],
+  "question": "Can cycle permutations and inverse indices be built on GPU to remove CPU stalls?",
+  "repo_root": "/Volumes/VIXinSSD/wayfinder",
+  "status": "setup_only",
+  "target": {
+    "discover_target": "hcsa_graph_construct",
+    "expected_inputs": [
+      "T int",
+      "H int",
+      "seed int"
+    ],
+    "expected_outputs": [
+      "perm [H,T] int32",
+      "inv_perm [H,T] int32",
+      "window_idx [H,T,W] int32"
+    ],
+    "id": "k3",
+    "kernel_name": "hcsa_graph_construct",
+    "priority": "P1",
+    "quality_gate_ref": "Q5",
+    "question": "Can cycle permutations and inverse indices be built on GPU to remove CPU stalls?",
+    "reference_path": "hcsa/cycles.py",
+    "seed_kernel_path": "hcsa/mlx/kernels/metal/seeds/hcsa_graph_construct.metal",
+    "session_stub_name": "hcsa_graph_construct_session.stub.json"
+  },
+  "zmlx_root": "/Volumes/VIXinSSD/ZMLX"
+}

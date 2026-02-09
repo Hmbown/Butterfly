@@ -1,0 +1,118 @@
+{
+  "created_at": "2026-02-08T19:33:46.442703+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --decode-len 256 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-multi-turn --no-swap --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/e2e_validation_20260208_192216/glm47_consumer_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 2.4536627500056056,
+      "ttft_sec": 0.10698716698971111,
+      "itl_p50_sec": 0.015946792002068833,
+      "itl_p95_sec": 0.016502208993188106,
+      "decode_sec": 4.207839958005934,
+      "e2e_sec": 6.66150270801154,
+      "decode_tok_s": 60.838815771243496,
+      "peak_memory_bytes": 18284344600,
+      "sample_output_text": "marize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 28.90035799999896,
+      "ttft_sec": 99.60972520901123,
+      "itl_p50_sec": 0.020010250009363517,
+      "itl_p95_sec": 0.02103033299499657,
+      "decode_sec": 163.0115214999969,
+      "e2e_sec": 191.91187949999585,
+      "decode_tok_s": 1.5704411421005287,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 377.8300267079903,
+      "ttft_sec": 22.96076520800125,
+      "itl_p50_sec": 0.03715241700410843,
+      "itl_p95_sec": 0.03910854100831784,
+      "decode_sec": 32.65960808302043,
+      "e2e_sec": 410.48963479101076,
+      "decode_tok_s": 7.838428414365852,
+      "peak_memory_bytes": 26017775484,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9. Record B: ticket ticket=ALPHA-7707, owner=JON, checksum=9Z9Z9. Question: return only;\n;\n",
+        "correct": true,
+        "ttft_sec": 0.018873499997425824,
+        "itl_p95_sec": 0.016684750007698312,
+        "peak_memory_bytes": 16979254022
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-04 amount=23;\nI need to return only the amount on 2026-01-04.\nThe input data is:\n2026-01-03 amount=17;\n2026-01-04 amount=23;\n2026-01-05 amount=11;\nThe",
+        "correct": true,
+        "ttft_sec": 0.015717542002676055,
+        "itl_p95_sec": 0.01645666698459536,
+        "peak_memory_bytes": 16958115861
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9T9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": false,
+        "ttft_sec": 0.01591716700932011,
+        "itl_p95_sec": 0.016330875019775704,
+        "peak_memory_bytes": 16901376410
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9;\nWe are asked: \"144 / 12 + 39.9;\". The instruction: \"return only a number\". So we need to compute exactly: 144 / 12 + 39.9;? Wait, the expression includes a semicolon? Possibly it's 144 / 12 +",
+        "correct": false,
+        "ttft_sec": 0.01574512498336844,
+        "itl_p95_sec": 0.01634366699727252,
+        "peak_memory_bytes": 16899953585
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.014710499992361292,
+        "itl_p95_sec": 0.01635854199412279,
+        "peak_memory_bytes": 16918371030
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.015454874985152856,
+        "itl_p95_sec": 0.016374208993511274,
+        "peak_memory_bytes": 16913467690
+      }
+    ]
+  }
+}

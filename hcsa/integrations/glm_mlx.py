@@ -18,6 +18,10 @@ from hcsa.mlx.attention import (
     wayfinder_permute_window_attention_batched,
 )
 from hcsa.mlx.graph_abi import causal_neighbor_mask
+from hcsa.mlx.kernels.metal import (
+    has_discovered_active_row_kernel,
+    has_discovered_permute_window_kernel,
+)
 
 from .qwen_mlx import (
     _QWEN_GRAPH_CACHE_STORE,
@@ -47,10 +51,12 @@ def _pad_value_dim(values: mx.array, target_dim: int) -> mx.array:
 @dataclass
 class GLMWayfinderConfig:
     path: Literal["sparse", "permute"] = "permute"
-    strategy: Literal["random", "greedy", "online_insertion"] = "random"
+    strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
-    num_cycles: int = 1
+    num_cycles: int | str = 1
+    edge_disjoint: bool = True
+    regular_num_clusters: int = 8
     seed: int = 0
     edge_bias: bool = True
     window_drop: float = 0.0
@@ -67,6 +73,11 @@ class GLMWayfinderConfig:
     retro_backfill_causal_only: bool = True
     permute_memory_budget_bytes: Optional[int] = None
     active_dense_threshold: Optional[int] = None
+    use_discovered_active_row_kernel: bool = True
+    circular: bool = False
+    multi_cycle_mode: str = "average"
+    verify_spectral_gap: bool = False
+    spectral_gap_threshold: float = 4.0
 
 
 def extract_qkv_from_glm_attention(
@@ -160,10 +171,13 @@ class GLMWayfinderAttention(nn.Module):
             if cfg.active_dense_threshold is None
             else int(max(0, cfg.active_dense_threshold))
         )
+        self.use_discovered_active_row_kernel = bool(cfg.use_discovered_active_row_kernel)
         self.retro_backfill_enabled = bool(cfg.retro_backfill_enabled)
         self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
         self.retro_backfill_training_only = bool(cfg.retro_backfill_training_only)
         self.retro_backfill_causal_only = bool(cfg.retro_backfill_causal_only)
+        self.circular = bool(cfg.circular)
+        self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -172,9 +186,13 @@ class GLMWayfinderAttention(nn.Module):
             landmark_stride=cfg.landmark_stride,
             strategy=cfg.strategy,
             num_cycles=cfg.num_cycles,
+            edge_disjoint=cfg.edge_disjoint,
+            regular_num_clusters=cfg.regular_num_clusters,
             seed=cfg.seed,
             path=cfg.path,
             compiled_graph_dir=cfg.compiled_graph_dir,
+            verify_spectral_gap=cfg.verify_spectral_gap,
+            spectral_gap_threshold=cfg.spectral_gap_threshold,
             store_numpy_abi=bool(cfg.compute_graph_metrics),
             store_graph_tensors=bool(
                 cfg.path == "sparse"
@@ -285,11 +303,20 @@ class GLMWayfinderAttention(nn.Module):
         queries, keys, values = extract_qkv_from_glm_attention(self, x, cache=cache)
         q_len = int(queries.shape[2])
         k_len = int(keys.shape[2])
-        active_mode = self.path == "permute" and cache is not None and q_len <= k_len
+        active_mode = self.path == "permute" and cache is not None and q_len < k_len
+        discovered_permute_available = (
+            self.path == "permute" and has_discovered_permute_window_kernel()
+        )
+        discovered_active_available = (
+            active_mode
+            and self.use_discovered_active_row_kernel
+            and has_discovered_active_row_kernel()
+        )
         force_dense_active = (
             active_mode
             and self.active_dense_threshold is not None
             and k_len <= self.active_dense_threshold
+            and (not discovered_active_available)
         )
         use_active_permute = active_mode and not force_dense_active
 
@@ -310,6 +337,7 @@ class GLMWayfinderAttention(nn.Module):
                     "k_len": int(k_len),
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
+                    "discovered_permute_available": bool(discovered_permute_available),
                 },
             )
             return out
@@ -403,23 +431,49 @@ class GLMWayfinderAttention(nn.Module):
             if use_active_permute:
                 active_start = T - q_len
                 active_positions = mx.arange(active_start, T, dtype=mx.int32)
-                y_h, _w = wayfinder_permute_window_attention_active_batched(
-                    queries,
-                    keys,
-                    values_wf,
-                    all_perms=graph_cache.perm_mx_stacked,
-                    all_inv_perms=graph_cache.inv_perm_stacked,
-                    query_positions=active_positions,
-                    window=self.graph_runtime.window,
-                    edge_type_bias_scalar=etb_scalar,
-                    window_drop_prob=effective_window_drop if is_training else 0.0,
-                    training=is_training,
-                    head_chunk_size=h_chunk_eff,
-                    query_chunk_size=q_chunk_eff,
-                    prepermute_mode=self.permute_prepermute_mode,  # type: ignore[arg-type]
-                    memory_budget_bytes=memory_budget_bytes,
-                    log_progress=self.permute_log_chunks,
-                )
+                try:
+                    y_h, _w = wayfinder_permute_window_attention_active_batched(
+                        queries,
+                        keys,
+                        values_wf,
+                        all_perms=graph_cache.perm_mx_stacked,
+                        all_inv_perms=graph_cache.inv_perm_stacked,
+                        query_positions=active_positions,
+                        window=self.graph_runtime.window,
+                        edge_type_bias_scalar=etb_scalar,
+                        window_drop_prob=effective_window_drop if is_training else 0.0,
+                        training=is_training,
+                        head_chunk_size=h_chunk_eff,
+                        query_chunk_size=q_chunk_eff,
+                        prepermute_mode=self.permute_prepermute_mode,  # type: ignore[arg-type]
+                        memory_budget_bytes=memory_budget_bytes,
+                        circular=self.circular,
+                        multi_cycle_mode=self.multi_cycle_mode,
+                        log_progress=self.permute_log_chunks,
+                    )
+                except Exception as exc:
+                    out = self._dense_fallback(queries, keys, values, mask, cache)
+                    attn_ms = _now_ms() - t_attn0
+                    self.last_profile = AttentionProfile(
+                        graph_build_ms=float(graph_ms),
+                        permute_ms=0.0,
+                        attention_ms=float(attn_ms),
+                        total_ms=float(_now_ms() - t_total0),
+                        path="permute_active_error_dense_fallback",
+                        notes={
+                            "seq_len": int(T),
+                            "q_len": int(q_len),
+                            "graph_seq_len": int(graph_T),
+                            "cache_hit": bool(cache_hit),
+                            "active_query_mode": True,
+                            "active_dense_threshold": self.active_dense_threshold,
+                            "active_dense_triggered": bool(force_dense_active),
+                            "discovered_active_available": bool(discovered_active_available),
+                            "discovered_permute_available": bool(discovered_permute_available),
+                            "fallback_error": f"{type(exc).__name__}: {exc}",
+                        },
+                    )
+                    return out
             else:
                 y_h, _w = wayfinder_permute_window_attention_batched(
                     queries,
@@ -435,6 +489,8 @@ class GLMWayfinderAttention(nn.Module):
                     query_chunk_size=q_chunk_eff,
                     prepermute_mode=self.permute_prepermute_mode,  # type: ignore[arg-type]
                     memory_budget_bytes=memory_budget_bytes,
+                    circular=self.circular,
+                    multi_cycle_mode=self.multi_cycle_mode,
                     retro_backfill_enabled=self.retro_backfill_enabled,
                     retro_backfill_alpha=self.retro_backfill_alpha,
                     retro_backfill_training_only=self.retro_backfill_training_only,
@@ -493,6 +549,8 @@ class GLMWayfinderAttention(nn.Module):
                 "active_query_mode": bool(use_active_permute),
                 "active_dense_threshold": self.active_dense_threshold,
                 "active_dense_triggered": bool(force_dense_active),
+                "discovered_active_available": bool(discovered_active_available),
+                "discovered_permute_available": bool(discovered_permute_available),
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "mla_qk_dim": int(self.qk_dim),
                 "mla_value_dim": int(self.value_dim),

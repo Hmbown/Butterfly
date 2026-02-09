@@ -1,0 +1,184 @@
+{
+  "created_at": "2026-02-07T07:57:07.026571+00:00",
+  "command": "scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 8192 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --full-swap",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "tokenizer_name": "<cache>/hub/models--mlx-community--Qwen3-1.7B-4bit/snapshots/3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+  "model_config": {
+    "model_type": "qwen3",
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "hidden_size": 2048,
+    "max_position_embeddings": 40960,
+    "rope_scaling": null
+  },
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 8,
+    "query_chunk_size": 256,
+    "permute_log_chunks": true,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false
+  },
+  "results": [
+    {
+      "seq_len": 2048,
+      "batch": 1,
+      "level_a_real_qkv": {
+        "sanity_mae": 1.1449580192565918,
+        "baseline_attention": {
+          "tokens_per_sec": 291274.59088373644,
+          "latency_ms": 7.0311659997059905,
+          "peak_memory_bytes": 61604392
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 169868.06029004088,
+          "latency_ms": 12.056416000177705,
+          "peak_memory_bytes": 135744604,
+          "graph_build_ms_first": 760.2893750001676,
+          "graph_build_ms_cached": 0.011667000129818916,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "baseline": {
+          "tokens_per_sec": 93036.46161536609,
+          "latency_ms": 22.012875000200438,
+          "peak_memory_bytes": 232923704
+        },
+        "wayfinder": {
+          "tokens_per_sec": 75069.30164848467,
+          "latency_ms": 27.281457999833947,
+          "peak_memory_bytes": 220340784,
+          "cache_persistent_bytes": 32374784,
+          "edge_utilization_proxy": {
+            "cycle": 0.0,
+            "window": 0.0,
+            "landmark": 0.0,
+            "rewire": 0.0
+          },
+          "graph_metrics": {}
+        }
+      },
+      "level_b_full_swap_smoke": {
+        "replaced_layers": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27
+        ],
+        "tokens_per_sec": 1126.2603094839228,
+        "peak_memory_bytes": 1153782000,
+        "seq_len": 256
+      }
+    },
+    {
+      "seq_len": 8192,
+      "batch": 1,
+      "level_a_real_qkv": {
+        "sanity_mae": 1.225624442100525,
+        "baseline_attention": {
+          "tokens_per_sec": 175777.17565198784,
+          "latency_ms": 46.604457999819715,
+          "peak_memory_bytes": 1221741800
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 174856.6994718258,
+          "latency_ms": 46.849791999648005,
+          "peak_memory_bytes": 1570821644,
+          "graph_build_ms_first": 4602.249040999915,
+          "graph_build_ms_cached": 0.009667000267654657,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "baseline": {
+          "tokens_per_sec": 76730.55309476744,
+          "latency_ms": 106.76320799984751,
+          "peak_memory_bytes": 1863994608
+        },
+        "wayfinder": {
+          "tokens_per_sec": 76826.91991233268,
+          "latency_ms": 106.62929100044494,
+          "peak_memory_bytes": 1897549040,
+          "cache_persistent_bytes": 255328256,
+          "edge_utilization_proxy": {
+            "cycle": 0.0,
+            "window": 0.0,
+            "landmark": 0.0,
+            "rewire": 0.0
+          },
+          "graph_metrics": {}
+        }
+      },
+      "level_b_full_swap_smoke": {
+        "replaced_layers": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27
+        ],
+        "tokens_per_sec": 1912.5535826033176,
+        "peak_memory_bytes": 1586319616,
+        "seq_len": 256
+      }
+    }
+  ]
+}

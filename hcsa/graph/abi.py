@@ -91,9 +91,11 @@ def build_graph_abi_from_adjacency(
     rewire_adj: Mapping[int, Sequence[int]] | None = None,
     max_degree: int | None = None,
     cycle_perm: Sequence[int] | None = None,
+    all_cycle_perms: Sequence[Sequence[int]] | None = None,
     strategy: str | None = None,
     head_idx: int | None = None,
     num_cycles: int | None = None,
+    track_multiplicity: bool = False,
 ) -> WayfinderGraphABI:
     if T <= 0:
         raise ValueError("T must be positive")
@@ -106,15 +108,19 @@ def build_graph_abi_from_adjacency(
 
     rows: list[list[int]] = []
     edge_rows: list[list[int]] = []
+    mult_rows: list[list[int]] = [] if track_multiplicity else []
     max_row = 0
 
     for i in range(T):
         edge_map: dict[int, EdgeType] = {}
         neigh_order: list[int] = []
+        mult_count: dict[int, int] = {} if track_multiplicity else {}
 
         for j in cycle_adj[i]:
             if 0 <= int(j) < T:
                 _update_edge_type(edge_map, neigh_order, int(j), EdgeType.CYCLE)
+                if track_multiplicity:
+                    mult_count[int(j)] = mult_count.get(int(j), 0) + 1
 
         if window > 0:
             for j in range(max(0, i - window), i):
@@ -141,6 +147,11 @@ def build_graph_abi_from_adjacency(
 
         rows.append(row)
         edge_rows.append(et_row)
+        if track_multiplicity:
+            m_row = [mult_count.get(j, 1) for j in row]
+            if max_degree is not None:
+                m_row = m_row[:max_degree]
+            mult_rows.append(m_row)
         max_row = max(max_row, len(row))
 
     D = max_row if max_degree is None else min(max_row, max_degree)
@@ -149,6 +160,7 @@ def build_graph_abi_from_adjacency(
 
     neigh_idx = np.full((T, D), -1, dtype=np.int32)
     edge_type = np.full((T, D), int(EdgeType.PAD), dtype=np.uint8)
+    multiplicity = np.zeros((T, D), dtype=np.int32) if track_multiplicity else None
 
     for i, (row, et_row) in enumerate(zip(rows, edge_rows)):
         take = min(D, len(row))
@@ -156,6 +168,10 @@ def build_graph_abi_from_adjacency(
             continue
         neigh_idx[i, :take] = np.asarray(row[:take], dtype=np.int32)
         edge_type[i, :take] = np.asarray(et_row[:take], dtype=np.uint8)
+        if track_multiplicity:
+            multiplicity[i, :take] = np.asarray(  # type: ignore[index]
+                mult_rows[i][:take], dtype=np.int32,
+            )
 
     deg = (neigh_idx >= 0).sum(axis=-1)
     meta: Dict[str, Any] = {
@@ -173,6 +189,13 @@ def build_graph_abi_from_adjacency(
     }
     if cycle_perm is not None:
         meta["cycle_perm"] = [int(x) for x in cycle_perm]
+    if all_cycle_perms is not None:
+        meta["all_cycle_perms"] = [
+            [int(x) for x in perm]
+            for perm in all_cycle_perms
+        ]
+    if track_multiplicity and multiplicity is not None:
+        meta["multiplicity"] = multiplicity
 
     return WayfinderGraphABI(neigh_idx=neigh_idx, edge_type=edge_type, meta=meta)
 
@@ -194,6 +217,7 @@ def stack_head_abis(head_abis: Sequence[WayfinderGraphABI]) -> WayfinderGraphABI
 
     per_head_meta: list[Dict[str, Any]] = []
     cycle_perms: list[list[int] | None] = []
+    all_cycle_perms: list[list[list[int]] | None] = []
 
     for h, abi in enumerate(head_abis):
         ni, et = _coerce_np(abi.neigh_idx, abi.edge_type)
@@ -203,7 +227,21 @@ def stack_head_abis(head_abis: Sequence[WayfinderGraphABI]) -> WayfinderGraphABI
         neigh[h, :, :d_h] = ni
         etype[h, :, :d_h] = et
         per_head_meta.append(dict(abi.meta))
-        cycle_perms.append(abi.meta.get("cycle_perm"))
+        all_h = abi.meta.get("all_cycle_perms")
+        if isinstance(all_h, list) and all_h:
+            norm_all_h = [
+                [int(x) for x in perm]
+                for perm in all_h
+            ]
+            all_cycle_perms.append(norm_all_h)
+            cycle_perms.append(norm_all_h[0])
+        else:
+            cperm = abi.meta.get("cycle_perm")
+            if isinstance(cperm, list):
+                cycle_perms.append([int(x) for x in cperm])
+            else:
+                cycle_perms.append(None)
+            all_cycle_perms.append(None)
 
     meta: Dict[str, Any] = {
         "n_heads": H,
@@ -211,6 +249,7 @@ def stack_head_abis(head_abis: Sequence[WayfinderGraphABI]) -> WayfinderGraphABI
         "max_degree": D,
         "heads": per_head_meta,
         "cycle_perms": cycle_perms,
+        "all_cycle_perms": all_cycle_perms,
     }
     return WayfinderGraphABI(neigh_idx=neigh, edge_type=etype, meta=meta)
 

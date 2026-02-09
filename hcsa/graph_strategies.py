@@ -9,15 +9,18 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Protocol, runtime_checkable
 
+import numpy as np
 import torch
 
 from .cycles import (
     OnlineInsertionState,
     cycle_prev_next_from_perm,
+    edge_disjoint_random_cycles,
     greedy_cycle,
     online_insertion_cycle,
     online_insertion_step,
     random_cycle,
+    regular_partition_cycle,
 )
 from hcsa.graph.abi import WayfinderGraphABI, build_graph_abi_from_adjacency
 
@@ -100,16 +103,28 @@ def _adj_from_perms(perms: List[torch.Tensor], T: int) -> List[List[int]]:
 class RandomCycleStrategy:
     """One or more random Hamiltonian cycles."""
 
-    def __init__(self, num_cycles: int = 1, seed: int = 0):
+    def __init__(self, num_cycles: int = 1, seed: int = 0, edge_disjoint: bool = True):
         self.num_cycles = num_cycles
+        self.edge_disjoint = bool(edge_disjoint)
         self._rng = torch.Generator(device="cpu")
         self._rng.manual_seed(seed)
 
     def _sample_perms(self, T: int, device: torch.device | None = None) -> List[torch.Tensor]:
-        perms = [
-            random_cycle(T, generator=self._rng, device=torch.device("cpu"))
-            for _ in range(self.num_cycles)
-        ]
+        if self.num_cycles > 1 and self.edge_disjoint:
+            perms_np = edge_disjoint_random_cycles(
+                T,
+                self.num_cycles,
+                generator=self._rng,
+            )
+            perms = [
+                torch.from_numpy(p.astype("int64", copy=False)).to(torch.long)
+                for p in perms_np
+            ]
+        else:
+            perms = [
+                random_cycle(T, generator=self._rng, device=torch.device("cpu"))
+                for _ in range(self.num_cycles)
+            ]
         if device is not None:
             perms = [p.to(device) for p in perms]
         return perms
@@ -136,6 +151,7 @@ class RandomCycleStrategy:
         perms = self._sample_perms(T, r.device if r is not None else None)
         adj = _adj_from_perms(perms, T)
         cycle_perm = perms[0].detach().cpu().tolist() if perms else None
+        all_cycle_perms = [p.detach().cpu().tolist() for p in perms] if perms else None
         return build_graph_abi_from_adjacency(
             T=T,
             cycle_adj=adj,
@@ -143,6 +159,7 @@ class RandomCycleStrategy:
             landmark_stride=landmark_stride,
             include_self=include_self,
             cycle_perm=cycle_perm,
+            all_cycle_perms=all_cycle_perms,
             strategy="random",
             head_idx=head_idx,
             num_cycles=self.num_cycles,
@@ -191,6 +208,7 @@ class GreedyCycleStrategy:
         perms = self._sample_perms(T, r, head_idx)
         adj = _adj_from_perms(perms, T)
         cycle_perm = perms[0].detach().cpu().tolist() if perms else None
+        all_cycle_perms = [p.detach().cpu().tolist() for p in perms] if perms else None
         return build_graph_abi_from_adjacency(
             T=T,
             cycle_adj=adj,
@@ -198,6 +216,7 @@ class GreedyCycleStrategy:
             landmark_stride=landmark_stride,
             include_self=include_self,
             cycle_perm=cycle_perm,
+            all_cycle_perms=all_cycle_perms,
             strategy="greedy",
             head_idx=head_idx,
             num_cycles=self.num_cycles,
@@ -262,6 +281,7 @@ class OnlineInsertionStrategy:
             if self._state is not None
             else None
         )
+        all_cycle_perms = [cycle_perm] if cycle_perm is not None else None
         return build_graph_abi_from_adjacency(
             T=T,
             cycle_adj=adj,
@@ -269,6 +289,7 @@ class OnlineInsertionStrategy:
             landmark_stride=landmark_stride,
             include_self=include_self,
             cycle_perm=cycle_perm,
+            all_cycle_perms=all_cycle_perms,
             strategy="online_insertion",
             head_idx=head_idx,
             num_cycles=1,
@@ -283,6 +304,71 @@ class OnlineInsertionStrategy:
         return online_insertion_step(state, r)
 
 
+class RegularPartitionStrategy:
+    """Cluster-balanced Hamiltonian cycle strategy."""
+
+    def __init__(self, num_clusters: int = 8, num_cycles: int = 1, seed: int = 0):
+        self.num_clusters = int(max(1, num_clusters))
+        self.num_cycles = int(max(1, num_cycles))
+        self._rng = np.random.default_rng(int(seed))
+
+    def _sample_perms(self, T: int, device: torch.device | None = None) -> List[torch.Tensor]:
+        perms = [
+            torch.from_numpy(
+                regular_partition_cycle(
+                    T,
+                    num_clusters=self.num_clusters,
+                    generator=self._rng,
+                ).astype("int64", copy=False)
+            ).to(torch.long)
+            for _ in range(self.num_cycles)
+        ]
+        if device is not None:
+            perms = [p.to(device) for p in perms]
+        return perms
+
+    def build_adjacency(
+        self,
+        T: int,
+        r: Optional[torch.Tensor] = None,
+        head_idx: int = 0,
+    ) -> List[List[int]]:
+        del r, head_idx
+        perms = self._sample_perms(T)
+        return _adj_from_perms(perms, T)
+
+    def build(
+        self,
+        T: int,
+        r: Optional[torch.Tensor] = None,
+        head_idx: int = 0,
+        *,
+        window: int = 0,
+        landmark_stride: int | None = None,
+        include_self: bool = True,
+    ) -> WayfinderGraphABI:
+        del r
+        perms = self._sample_perms(T)
+        adj = _adj_from_perms(perms, T)
+        cycle_perm = perms[0].detach().cpu().tolist() if perms else None
+        all_cycle_perms = [p.detach().cpu().tolist() for p in perms] if perms else None
+        return build_graph_abi_from_adjacency(
+            T=T,
+            cycle_adj=adj,
+            window=window,
+            landmark_stride=landmark_stride,
+            include_self=include_self,
+            cycle_perm=cycle_perm,
+            all_cycle_perms=all_cycle_perms,
+            strategy="regular_partition",
+            head_idx=head_idx,
+            num_cycles=self.num_cycles,
+        )
+
+    def update_incremental(self, state: Any, r: torch.Tensor, new_node: int) -> Any:
+        raise NotImplementedError("RegularPartitionStrategy does not support incremental updates.")
+
+
 # ---------------------------------------------------------------------------
 # Factory / registry
 # ---------------------------------------------------------------------------
@@ -291,6 +377,7 @@ STRATEGY_REGISTRY: Dict[str, type] = {
     "random": RandomCycleStrategy,
     "greedy": GreedyCycleStrategy,
     "online_insertion": OnlineInsertionStrategy,
+    "regular_partition": RegularPartitionStrategy,
 }
 
 

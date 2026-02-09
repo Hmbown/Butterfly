@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import time
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
@@ -13,6 +14,7 @@ import mlx.nn as nn
 from mlx_lm.models.base import scaled_dot_product_attention
 
 from hcsa.graph.abi import WayfinderGraphABI, graph_metrics, validate_graph_abi
+from hcsa.graph.analysis import expansion_proxy, spectral_gap
 from hcsa.mlx.attention import (
     AttentionProfile,
     sparse_gather_attention,
@@ -36,10 +38,12 @@ _QWEN_GRAPH_CACHE_BY_KEY: Dict[tuple, "_QwenGraphCache"] = {}
 @dataclass
 class QwenWayfinderConfig:
     path: Literal["sparse", "permute"] = "permute"
-    strategy: Literal["random", "greedy", "online_insertion"] = "random"
+    strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
-    num_cycles: int = 1
+    num_cycles: int | str = 1
+    edge_disjoint: bool = True
+    regular_num_clusters: int = 8
     seed: int = 0
     edge_bias: bool = True
     window_drop: float = 0.0
@@ -54,6 +58,10 @@ class QwenWayfinderConfig:
     retro_backfill_alpha: float = 0.0
     retro_backfill_training_only: bool = True
     retro_backfill_causal_only: bool = True
+    circular: bool = False
+    multi_cycle_mode: str = "average"
+    verify_spectral_gap: bool = False
+    spectral_gap_threshold: float = 4.0
 
 
 @dataclass(frozen=True)
@@ -65,8 +73,8 @@ class _QwenGraphCache:
     perm_mx: List[mx.array]
     inv_perm: List[mx.array]
     # Stacked tensors for vectorized batched permute path
-    perm_mx_stacked: mx.array  # [H, T]
-    inv_perm_stacked: mx.array  # [H, T]
+    perm_mx_stacked: mx.array  # [H, T] or [H, d, T]
+    inv_perm_stacked: mx.array  # [H, T] or [H, d, T]
     cache_key: tuple
     source: str = "runtime"
     artifact_dir: str | None = None
@@ -137,10 +145,14 @@ class _QwenGraphRuntime:
         window: int,
         landmark_stride: Optional[int],
         strategy: str,
-        num_cycles: int,
+        num_cycles: int | str,
+        edge_disjoint: bool,
+        regular_num_clusters: int,
         seed: int,
         path: str,
         compiled_graph_dir: Optional[str],
+        verify_spectral_gap: bool = False,
+        spectral_gap_threshold: float = 4.0,
         store_numpy_abi: bool,
         store_graph_tensors: bool,
     ):
@@ -148,16 +160,23 @@ class _QwenGraphRuntime:
         self.window = int(window)
         self.landmark_stride = landmark_stride
         self.strategy = strategy
-        self.num_cycles = int(num_cycles)
+        self._num_cycles_raw = num_cycles
+        self.num_cycles = 1 if num_cycles == "auto" else int(num_cycles)
+        self.edge_disjoint = bool(edge_disjoint)
+        self.regular_num_clusters = int(max(1, regular_num_clusters))
         self.seed = int(seed)
         self.path = str(path)
         self.compiled_graph_dir = compiled_graph_dir
+        self.verify_spectral_gap = bool(verify_spectral_gap)
+        self.spectral_gap_threshold = float(max(0.0, spectral_gap_threshold))
         self.store_numpy_abi = bool(store_numpy_abi)
         self.store_graph_tensors = bool(store_graph_tensors)
         self.topology = Topology(
             n_heads=self.n_heads,
             strategy=self.strategy,
             num_cycles=self.num_cycles,
+            edge_disjoint=self.edge_disjoint,
+            regular_num_clusters=self.regular_num_clusters,
             seed=self.seed,
             window=self.window,
             landmark_stride=self.landmark_stride,
@@ -168,12 +187,35 @@ class _QwenGraphRuntime:
     def cache_mode(self) -> str:
         return self.topology.cache_mode
 
+    def _resolve_and_sync_num_cycles(self, T: int) -> None:
+        """Resolve 'auto' num_cycles at graph-construction time."""
+        if self._num_cycles_raw != "auto":
+            return
+        from hcsa.cycles import recommended_num_cycles
+
+        resolved = recommended_num_cycles(T)
+        if resolved != self.num_cycles:
+            self.num_cycles = resolved
+            self.topology = Topology(
+                n_heads=self.n_heads,
+                strategy=self.strategy,
+                num_cycles=resolved,
+                edge_disjoint=self.edge_disjoint,
+                regular_num_clusters=self.regular_num_clusters,
+                seed=self.seed,
+                window=self.window,
+                landmark_stride=self.landmark_stride,
+                enforce_hamiltonian=True,
+            )
+
     def cache_key(self, T: int) -> tuple:
         return (
             int(self.n_heads),
             int(T),
             self.strategy,
             self.num_cycles,
+            self.edge_disjoint,
+            self.regular_num_clusters,
             self.window,
             self.landmark_stride,
             self.seed,
@@ -182,12 +224,53 @@ class _QwenGraphRuntime:
         )
 
     def _build_graph_abi(self, T: int) -> Tuple[MLXGraphABI, WayfinderGraphABI]:
-        if self.strategy != "random":
+        self._resolve_and_sync_num_cycles(int(T))
+        if self.strategy not in {"random", "regular_partition"}:
             raise ValueError(
-                "Qwen full-swap currently supports strategy='random' only for deterministic "
-                "input-independent caching."
+                "Qwen full-swap currently supports input-independent strategies "
+                "('random' or 'regular_partition') for deterministic caching."
             )
         abi = self.topology.construct({"T": int(T), "include_self": True}).abi
+        if self.verify_spectral_gap:
+            perm = None
+            all_cycle_perms = abi.meta.get("all_cycle_perms")
+            if isinstance(all_cycle_perms, list) and all_cycle_perms:
+                first_head = all_cycle_perms[0]
+                if isinstance(first_head, list) and first_head:
+                    first_cycle = first_head[0]
+                    if first_cycle is not None:
+                        perm = first_cycle
+            cycle_perms = abi.meta.get("cycle_perms")
+            if perm is None and isinstance(cycle_perms, list) and cycle_perms:
+                if cycle_perms[0] is not None:
+                    perm = cycle_perms[0]
+
+            if perm is not None:
+                perm_np = np.asarray(perm, dtype=np.int64)
+                if int(T) <= 4096:
+                    gap_info = spectral_gap(
+                        perm_np,
+                        include_window=True,
+                        window=self.window,
+                        expander_threshold=self.spectral_gap_threshold,
+                    )
+                else:
+                    gap_info = expansion_proxy(
+                        perm_np,
+                        window=self.window,
+                        num_walks=512,
+                        walk_len=max(20, int(np.ceil(2.0 * np.log2(max(2, int(T)))))),
+                    )
+                    gap_info["expander_threshold"] = self.spectral_gap_threshold
+                    gap_info["is_good_expander"] = bool(gap_info.get("is_fast_mixer", False))
+                abi.meta["spectral_verification"] = gap_info
+                if not bool(gap_info.get("is_good_expander", False)):
+                    warnings.warn(
+                        "Cycle expansion check failed: "
+                        f"{gap_info}",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
         mlx_graph = to_mlx_graph_abi(abi, heads=self.n_heads, validate=False)
         return mlx_graph, abi
 
@@ -222,30 +305,61 @@ class _QwenGraphRuntime:
         inv_perm_list: List[mx.array] = []
 
         cycle_perms = mlx_graph.meta.get("cycle_perms", [])
+        all_cycle_perms = mlx_graph.meta.get("all_cycle_perms", [])
+        per_head_perms: list[list[mx.array]] = []
+        per_head_invs: list[list[mx.array]] = []
+        max_d = 1
 
         for h in range(self.n_heads):
-            perm = None
+            perms_h: list[mx.array] = []
+            invs_h: list[mx.array] = []
+
+            perms_src = None
             if (
+                isinstance(all_cycle_perms, list)
+                and h < len(all_cycle_perms)
+                and isinstance(all_cycle_perms[h], list)
+                and len(all_cycle_perms[h]) > 0
+            ):
+                perms_src = all_cycle_perms[h]
+            elif (
                 isinstance(cycle_perms, list)
                 and h < len(cycle_perms)
                 and cycle_perms[h] is not None
             ):
-                perm = cycle_perms[h]
+                perms_src = [cycle_perms[h]]
 
-            if perm is None:
+            if perms_src is None:
                 p_mx = mx.arange(T, dtype=mx.int32)
-                ip = p_mx
+                perms_h.append(p_mx)
+                invs_h.append(p_mx)
             else:
-                perm_arr = np.asarray(perm, dtype=np.int32)
-                p_mx = mx.array(perm_arr, dtype=mx.int32)
-                ip = mx.argsort(p_mx)
+                for perm in perms_src:
+                    perm_arr = np.asarray(perm, dtype=np.int32)
+                    p_mx = mx.array(perm_arr, dtype=mx.int32)
+                    perms_h.append(p_mx)
+                    invs_h.append(mx.argsort(p_mx))
 
-            perm_mx_list.append(p_mx)
-            inv_perm_list.append(ip)
+            max_d = max(max_d, len(perms_h))
+            per_head_perms.append(perms_h)
+            per_head_invs.append(invs_h)
+            perm_mx_list.append(perms_h[0])
+            inv_perm_list.append(invs_h[0])
 
-        # Stack per-head lists into [H, ...] tensors for vectorized path
-        perm_stacked = mx.stack(perm_mx_list, axis=0)  # [H, T]
-        inv_stacked = mx.stack(inv_perm_list, axis=0)  # [H, T]
+        if max_d == 1:
+            perm_stacked = mx.stack([p[0] for p in per_head_perms], axis=0)  # [H, T]
+            inv_stacked = mx.stack([p[0] for p in per_head_invs], axis=0)  # [H, T]
+        else:
+            perm_heads: list[mx.array] = []
+            inv_heads: list[mx.array] = []
+            for perms_h, invs_h in zip(per_head_perms, per_head_invs):
+                while len(perms_h) < max_d:
+                    perms_h.append(perms_h[0])
+                    invs_h.append(invs_h[0])
+                perm_heads.append(mx.stack(perms_h, axis=0))
+                inv_heads.append(mx.stack(invs_h, axis=0))
+            perm_stacked = mx.stack(perm_heads, axis=0)  # [H, d, T]
+            inv_stacked = mx.stack(inv_heads, axis=0)  # [H, d, T]
 
         persistent_bytes = _mx_nbytes(cache_graph.neigh_idx) + _mx_nbytes(cache_graph.edge_type)
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
@@ -296,6 +410,7 @@ class _QwenGraphRuntime:
             except json.JSONDecodeError:
                 meta = {}
         meta.setdefault("cycle_perms", [])
+        meta.setdefault("all_cycle_perms", [])
         meta.setdefault("max_degree", int(neigh_idx.shape[-1]))
         meta.setdefault("seq_len", int(T))
         meta.setdefault("n_heads", int(self.n_heads))
@@ -407,6 +522,8 @@ class QwenWayfinderAttention(nn.Module):
         self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
         self.retro_backfill_training_only = bool(cfg.retro_backfill_training_only)
         self.retro_backfill_causal_only = bool(cfg.retro_backfill_causal_only)
+        self.circular = bool(cfg.circular)
+        self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -415,9 +532,13 @@ class QwenWayfinderAttention(nn.Module):
             landmark_stride=cfg.landmark_stride,
             strategy=cfg.strategy,
             num_cycles=cfg.num_cycles,
+            edge_disjoint=cfg.edge_disjoint,
+            regular_num_clusters=cfg.regular_num_clusters,
             seed=cfg.seed,
             path=cfg.path,
             compiled_graph_dir=cfg.compiled_graph_dir,
+            verify_spectral_gap=cfg.verify_spectral_gap,
+            spectral_gap_threshold=cfg.spectral_gap_threshold,
             store_numpy_abi=bool(cfg.compute_graph_metrics),
             store_graph_tensors=bool(
                 cfg.path == "sparse"
@@ -745,6 +866,8 @@ class QwenWayfinderAttention(nn.Module):
                     training=is_training,
                     head_chunk_size=h_chunk_eff,
                     query_chunk_size=q_chunk_eff,
+                    circular=self.circular,
+                    multi_cycle_mode=self.multi_cycle_mode,
                     retro_backfill_enabled=self.retro_backfill_enabled,
                     retro_backfill_alpha=self.retro_backfill_alpha,
                     retro_backfill_training_only=self.retro_backfill_training_only,

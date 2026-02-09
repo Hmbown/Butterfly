@@ -1,0 +1,32 @@
+{
+  "config": {
+    "model_id": "Qwen/Qwen3-4B",
+    "seq_len": 256,
+    "batch": 1,
+    "window": 32,
+    "warmup": 1,
+    "iters": 2,
+    "dtype": "float32",
+    "device": "cpu",
+    "load_model": false,
+    "out": "benchmarks/cuda/qwen3_torch_microbench_smoke.json"
+  },
+  "qkv_meta": {
+    "source": "config_or_synthetic",
+    "model_id": "Qwen/Qwen3-4B",
+    "hidden_size": 2560,
+    "num_heads": 32,
+    "head_dim": 80
+  },
+  "dense": {
+    "tok_s": 357198.9186277963,
+    "latency_ms": 0.7166875000166328,
+    "peak_memory_bytes": 0
+  },
+  "wayfinder_permute": {
+    "tok_s": 8968.400454142344,
+    "latency_ms": 28.54466649978349,
+    "peak_memory_bytes": 0,
+    "window": 32
+  }
+}

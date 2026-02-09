@@ -66,3 +66,24 @@ Proposed signature:
 - Add MLX custom op wrapper under `hcsa/mlx/kernels/metal/__init__.py`
 - Swap `sparse_gather_attention()` compute core with custom op call behind `use_metal_kernel` flag.
 - Keep ABI unchanged so kernel drop-in is non-breaking.
+
+## Discovery Setup Workflow (No Inference)
+
+Use setup-only commands to scaffold K1-K5 discovery targets before any model runs:
+
+```bash
+python3 scripts/wayc.py discover-targets --targets all
+python3 scripts/wayc.py discover-setup \
+  --targets all \
+  --zmlx-root /path/to/ZMLX \
+  --sessions-root discover_sessions \
+  --kernel-out-root hcsa/mlx/kernels/metal \
+  --strict
+```
+
+This writes:
+- `discover_sessions/manifest.json`
+- `discover_sessions/*_session.stub.json`
+- `hcsa/mlx/kernels/metal/seeds/*.metal`
+
+No model loading, inference, or attention benchmarking is performed in this phase.

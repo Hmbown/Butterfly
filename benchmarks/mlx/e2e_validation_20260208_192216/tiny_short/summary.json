@@ -1,0 +1,46 @@
+{
+  "dense": {
+    "run": "dense",
+    "attn": "dense",
+    "steps": 300,
+    "final_train_loss": 1.3579055070877075,
+    "final_train_ppl": 3.888041292682508,
+    "avg_tokens_per_sec": 417161.20175102045,
+    "last_tokens_per_sec": 356773.66578268167,
+    "peak_memory_bytes": 95191432,
+    "final_val_loss": 4.007522135972977,
+    "final_val_ppl": 55.01039327260517
+  },
+  "wayfinder": {
+    "run": "wayfinder",
+    "attn": "wayfinder_permute",
+    "steps": 300,
+    "final_train_loss": 2.1032304763793945,
+    "final_train_ppl": 8.192593188485292,
+    "avg_tokens_per_sec": 303755.4092630867,
+    "last_tokens_per_sec": 316366.72634505533,
+    "peak_memory_bytes": 97337116,
+    "final_val_loss": 3.5408775806427,
+    "final_val_ppl": 34.49717996814688,
+    "cache_hit_rate": 0.9966666666666667,
+    "avg_graph_build_ms": 0.04526767984032631,
+    "cache_persistent_bytes": 402432,
+    "graph_metrics": {
+      "heads": 4,
+      "tokens": 128,
+      "max_degree": 38,
+      "degree_mean": 31.9140625,
+      "degree_min": 3,
+      "degree_max": 38,
+      "shortcut_rate": 0.984375,
+      "reachability_proxy": 127.99609375,
+      "edge_type_counts": {
+        "cycle": 1024,
+        "window": 14070,
+        "landmark": 1246,
+        "rewire": 0
+      }
+    }
+  },
+  "throughput_ratio_wayfinder_over_dense": 0.7281487539782783
+}

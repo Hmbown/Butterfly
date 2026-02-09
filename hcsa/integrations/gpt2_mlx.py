@@ -28,10 +28,12 @@ def _now_ms() -> float:
 @dataclass
 class GPT2WayfinderConfig:
     path: Literal["sparse", "permute"] = "permute"
-    strategy: Literal["random", "greedy", "online_insertion"] = "random"
+    strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
-    num_cycles: int = 1
+    num_cycles: int | str = 1
+    edge_disjoint: bool = True
+    regular_num_clusters: int = 8
     seed: int = 0
     edge_bias: bool = True
     window_drop: float = 0.0
@@ -47,6 +49,10 @@ class GPT2WayfinderConfig:
     retro_backfill_alpha: float = 0.0
     retro_backfill_training_only: bool = True
     retro_backfill_causal_only: bool = True
+    circular: bool = False
+    multi_cycle_mode: str = "average"
+    verify_spectral_gap: bool = False
+    spectral_gap_threshold: float = 4.0
 
 
 def extract_qkv_from_gpt2_attention(
@@ -103,6 +109,8 @@ class GPT2WayfinderAttention(nn.Module):
         self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
         self.retro_backfill_training_only = bool(cfg.retro_backfill_training_only)
         self.retro_backfill_causal_only = bool(cfg.retro_backfill_causal_only)
+        self.circular = bool(cfg.circular)
+        self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -111,9 +119,13 @@ class GPT2WayfinderAttention(nn.Module):
             landmark_stride=cfg.landmark_stride,
             strategy=cfg.strategy,
             num_cycles=cfg.num_cycles,
+            edge_disjoint=cfg.edge_disjoint,
+            regular_num_clusters=cfg.regular_num_clusters,
             seed=cfg.seed,
             path=cfg.path,
             compiled_graph_dir=cfg.compiled_graph_dir,
+            verify_spectral_gap=cfg.verify_spectral_gap,
+            spectral_gap_threshold=cfg.spectral_gap_threshold,
             store_numpy_abi=bool(cfg.compute_graph_metrics),
             store_graph_tensors=bool(
                 cfg.path == "sparse"
@@ -289,6 +301,8 @@ class GPT2WayfinderAttention(nn.Module):
                 query_chunk_size=q_chunk_eff,
                 prepermute_mode=self.permute_prepermute_mode,  # type: ignore[arg-type]
                 memory_budget_bytes=memory_budget_bytes,
+                circular=self.circular,
+                multi_cycle_mode=self.multi_cycle_mode,
                 retro_backfill_enabled=self.retro_backfill_enabled,
                 retro_backfill_alpha=self.retro_backfill_alpha,
                 retro_backfill_training_only=self.retro_backfill_training_only,

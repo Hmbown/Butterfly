@@ -1,0 +1,232 @@
+{
+  "created_at": "2026-02-07T16:38:29.867096+00:00",
+  "command": "scripts/bench_mlx_wayfinder_scale.py --seq-lens 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 6 --out-dir benchmarks/mlx/tiny_wayfinder/20260207_tiny_readme_repro_topology_rerun",
+  "config": {
+    "seq_lens": [
+      2048,
+      4096
+    ],
+    "batch": 2,
+    "heads": 4,
+    "embd": 128,
+    "window": 32,
+    "landmark_stride": 32,
+    "num_cycles": 1,
+    "strategy": "random",
+    "warmup": 2,
+    "iters": 6,
+    "graph_spec": null
+  },
+  "attention": [
+    {
+      "mode": "dense",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 467223.2244407489,
+      "tokens_per_sec_mean": 468417.47205826314,
+      "tokens_per_sec_std": 16309.813540687775,
+      "total_ms": 8.766687496972736,
+      "attention_ms": 8.766687496972736,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 0.0,
+      "graph_build_ms_cached": 0.0,
+      "cache_hit_rate": 0.0,
+      "peak_memory_bytes": 557203488,
+      "persistent_cache_bytes": 0,
+      "step_intermediate_bytes": 557203488,
+      "largest_intermediate_bytes_proxy": 134217728,
+      "memory_proxy": {
+        "scores_fp32": 134217728,
+        "weights_fp32": 134217728,
+        "largest": 134217728
+      }
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 353606.42293869774,
+      "tokens_per_sec_mean": 357042.25049448735,
+      "tokens_per_sec_std": 15716.999740484936,
+      "total_ms": 11.583499999687774,
+      "attention_ms": 0.12210400030016899,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 202.53054199367762,
+      "graph_build_ms_cached": 0.005083497613668442,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 483361092,
+      "persistent_cache_bytes": 11288576,
+      "step_intermediate_bytes": 472072516,
+      "largest_intermediate_bytes_proxy": 102760448,
+      "memory_proxy": {
+        "kv_gather": 102760448,
+        "scores_fp32": 6422528,
+        "weights_fp32": 6422528,
+        "largest": 102760448
+      }
+    },
+    {
+      "mode": "wayfinder_permute",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 2048,
+      "embd": 128,
+      "tokens_per_sec": 503579.4901152464,
+      "tokens_per_sec_mean": 499141.60823418293,
+      "tokens_per_sec_std": 13815.37854382956,
+      "total_ms": 8.133770497806836,
+      "attention_ms": 0.15339649096131325,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 179.57629099488258,
+      "graph_build_ms_cached": 0.005374502390623093,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 359957092,
+      "persistent_cache_bytes": 11288576,
+      "step_intermediate_bytes": 348668516,
+      "largest_intermediate_bytes_proxy": 102760448,
+      "memory_proxy": {
+        "kv_gather": 102760448,
+        "scores_fp32": 6422528,
+        "weights_fp32": 6422528,
+        "largest": 102760448
+      }
+    },
+    {
+      "mode": "dense",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 235079.45977352717,
+      "tokens_per_sec_mean": 234656.15537001993,
+      "tokens_per_sec_std": 2798.0444908923205,
+      "total_ms": 34.84779149948736,
+      "attention_ms": 34.84779149948736,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 0.0,
+      "graph_build_ms_cached": 0.0,
+      "cache_hit_rate": 0.0,
+      "peak_memory_bytes": 2237792300,
+      "persistent_cache_bytes": 0,
+      "step_intermediate_bytes": 2237792300,
+      "largest_intermediate_bytes_proxy": 536870912,
+      "memory_proxy": {
+        "scores_fp32": 536870912,
+        "weights_fp32": 536870912,
+        "largest": 536870912
+      }
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 223324.28005493034,
+      "tokens_per_sec_mean": 225537.34799048596,
+      "tokens_per_sec_std": 6742.105260212228,
+      "total_ms": 36.682083999039605,
+      "attention_ms": 0.12629149854183197,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 552.4131670072675,
+      "graph_build_ms_cached": 0.005687501281499863,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 1586528580,
+      "persistent_cache_bytes": 33062912,
+      "step_intermediate_bytes": 1553465668,
+      "largest_intermediate_bytes_proxy": 339738624,
+      "memory_proxy": {
+        "kv_gather": 339738624,
+        "scores_fp32": 21233664,
+        "weights_fp32": 21233664,
+        "largest": 339738624
+      }
+    },
+    {
+      "mode": "wayfinder_permute",
+      "batch": 2,
+      "heads": 4,
+      "seq_len": 4096,
+      "embd": 128,
+      "tokens_per_sec": 516239.4876909071,
+      "tokens_per_sec_mean": 524304.4452128047,
+      "tokens_per_sec_std": 15100.862111002658,
+      "total_ms": 15.868604001298081,
+      "attention_ms": 0.16929149627685547,
+      "permute_ms": 0.0,
+      "graph_build_ms_first": 516.1745000034571,
+      "graph_build_ms_cached": 0.009646005928516388,
+      "cache_hit_rate": 1.0,
+      "peak_memory_bytes": 751731300,
+      "persistent_cache_bytes": 33062912,
+      "step_intermediate_bytes": 718668388,
+      "largest_intermediate_bytes_proxy": 339738624,
+      "memory_proxy": {
+        "kv_gather": 339738624,
+        "scores_fp32": 21233664,
+        "weights_fp32": 21233664,
+        "largest": 339738624
+      }
+    }
+  ],
+  "block": [
+    {
+      "mode": "dense",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 440779.6505319902,
+      "block_latency_ms": 9.292624999943655,
+      "block_peak_memory_bytes": 577940524,
+      "block_persistent_cache_bytes": 0,
+      "block_step_intermediate_bytes": 577940524
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 336917.13572862017,
+      "block_latency_ms": 12.157292003394105,
+      "block_peak_memory_bytes": 515534148,
+      "block_persistent_cache_bytes": 11288576,
+      "block_step_intermediate_bytes": 504245572
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 2048,
+      "block_tokens_per_sec": 465628.6799821129,
+      "block_latency_ms": 8.796709000307601,
+      "block_peak_memory_bytes": 392130148,
+      "block_persistent_cache_bytes": 11288576,
+      "block_step_intermediate_bytes": 380841572
+    },
+    {
+      "mode": "dense",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 227926.1952153787,
+      "block_latency_ms": 35.941458998422604,
+      "block_peak_memory_bytes": 2276396076,
+      "block_persistent_cache_bytes": 0,
+      "block_step_intermediate_bytes": 2276396076
+    },
+    {
+      "mode": "wayfinder_sparse",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 206383.3472433822,
+      "block_latency_ms": 39.693124999757856,
+      "block_peak_memory_bytes": 1616481492,
+      "block_persistent_cache_bytes": 33062912,
+      "block_step_intermediate_bytes": 1583418580
+    },
+    {
+      "mode": "wayfinder_permute",
+      "seq_len": 4096,
+      "block_tokens_per_sec": 484311.03015555633,
+      "block_latency_ms": 16.914750005526002,
+      "block_peak_memory_bytes": 792415844,
+      "block_persistent_cache_bytes": 33062912,
+      "block_step_intermediate_bytes": 759352932
+    }
+  ]
+}
