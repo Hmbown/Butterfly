@@ -1,0 +1,340 @@
+{
+  "created_at": "2026-02-09T02:59:49.908618+00:00",
+  "command": "scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 32768 --chunk-sizes 4096 --decode-lens 0 --no-fused-dispatch --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_fused_baseline/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_fused_baseline_32k",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "baseline_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_fused_baseline/results.json",
+  "no_swap": false,
+  "kv_step": 0,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": null,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": false
+  },
+  "retro_backfill_enabled": false,
+  "swap": {
+    "replaced_layers": 47
+  },
+  "sweep": {
+    "seq_lens": [
+      32768
+    ],
+    "chunk_sizes": [
+      4096
+    ],
+    "decode_lens": [
+      0
+    ],
+    "cache_modes": [
+      "normal"
+    ],
+    "max_kv_size": 8192
+  },
+  "rows": [
+    {
+      "cache_mode": "normal",
+      "chunk_size": 4096,
+      "seq_len": 32768,
+      "max_kv_size": null,
+      "no_swap": false,
+      "kv_step": 0,
+      "retro_backfill_enabled": false,
+      "ok": true,
+      "baseline_seq_len_match": false,
+      "prefill_only": {
+        "sec": 275.0930892500037,
+        "tok_s": 119.11604209810065,
+        "peak_memory_bytes": 22314043388,
+        "chunk_reports": [
+          {
+            "chunk_index": 0,
+            "start": 0,
+            "end": 4096,
+            "tokens": 4096,
+            "k_len": 4096,
+            "sec": 25.589013917022385,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 4096,
+              "offset_max": 4096,
+              "size_min": 4096,
+              "size_max": 4096
+            },
+            "peak_memory_bytes_after_chunk": 18914162676,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 1576.9376669824123,
+              "attention_ms": 279.13945803046227,
+              "cache_hit": false,
+              "seq_len": 4096,
+              "q_len": 4096,
+              "graph_seq_len": 4096,
+              "active_query_mode": false,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 1,
+            "start": 4096,
+            "end": 8192,
+            "tokens": 4096,
+            "k_len": 8192,
+            "sec": 41.242133832973195,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 8192,
+              "offset_max": 8192,
+              "size_min": 8192,
+              "size_max": 8192
+            },
+            "peak_memory_bytes_after_chunk": 21443804968,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 12523.485124975443,
+              "attention_ms": 564.8361250162125,
+              "cache_hit": false,
+              "seq_len": 8192,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 2,
+            "start": 8192,
+            "end": 12288,
+            "tokens": 4096,
+            "k_len": 12288,
+            "sec": 30.258426499989582,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 12288,
+              "offset_max": 12288,
+              "size_min": 12288,
+              "size_max": 12288
+            },
+            "peak_memory_bytes_after_chunk": 21670019232,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.003500014543533325,
+              "attention_ms": 585.5079999864101,
+              "cache_hit": true,
+              "seq_len": 12288,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 3,
+            "start": 12288,
+            "end": 16384,
+            "tokens": 4096,
+            "k_len": 16384,
+            "sec": 30.58130020799581,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 16384,
+              "offset_max": 16384,
+              "size_min": 16384,
+              "size_max": 16384
+            },
+            "peak_memory_bytes_after_chunk": 21896512024,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.004167020320892334,
+              "attention_ms": 632.1865829825401,
+              "cache_hit": true,
+              "seq_len": 16384,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 4,
+            "start": 16384,
+            "end": 20480,
+            "tokens": 4096,
+            "k_len": 20480,
+            "sec": 30.902888957993127,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 20480,
+              "offset_max": 20480,
+              "size_min": 20480,
+              "size_max": 20480
+            },
+            "peak_memory_bytes_after_chunk": 21896512024,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.0033749938011169434,
+              "attention_ms": 614.1936250030994,
+              "cache_hit": true,
+              "seq_len": 20480,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 5,
+            "start": 20480,
+            "end": 24576,
+            "tokens": 4096,
+            "k_len": 24576,
+            "sec": 31.402272750012344,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 24576,
+              "offset_max": 24576,
+              "size_min": 24576,
+              "size_max": 24576
+            },
+            "peak_memory_bytes_after_chunk": 21896512024,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.0035839974880218506,
+              "attention_ms": 629.2716670036316,
+              "cache_hit": true,
+              "seq_len": 24576,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 6,
+            "start": 24576,
+            "end": 28672,
+            "tokens": 4096,
+            "k_len": 28672,
+            "sec": 34.951476458023535,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 28672,
+              "offset_max": 28672,
+              "size_min": 28672,
+              "size_max": 28672
+            },
+            "peak_memory_bytes_after_chunk": 22087550596,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.0037910044193267822,
+              "attention_ms": 651.7150420248508,
+              "cache_hit": true,
+              "seq_len": 28672,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          },
+          {
+            "chunk_index": 7,
+            "start": 28672,
+            "end": 32768,
+            "tokens": 4096,
+            "k_len": 32768,
+            "sec": 49.837816874991404,
+            "cache_state": {
+              "layers": 47,
+              "layer_type": "KVCache",
+              "offset_min": 32768,
+              "offset_max": 32768,
+              "size_min": 32768,
+              "size_max": 32768
+            },
+            "peak_memory_bytes_after_chunk": 22314043388,
+            "profile_sample": {
+              "path": "permute",
+              "graph_build_ms": 0.003666996955871582,
+              "attention_ms": 749.1636250019073,
+              "cache_hit": true,
+              "seq_len": 32768,
+              "q_len": 4096,
+              "graph_seq_len": 32768,
+              "active_query_mode": true,
+              "active_dense_threshold": null,
+              "active_dense_triggered": false
+            }
+          }
+        ],
+        "cache_state_end": {
+          "layers": 47,
+          "layer_type": "KVCache",
+          "offset_min": 32768,
+          "offset_max": 32768,
+          "size_min": 32768,
+          "size_max": 32768
+        },
+        "comparison_vs_baseline": {
+          "sec": {
+            "absolute": 275.0930892500037,
+            "baseline": null,
+            "delta_vs_baseline": null,
+            "delta_pct_vs_baseline": null
+          },
+          "tok_s": {
+            "absolute": 119.11604209810065,
+            "baseline": null,
+            "delta_vs_baseline": null,
+            "delta_pct_vs_baseline": null
+          },
+          "peak_memory_bytes": {
+            "absolute": 22314043388.0,
+            "baseline": null,
+            "delta_vs_baseline": null,
+            "delta_pct_vs_baseline": null
+          },
+          "memory_reduction_pct_vs_baseline": null
+        }
+      },
+      "case_elapsed_sec": 275.0959881670133
+    }
+  ]
+}

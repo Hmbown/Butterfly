@@ -15,6 +15,7 @@ import mlx.core as mx
 _KERNEL_DIR = Path(__file__).resolve().parent
 _ACTIVE_ROW_DISCOVERED = _KERNEL_DIR / "hcsa_active_row_fused_discovered.metal"
 _PERMUTE_WINDOW_DISCOVERED = _KERNEL_DIR / "hcsa_permute_window_fused_discovered.metal"
+_FUSED_ATTENTION_DISCOVERED = _KERNEL_DIR / "hcsa_fused_attention_discovered.metal"
 
 
 def has_discovered_active_row_kernel() -> bool:
@@ -25,6 +26,16 @@ def has_discovered_active_row_kernel() -> bool:
 def has_discovered_permute_window_kernel() -> bool:
     """True when a post-search K1 artifact has been exported."""
     return _PERMUTE_WINDOW_DISCOVERED.exists()
+
+
+def has_fused_dispatch() -> bool:
+    """True when the Python-level fused all-head dispatch is available.
+
+    Always returns True — the fused dispatch is implemented in pure Python/MLX
+    (no Metal kernel required). A future K6 Metal artifact would replace the
+    Python path but the eligibility gate is independent of the Metal file.
+    """
+    return True
 
 
 def sparse_row_attention_fused(

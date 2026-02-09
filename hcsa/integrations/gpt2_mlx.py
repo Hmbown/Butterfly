@@ -53,6 +53,7 @@ class GPT2WayfinderConfig:
     multi_cycle_mode: str = "average"
     verify_spectral_gap: bool = False
     spectral_gap_threshold: float = 4.0
+    use_fused_dispatch: bool = True
 
 
 def extract_qkv_from_gpt2_attention(
@@ -111,6 +112,7 @@ class GPT2WayfinderAttention(nn.Module):
         self.retro_backfill_causal_only = bool(cfg.retro_backfill_causal_only)
         self.circular = bool(cfg.circular)
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
+        self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -308,6 +310,7 @@ class GPT2WayfinderAttention(nn.Module):
                 retro_backfill_training_only=self.retro_backfill_training_only,
                 retro_backfill_causal_only=self.retro_backfill_causal_only,
                 log_progress=self.permute_log_chunks,
+                use_fused_dispatch=self.use_fused_dispatch,
             )
             if self.compute_edge_utilization_proxy:
                 keep_mask = causal_neighbor_mask(graph_cache.mlx_graph.neigh_idx, T)

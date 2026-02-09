@@ -3104,3 +3104,96 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
      passed `7/7`.
 - Decision: keep. K6 discovery scaffolding is integrated and validated.
 - Next action: run `discover-setup --targets k6` and launch ZMLX search for `hcsa_fused_attention`.
+
+### EXP-20260209-fused-allhead-dispatch (Hypothesis)
+- Question: Does eliminating per-head-chunk `mx.eval()` barriers via a fused all-head dispatch improve throughput on GLM-4.7 prefill?
+- Hypothesis: Processing all heads in a single lazy MLX compute graph per query chunk will reduce GPU sync overhead. Expected 1.3-2x speedup on prefill attention for T=8192-32768 compared to head_chunk_size=2 (20 eval barriers per layer x 47 layers = 940 barriers/forward).
+- Change set:
+  - `hcsa/mlx/fused_attention.py` (NEW): fused all-head dispatch + eligibility guard
+  - `hcsa/mlx/attention.py`: wire fused guard before head-chunk loop
+  - `hcsa/integrations/glm_mlx.py`: `use_fused_dispatch` config + wiring
+  - `hcsa/integrations/qwen_mlx.py`: `use_fused_dispatch` config + wiring
+  - `hcsa/compiler/passes/specialize_fused_kernels_pass.py` (NEW): compiler pass
+  - `hcsa/mlx/kernels/metal/__init__.py`: `has_fused_dispatch()` gate
+  - `tests/mlx/test_fused_attention.py` (NEW): correctness tests
+- Controls:
+  - Baseline: `use_fused_dispatch=False` (existing chunked path)
+  - Treatment: `use_fused_dispatch=True` (fused all-head dispatch)
+  - Fixed: model=GLM-4.7-Flash-4bit, path=permute, window=64, query_chunk_size=192
+  - Eligibility: 2D perms, no circular, no union, no edge bias, no retro, no window-drop
+- Command: `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 32768 --chunk-sizes 4096 --decode-lens 0`
+- Metrics to collect: tok/s, peak_memory_bytes, attention_ms, memory_reduction_pct
+- Memory sign convention: `reduction % = 100 * (1 - wayfinder/dense)`
+
+### EXP-20260209-fused-allhead-dispatch (Result)
+- Baseline path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_fused_baseline/results.json`
+- Treatment path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_fused_treatment/results.json`
+- **T=8192 (`chunk_size=4096`, `prefill_only`)**:
+  1. `sec`: absolute `66.09`, delta `-4.48`, delta% `-6.35%`
+  2. `tok_s`: absolute `123.95`, delta `+7.88`, delta% `+6.79%`
+  3. `peak_memory_bytes`: absolute `21,442,494,248`, delta `-1,212,416`, delta% `-0.006%`
+  4. chunk-0 `attention_ms`: fused `0.36` vs baseline `273.82` (fused path activates on full-prefill chunk)
+  5. chunk-1 `attention_ms`: fused `571.36` vs baseline `616.56` (active-row path, not fused-eligible)
+- **T=32768 (`chunk_size=4096`, `prefill_only`)**:
+  1. `sec`: absolute `257.84`, delta `-17.25`, delta% `-6.27%`
+  2. `tok_s`: absolute `127.09`, delta `+7.97`, delta% `+6.69%`
+  3. `peak_memory_bytes`: absolute `22,312,830,972`, delta `-1,212,416`, delta% `-0.005%`
+  4. chunk-0 `attention_ms`: fused `0.36` vs baseline `279.14` (775x on first chunk)
+  5. Subsequent chunks: comparable (active-row K4 path, not fused-eligible)
+- Analysis:
+  - The fused path eliminates eval barriers on the **first chunk only** (full-prefill, q_len==k_len).
+  - Subsequent chunks use active-row mode (q_len < k_len), which falls through to chunked path.
+  - The ~6.5% end-to-end speedup is real but below the 1.3-2x hypothesis because only chunk-0 benefits.
+  - The near-zero `attention_ms=0.36` on chunk-0 fused is because the entire graph stays lazy until final eval — the timer only captures the Python dispatch, not the GPU work (which is amortized into the chunk-level wall time).
+- Decision: **keep** — measurable 6-7% end-to-end improvement with zero memory cost. Default on.
+- Next action: Apply fused dispatch to **active-row path** (`wayfinder_permute_window_attention_active_batched`) to capture speedups on chunks 1..N. This is where the bulk of compute lives at longer sequences.
+
+### EXP-20260209: Fused Active-Row Dispatch (Chunks 1..N)
+
+**Status**: pre-run
+
+**Question**: Does extending fused all-head dispatch to the active-row path (`wayfinder_permute_window_attention_active_batched`) improve GLM chunked-prefill throughput at T=32768?
+
+**Hypothesis**: Processing all heads in a single lazy MLX graph per query chunk in the active-row path should improve end-to-end throughput by 15-30% on GLM chunked prefill at T=32768, since chunks 1-7 (87% of compute) currently have 20 eval barriers per layer per chunk.
+
+**Background**: The Step 1 fused dispatch (full-prefill, chunk 0) yielded ~6.5% improvement. The active-row path handles chunks 1..N and has the same per-head-chunk `mx.eval()` barrier pattern (line 1378). At T=32768 with chunk_size=4096, 7 of 8 chunks use active-row, so fusing these should capture the majority of the remaining eval-barrier overhead.
+
+**Method**: New `wayfinder_fused_permute_window_attention_active()` in `fused_attention.py` vectorizes rank lookup, index mapping, K/V gather, and matmul across all heads per query chunk. Same eligibility guard as Step 1. Wired into `attention.py` and `glm_mlx.py`.
+
+**Change set**:
+- `hcsa/mlx/fused_attention.py` — add `wayfinder_fused_permute_window_attention_active`
+- `hcsa/mlx/attention.py` — add `use_fused_dispatch` param + guard to active function
+- `hcsa/integrations/glm_mlx.py` — wire `use_fused_dispatch` to active-row call
+- `tests/mlx/test_fused_attention.py` — add `TestFusedActiveRow*` test classes
+
+**Controls**:
+- Baseline: `use_fused_dispatch=False` (chunked active-row path)
+- Treatment: `use_fused_dispatch=True` (fused active-row path, default)
+- Same model, window, chunk sizes as Step 1
+
+**Metrics to capture**: tok/s, peak memory, per-chunk attention_ms at T=8192, T=32768
+
+**Results**:
+
+First attempt used fully vectorized all-head gather (`mx.repeat` + `mx.take_along_axis` on `[B, Hq, Tk, dh]`). Result: 3x slower (197s vs 67s at T=8192) with 2x memory (42 GB vs 21 GB). The vectorized gather materialized enormous intermediate tensors.
+
+Second attempt used per-head loop without `mx.eval()` barriers (same structure as chunked path, just removing the eval calls). Result:
+
+- **T=8192** (1 active chunk):
+  - Baseline (chunked): 67.3s, 121.7 tok/s, 21.44 GB
+  - Fused: 67.6s, 121.2 tok/s, 20.14 GB
+  - Delta: -0.4% tok/s, **-1.3 GB memory**
+- **T=32768** (7 active chunks):
+  - Baseline (chunked): 248.0s, 132.1 tok/s, 22.31 GB
+  - Fused: 260.7s, 125.7 tok/s, 21.01 GB
+  - Delta: **-4.9% tok/s** (regression), **-1.3 GB memory**
+
+**Analysis**:
+- The fused path successfully eliminates eval barriers but the resulting larger lazy graph adds **graph compilation overhead** that exceeds the eval barrier savings.
+- At T=32768 the regression is worse because the graph is larger (7 active chunks * 40 heads * query_chunks of lazy operations before evaluation).
+- The 1.3 GB memory savings is consistent across both scales (likely from avoiding intermediate eval'd tensors).
+- The hypothesis that eval barriers are the throughput bottleneck for the active-row path was **falsified**. The barriers are cheap (~14ms each based on attention_ms) and actually help the graph compiler by keeping individual compilation units small.
+
+**Decision**: Keep implementation but **default off** (`use_fused_dispatch=False` in active-row function signature). The full-prefill fused path (chunk 0) remains on.
+
+**Next action**: The active-row path's performance is dominated by the per-query gather+matmul compute, not by dispatch overhead. Future optimization should target the Metal kernel level (K4/K6 fused kernels) rather than Python-level dispatch restructuring.

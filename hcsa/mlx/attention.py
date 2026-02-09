@@ -22,6 +22,10 @@ from hcsa.mlx.graph_abi import (
     safe_neighbor_idx,
     to_mlx_graph_abi,
 )
+from hcsa.mlx.fused_attention import (
+    _fused_dispatch_eligible,
+    wayfinder_fused_permute_window_attention,
+)
 from hcsa.topology import Topology, TopologyGraph
 
 
@@ -619,6 +623,7 @@ def wayfinder_permute_window_attention_batched(
     log_progress: bool = False,
     circular: bool = False,
     multi_cycle_mode: Literal["average", "union"] = "average",
+    use_fused_dispatch: bool = True,
 ) -> Tuple[mx.array, mx.array | None]:
     """Chunked permute-window attention across heads and query positions.
 
@@ -647,6 +652,7 @@ def wayfinder_permute_window_attention_batched(
         circular: use modular wrap-around instead of linear clamping for cycle boundaries
         multi_cycle_mode: "average" runs d independent passes and averages (default),
             "union" builds a single union multigraph with multiplicity bias
+        use_fused_dispatch: attempt all-head fused path when eligible (default True)
     Returns:
         y: [B, H, T, dh]
         weights: None (not supported in batched path)
@@ -735,6 +741,26 @@ def wayfinder_permute_window_attention_batched(
         if W_in > 0:
             window = (W_in - 1) // 2
     window = int(max(0, window))
+
+    # --- Fused all-head dispatch: single lazy graph, no per-head eval barriers ---
+    if _fused_dispatch_eligible(
+        all_perms=all_perms,
+        edge_type_bias_scalar=edge_type_bias_scalar,
+        window_drop_prob=window_drop_prob,
+        training=training,
+        retro_backfill_enabled=retro_backfill_enabled,
+        circular=circular,
+        multi_cycle_mode=multi_cycle_mode,
+        use_fused_dispatch=use_fused_dispatch,
+    ):
+        y = wayfinder_fused_permute_window_attention(
+            q, k, v,
+            all_perms=all_perms,
+            all_inv_perms=all_inv_perms,
+            window=window,
+            query_chunk_size=query_chunk_size,
+        )
+        return y, None
 
     h_chunk = Hq if head_chunk_size is None else int(max(1, head_chunk_size))
     h_chunk = min(h_chunk, Hq)
@@ -1087,6 +1113,7 @@ def wayfinder_permute_window_attention_active_batched(
     log_progress: bool = False,
     circular: bool = False,
     multi_cycle_mode: Literal["average", "union"] = "average",
+    use_fused_dispatch: bool = False,
 ) -> Tuple[mx.array, mx.array | None]:
     """Permute-window attention for active query rows (Q_len <= K_len).
 
@@ -1096,6 +1123,9 @@ def wayfinder_permute_window_attention_active_batched(
     query_positions: [Tq] original token positions for each query row in q
     circular: use modular wrap-around instead of linear clamping.
     multi_cycle_mode: "average" or "union" for multi-cycle handling.
+    use_fused_dispatch: attempt all-head fused path when eligible (default False;
+        the active-row fused path currently adds graph compilation overhead that
+        exceeds the eval barrier savings)
     """
     B, Hq, Tq, dh = q.shape
     Bk, Hkv, Tk, dhk = k.shape
@@ -1179,6 +1209,7 @@ def wayfinder_permute_window_attention_active_batched(
                 log_progress=log_progress,
                 circular=circular,
                 multi_cycle_mode=multi_cycle_mode,
+                use_fused_dispatch=use_fused_dispatch,
             )
             ys.append(y_c.astype(mx.float32))
         if len(ys) == 1:
@@ -1202,6 +1233,30 @@ def wayfinder_permute_window_attention_active_batched(
         raise ValueError(f"graph sequence length Tg={Tg} must be >= Tk={Tk}")
     if tuple(query_positions.shape) != (Tq,):
         raise ValueError(f"query_positions must be shape ({Tq},), got {query_positions.shape}")
+
+    # --- Fused all-head dispatch for active-row path ---
+    if _fused_dispatch_eligible(
+        all_perms=all_perms,
+        edge_type_bias_scalar=edge_type_bias_scalar,
+        window_drop_prob=window_drop_prob,
+        training=training,
+        retro_backfill_enabled=False,  # active path has no retro backfill
+        circular=circular,
+        multi_cycle_mode=multi_cycle_mode,
+        use_fused_dispatch=use_fused_dispatch,
+    ):
+        from hcsa.mlx.fused_attention import (
+            wayfinder_fused_permute_window_attention_active,
+        )
+        y = wayfinder_fused_permute_window_attention_active(
+            q, k, v,
+            all_perms=all_perms,
+            all_inv_perms=all_inv_perms,
+            query_positions=query_positions,
+            window=int(max(0, window)),
+            query_chunk_size=query_chunk_size,
+        )
+        return y, None
 
     q_pos_all = query_positions.astype(mx.int32)
     window = int(max(0, window))

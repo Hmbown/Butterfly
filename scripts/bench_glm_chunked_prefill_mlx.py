@@ -516,6 +516,8 @@ def main() -> None:
         default="auto",
         help="Wayfinder prepermute planner mode for permute/active paths.",
     )
+    parser.add_argument("--no-fused-dispatch", action="store_true", default=False,
+                        help="Disable fused all-head dispatch (use chunked path)")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--no-swap", action="store_true", default=False,
                         help="Run with stock GLM attention (no Wayfinder swap) for chunked baseline")
@@ -571,6 +573,7 @@ def main() -> None:
         active_dense_threshold=(
             None if int(args.active_dense_threshold) <= 0 else int(args.active_dense_threshold)
         ),
+        use_fused_dispatch=not args.no_fused_dispatch,
     )
 
     if args.no_swap:
