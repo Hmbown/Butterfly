@@ -116,24 +116,12 @@ def plot_cycle_graph(
         edges = [(u, v) for (u, v), t in edge_types.items() if t == etype]
         # Filter for causal edges (j <= i) if show_causal
         if show_causal:
-            causal_edges = [(u, v) for u, v in edges if v <= u]
-            acausal_edges = [(u, v) for u, v in edges if v > u]
-            nx.draw_networkx_edges(
-                G, pos, edgelist=causal_edges, ax=ax,
-                edge_color=color_map[etype], alpha=alpha_map[etype],
-                arrows=False, width=1.5 if etype == "cycle" else 0.8,
-            )
-            nx.draw_networkx_edges(
-                G, pos, edgelist=acausal_edges, ax=ax,
-                edge_color="gray", alpha=0.25,
-                arrows=False, width=0.5, style="dashed",
-            )
-        else:
-            nx.draw_networkx_edges(
-                G, pos, edgelist=edges, ax=ax,
-                edge_color=color_map[etype], alpha=alpha_map[etype],
-                arrows=False, width=1.5 if etype == "cycle" else 0.8,
-            )
+            edges = [(u, v) for u, v in edges if v <= u]
+        nx.draw_networkx_edges(
+            G, pos, edgelist=edges, ax=ax,
+            edge_color=color_map[etype], alpha=alpha_map[etype],
+            arrows=False, width=1.5 if etype == "cycle" else 0.8,
+        )
 
     # Draw nodes
     nx.draw_networkx_nodes(
@@ -154,10 +142,6 @@ def plot_cycle_graph(
         mpatches.Patch(color=color_map["window"], label=f"Window (w={window})"),
         mpatches.Patch(color=color_map["landmark"], label=f"Landmark (s={landmark_stride})"),
     ]
-    if show_causal:
-        legend_patches.append(
-            mpatches.Patch(color="gray", label="Acausal (masked)", alpha=0.3)
-        )
     ax.legend(handles=legend_patches, loc="upper right", fontsize=10)
 
     ax.set_title(

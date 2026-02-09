@@ -97,7 +97,7 @@ Dense attention (left) vs HCSA connectivity (right) at T=64, W=8, stride=16:
 
 ![Dense vs HCSA attention matrices](docs/assets/attention_comparison.png)
 
-HCSA graph on 32 tokens (circle layout — blue = cycle, green = window, red = landmark, faded = acausal/masked):
+HCSA graph on 32 tokens (circle layout — blue = cycle, green = window, red = landmark; only causal edges shown):
 
 ![HCSA graph circle layout](docs/assets/hcsa_graph_circle.png)
 
