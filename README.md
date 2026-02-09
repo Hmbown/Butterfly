@@ -28,11 +28,11 @@ flowchart TB
         s7((t7)):::q
         s7 --> s6((t6)):::w
         s7 --> s5((t5)):::w
-        s7 -.-> s2((t2)):::c
+        s7 -.-> s3((t3)):::c
+        s7 -.-> s1((t1)):::c
         s7 ==> s4((t4)):::l
         s7 ==> s0((t0)):::l
-        s7 ~~~ s1((t1)):::skip
-        s7 ~~~ s3((t3)):::skip
+        s7 ~~~ s2((t2)):::skip
     end
 
     classDef q fill:#e63946,stroke:#fff,color:#fff,stroke-width:3px
