@@ -6,39 +6,60 @@
 - `neigh_idx`: padded `int32` neighbor indices (`-1` = PAD), shape `[T,D]` or `[H,T,D]`
 - `edge_type`: `uint8` edge labels (`PAD/CYCLE/WINDOW/LANDMARK/REWIRE`)
 
-## Token interactions (dense vs HCSA)
+## Token interactions: dense vs sparse
 
 ```mermaid
 flowchart LR
-  subgraph D["Dense causal attention (O(T²))"]
+  subgraph D["Dense causal (example query t7)"]
+    direction LR
     d0((t0))
-    d1((t1)) --> d0
-    d2((t2)) --> d1
-    d2 --> d0
-    d3((t3)) --> d2
-    d3 --> d1
-    d3 --> d0
-    d4((t4)) --> d3
-    d4 --> d2
-    d4 --> d1
-    d4 --> d0
+    d1((t1))
+    d2((t2))
+    d3((t3))
+    d4((t4))
+    d5((t5))
+    d6((t6))
+    d7((t7))
+
+    d7 --> d6
+    d7 --> d5
+    d7 --> d4
+    d7 --> d3
+    d7 --> d2
+    d7 --> d1
+    d7 --> d0
+    nD["…and every token i connects to all j<i"]
+    d7 --- nD
   end
 
-  subgraph S["HCSA neighborhood (O(T·W))"]
+  subgraph S["HCSA neighborhood (window W=2 + a few long edges)"]
+    direction LR
     s0((t0))
-    s1((t1)) --> s0
-    s2((t2)) --> s1
-    s2 --> s0
-    s3((t3)) --> s2
-    s3 --> s1
-    s4((t4)) --> s3
-    s4 --> s2
-    s4 -. cycle .-> s1
+    s1((t1))
+    s2((t2))
+    s3((t3))
+    s4((t4))
+    s5((t5))
+    s6((t6))
+    s7((t7))
+
+    %% local window
+    s7 --> s6
+    s7 --> s5
+    s6 --> s5
+    s6 --> s4
+
+    %% sparse long edges (cycle + landmarks are examples)
+    s7 -. cycle .-> s2
+    s7 -. landmark .-> s4
+    s6 -. cycle .-> s1
     s4 -. landmark .-> s0
   end
 ```
 
-Dense uses **all** past-token edges; HCSA uses a **bounded neighborhood** (window + a few structured long edges) so compute scales ~linearly in sequence length. Research question: how these low-degree token graphs affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`).
+Dense edges/query ≈ **i** (avg ≈ T/2) ⇒ **O(T²)** total edges.
+HCSA edges/query ≈ **W + O(1)** (plus optional landmarks) ⇒ **O(T·W)** total edges.
+Research question: how these low-degree token graphs affect reachability/mixing *in practice* (see `hcsa/graph/analysis.py`).
 
 ## Install
 
