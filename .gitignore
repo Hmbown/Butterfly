@@ -39,7 +39,6 @@ graphs/
 firebase*.log
 
 # Internal agent/handoff prompts (not for public consumption)
-AGENTS.md
 glm/
 docs/HANDOFF_PROMPT.md
 
@@ -50,6 +49,8 @@ runs/mlx/qwen_env_check_full.json
 # Markdown (only root README.md is tracked)
 *.md
 !/README.md
+!AGENTS.md
+!NO_INFERENCE_PLANNING_PROMPT.md
 
 # IDE / editor
 .idea/

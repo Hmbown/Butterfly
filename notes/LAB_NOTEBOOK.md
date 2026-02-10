@@ -3150,7 +3150,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 
 ### EXP-20260209: Fused Active-Row Dispatch (Chunks 1..N)
 
-**Status**: pre-run
+**Status**: interrupted
 
 **Question**: Does extending fused all-head dispatch to the active-row path (`wayfinder_permute_window_attention_active_batched`) improve GLM chunked-prefill throughput at T=32768?
 
@@ -3197,3 +3197,1060 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Decision**: Keep implementation but **default off** (`use_fused_dispatch=False` in active-row function signature). The full-prefill fused path (chunk 0) remains on.
 
 **Next action**: The active-row path's performance is dominated by the per-query gather+matmul compute, not by dispatch overhead. Future optimization should target the Metal kernel level (K4/K6 fused kernels) rather than Python-level dispatch restructuring.
+
+### EXP-20260209-GPT2-SPARSE-FINETUNE-SMOKE
+
+**Status**: complete
+
+**Question**: Does the GPT-2 sparse finetune harness run end-to-end and emit metrics for all four configs?
+
+**Hypothesis**: The script completes without errors and produces `summary.json`/`metrics.jsonl`; sparse configs may be noisier at 5 steps but should train.
+
+**Method**: `python3 scripts/finetune_sparse_gpt2_mlx.py --seq-len 128 --steps 5 --eval-every 5 --eval-batches 1 --batch-size 1 --out-dir results/finetune_sparse_comparison/smoke_20260209`
+
+**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/gpt2_mlx.py`
+
+**Controls**: model `openai-community/gpt2`, data `data/tinyshakespeare.txt`, window=64, max_degree=130, seed=42, same steps/seq_len for all configs.
+
+**Metrics to capture**: completion status; `summary.json` final val_ppl per config.
+
+**Results**:
+- data repeats: raw_tokens=603, repeats=3, total_tokens=1809 (train=1629, val=180).
+- val_ppl: dense 56.555, landmarks 55.746, cycle 59.169, multicycle 130.269.
+- cycle vs landmarks delta: +3.423 ppl (worse); multicycle is much worse at 5 steps.
+
+**Decision**: proceed to full run; smoke harness works but the 5-step run is too noisy to judge.
+
+**Next action**: run full sweep and record comparison deltas.
+
+### EXP-20260209-GPT2-SPARSE-FINETUNE-FULL
+
+**Status**: complete
+
+**Question**: After finetuning GPT-2 with sparse attention, does window+cycle beat window+landmarks at the same edge budget?
+
+**Hypothesis**: window+cycle yields lower validation perplexity than window+landmarks; multicycle matches or improves further.
+
+**Method**: `python3 scripts/finetune_sparse_gpt2_mlx.py`
+
+**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/gpt2_mlx.py`
+
+**Controls**: model `openai-community/gpt2`, data `data/tinyshakespeare.txt`, seq_len=512, window=64, max_degree=130, seed=42, identical steps and batch size across configs.
+
+**Metrics to capture**: `summary.json` final val_ppl per config; delta (cycle vs landmarks), delta (multicycle vs landmarks).
+
+**Results**:
+- data repeats: raw_tokens=603, repeats=9, total_tokens=5427 (train=4885, val=542).
+- val_ppl: dense 1.008026, landmarks 1.007951, cycle 1.007747, multicycle 1.007546.
+- cycle vs landmarks delta: -0.000203 ppl (-0.020%).
+- multicycle vs landmarks delta: -0.000404 ppl (-0.040%).
+
+**Decision**: multicycle marginally beats landmarks, but effect is tiny at this scale; repeat on larger dataset to be confident.
+
+**Next action**: confirm with a larger corpus (WikiText-2) or longer steps if you want a decisive signal.
+
+### EXP-20260209-GPT2-TOKEN-MEM-BENCH
+
+**Status**: complete
+
+**Question**: At seq_len=512, how do tokens/sec and peak memory compare for sparse configs (landmarks, cycle, multicycle) vs dense baseline?
+
+**Hypothesis**: Sparse gather will reduce tok/s vs dense; cycle and multicycle should be within ~10% of landmarks, with multicycle slightly higher memory due to more cycle edges.
+
+**Method**:
+- landmarks: `python3 scripts/bench_gpt2_wayfinder_mlx.py --seq-lens 512 --batch 1 --warmup 1 --iters 2 --path sparse --window 64 --landmark-stride 8 --num-cycles 0 --allow-non-hamiltonian --full-swap --out-dir benchmarks/mlx/gpt2_wayfinder/20260209_sparse_landmarks_512`
+- cycle: `python3 scripts/bench_gpt2_wayfinder_mlx.py --seq-lens 512 --batch 1 --warmup 1 --iters 2 --path sparse --window 64 --landmark-stride 9 --num-cycles 1 --full-swap --out-dir benchmarks/mlx/gpt2_wayfinder/20260209_sparse_cycle_512`
+- multicycle: `python3 scripts/bench_gpt2_wayfinder_mlx.py --seq-lens 512 --batch 1 --warmup 1 --iters 2 --path sparse --window 64 --landmark-stride 0 --num-cycles 18 --no-edge-disjoint --full-swap --out-dir benchmarks/mlx/gpt2_wayfinder/20260209_sparse_multicycle_512`
+
+**Change set**: `scripts/bench_gpt2_wayfinder_mlx.py`
+
+**Controls**: model `openai-community/gpt2`, dtype=float16, seq_len=512, batch=1, window=64. Baseline = `level_a_real_qkv.baseline_attention` in each results.json.
+
+**Metrics to capture**: tok/s + peak_memory_bytes for baseline vs wayfinder attention; full-swap tok/s + peak memory for context.
+
+**Results** (baseline = level_a baseline attention @ T=512):
+- landmarks: tok/s 66,459 vs 514,035 (Δ -87.07%); peak mem 442,913,276 vs 22,818,844 (Δ +1840.998%, reduction -1840.998%). full-swap: 394 tok/s, 818,376,276 bytes.
+- cycle: tok/s 69,119 vs 523,395 (Δ -86.79%); peak mem 428,716,540 vs 22,818,844 (Δ +1778.783%, reduction -1778.783%). full-swap: 2,249 tok/s, 863,710,992 bytes.
+- multicycle: tok/s 78,061 vs 499,959 (Δ -84.39%); peak mem 374,682,108 vs 22,818,844 (Δ +1541.985%, reduction -1541.985%). full-swap: 1,315 tok/s, 894,996,240 bytes.
+
+**Decision**: sparse gather path is far slower and more memory-hungry than dense at T=512; use permute path for performance benchmarks.
+
+**Next action**: run permute-path benchmarks if performance is the focus, or raise seq_len to see if sparse wins at longer contexts.
+
+### EXP-20260209-QWEN3-1P7B-SPARSE-PERMUTE-SWEEP
+
+**Status**: complete
+
+**Question**: Across `sparse` and `permute` paths on Qwen3-1.7B-4bit, how do landmarks (`num_cycles=0`), cycle (`num_cycles=1`), and multicycle (`num_cycles=auto`) compare against dense attention from 2K to 32K context?
+
+**Hypothesis**: `permute` should remain the strongest runtime path at long context with better tok/s and memory reduction vs dense; `sparse` may regress memory at short context and only improve at larger `seq_len`. Multicycle should improve connectivity but may cost memory unless edge sharing (`--no-edge-disjoint`) offsets it.
+
+**Change set**:
+- `scripts/bench_qwen_wayfinder_mlx.py`
+- `hcsa/integrations/qwen_mlx.py`
+
+**Method**:
+- `STAMP="$(date -u +%Y%m%d_%H%M%S)" ; BASE="benchmarks/mlx" ; PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 0 --allow-non-hamiltonian --out-dir "${BASE}/qwen3_1.7b_sparse_landmarks_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 1 --out-dir "${BASE}/qwen3_1.7b_sparse_cycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --out-dir "${BASE}/qwen3_1.7b_sparse_multicycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 0 --allow-non-hamiltonian --out-dir "${BASE}/qwen3_1.7b_permute_landmarks_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 1 --out-dir "${BASE}/qwen3_1.7b_permute_cycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --out-dir "${BASE}/qwen3_1.7b_permute_multicycle_${STAMP}"`
+
+**Controls**: model path fixed (`mlx-community/Qwen3-1.7B-4bit`), `seq_lens=[2048,4096,8192,16384,32768]`, `batch=1`, `warmup=1`, `iters=1`, `window=64`, `seed=42`, retro/backfill disabled.
+
+**Metrics to capture**: per `seq_len` attention tok/s and peak memory bytes for dense vs Wayfinder; absolute deltas and percent deltas vs dense baseline; memory reduction sign convention `100*(1 - wayfinder/dense)`.
+
+**Results** (partial; run stopped by user request to pivot to GLM):
+- Artifacts:
+  - `benchmarks/mlx/qwen3_1.7b_sparse_landmarks_20260209_182151/results.json`
+  - `benchmarks/mlx/qwen3_1.7b_sparse_cycle_20260209_182151/results.json`
+- `sparse + landmarks` vs dense attention:
+  - `T=2048`: tok/s `-94.40%`, memory reduction `-4927.24%`
+  - `T=4096`: tok/s `-91.25%`, memory reduction `-2982.12%`
+  - `T=8192`: tok/s `-87.74%`, memory reduction `-2717.61%`
+  - `T=16384`: tok/s `-82.50%`, memory reduction `-2671.05%`
+  - `T=32768`: tok/s `-98.13%`, memory reduction `-2419.01%`
+- `sparse + cycle` vs dense attention:
+  - `T=2048`: tok/s `-94.15%`, memory reduction `-4965.91%`
+  - `T=4096`: tok/s `-91.65%`, memory reduction `-2998.00%`
+  - `T=8192`: tok/s `-89.42%`, memory reduction `-2729.04%`
+  - `T=16384`: tok/s `-82.63%`, memory reduction `-2659.98%`
+  - `T=32768`: not completed (interrupted)
+
+**Decision**: follow-up (pivoted)
+
+**Next action**: complete sparse-component attribution on a better long-context target (GLM), including explicit Hamiltonian/non-Hamiltonian and cycle-structure ablations before returning to Qwen sparse.
+
+### EXP-20260209-GLM47-CHUNKED-DENSE-VS-WAYFINDER
+
+**Status**: complete
+
+**Question**: On GLM-4.7-Flash, does Wayfinder permute improve chunked prefill tok/s and reduce peak memory versus dense baseline at `seq_len` 2048, 8192, and 32768?
+
+**Hypothesis**: In the chunked prefill regime, Wayfinder permute should improve prefill throughput at longer context and show positive memory reduction versus dense, with smaller gains (or neutral) at 2K.
+
+**Change set**:
+- none (measurement-only pivot benchmark)
+
+**Method**:
+- Dense baseline:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --chunk-sizes 4096 --decode-lens 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --permute-prepermute-mode auto --no-swap --out-dir benchmarks/mlx/glm4_7_flash_dense_20260209_183815`
+- Wayfinder treatment:
+  - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --chunk-sizes 4096 --decode-lens 0 --path permute --window 64 --landmark-stride 64 --head-chunk-size 2 --query-chunk-size 192 --permute-prepermute-mode auto --baseline-path benchmarks/mlx/glm4_7_flash_dense_20260209_183815/results.json --out-dir benchmarks/mlx/glm4_7_flash_wayfinder_20260209_183815`
+
+**Controls**: model fixed (`mlx-community/GLM-4.7-Flash-4bit`), `seq_lens=[2048,8192,32768]`, chunk size 4096, decode length 0, `path=permute`, `window=64`, `head_chunk_size=2`, `query_chunk_size=192`, `permute_prepermute_mode=auto`, retro/backfill disabled.
+
+**Metrics to capture**: absolute `prefill_only.tok_s` and `prefill_only.peak_memory_bytes`; delta and percent delta vs dense baseline per sequence length; memory reduction sign convention `100*(1 - wayfinder/dense)`.
+
+**Results**:
+- Artifacts:
+  - dense: `benchmarks/mlx/glm4_7_flash_dense_20260209_183815/results.json`
+  - wayfinder: `benchmarks/mlx/glm4_7_flash_wayfinder_20260209_183815/results.json`
+- `T=2048`:
+  - tok/s: dense `95.707` vs wayfinder `92.786`
+  - absolute delta: `-2.921 tok/s`
+  - percent delta: `-3.052%`
+  - peak memory: dense `18,144,343,308` vs wayfinder `18,194,790,400`
+  - memory delta: `+50,447,092` (`+0.278%`)
+  - memory reduction `%` (`100*(1-wayfinder/dense)`): `-0.278%`
+- `T=8192`:
+  - tok/s: dense `459.858` vs wayfinder `901.255`
+  - absolute delta: `+441.397 tok/s`
+  - percent delta: `+95.985%`
+  - peak memory: dense `20,660,500,140` vs wayfinder `20,054,294,096`
+  - memory delta: `-606,206,044` (`-2.934%`)
+  - memory reduction `%`: `+2.934%`
+- `T=32768`:
+  - tok/s: dense `192.045` vs wayfinder `607.186`
+  - absolute delta: `+415.141 tok/s`
+  - percent delta: `+216.169%`
+  - peak memory: dense `26,017,775,484` vs wayfinder `25,420,220,192`
+  - memory delta: `-597,555,292` (`-2.297%`)
+  - memory reduction `%`: `+2.297%`
+
+**Decision**: keep
+
+**Next action**: use GLM permute as the primary long-context benchmark path and run a focused 2K tuning pass (or dense fallback threshold) to remove the short-context regression.
+
+### EXP-20260209-GLM47-SPARSE-SUBSET-ABLATION
+
+**Status**: planned
+
+**Question**: Within GLM Wayfinder sparse path, how do `sparse-only` (`num_cycles=0`), `sparse+cycle` (`num_cycles=1`), and `sparse+multicycle` (`num_cycles=auto`) compare to dense baseline and to each other?
+
+**Hypothesis**: `sparse+multicycle` should improve cycle/graph connectivity metrics versus `sparse-only`, but may trade throughput and memory; all sparse variants are likely below dense throughput at this scale.
+
+**Change set**:
+- `scripts/bench_glm_wayfinder_mlx.py` (adds `num_cycles=auto`, edge-disjoint/non-Hamiltonian toggles, graph stats collection)
+- `hcsa/integrations/glm_mlx.py` (adds `enforce_hamiltonian` wiring)
+
+**Method**:
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --collect-graph-stats --out-dir benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_185519`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --collect-graph-stats --out-dir benchmarks/mlx/glm4_7_flash_sparse_cycle_20260209_185519`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --collect-graph-stats --out-dir benchmarks/mlx/glm4_7_flash_sparse_multicycle_20260209_185519`
+
+**Controls**: same model, seed, sequence lengths, batch, warmup/iters, dtype, and window across all three sparse variants; dense reference is the per-row baseline attention inside each results file.
+
+**Metrics to capture**: attention tok/s and peak memory deltas vs dense baseline; `edge_utilization_proxy` and `graph_metrics` for cycle usage/connectivity; `resolved_num_cycles` per sequence length.
+
+**Decision**: pending
+
+**Next action**: run all three sparse variants and compare cycle usage/throughput/memory trade-offs.
+
+### EXP-20260209-GLM47-CONSUMER-MULTITURN-PARITY
+
+**Status**: planned
+
+**Question**: Over longer multi-turn conversations, does Wayfinder preserve user-visible quality/latency behavior close to dense baseline?
+
+**Hypothesis**: With matched settings, Wayfinder should maintain comparable quality accuracy while keeping multi-turn latency/memory within acceptable deltas versus dense.
+
+**Change set**:
+- none (measurement-only)
+
+**Method**:
+- Dense baseline:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --seed 42 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --no-swap --out-dir benchmarks/mlx/glm4_7_flash_consumer_dense_mt8_20260209_185519`
+- Wayfinder treatment:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --seed 42 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --out-dir benchmarks/mlx/glm4_7_flash_consumer_wayfinder_mt8_20260209_185519`
+
+**Controls**: all runtime knobs identical except `--no-swap`; same prompts/dataset/seed and context schedule.
+
+**Metrics to capture**: multi-turn `ttft_sec`, `itl_p50_sec`, `itl_p95_sec`, `e2e_sec`, `decode_tok_s`, `peak_memory_bytes` per turn; quality `accuracy`, `correct/num_tasks`, and per-task correctness parity.
+
+**Decision**: pending
+
+**Next action**: run dense + Wayfinder consumer multi-turn tests and compute parity deltas.
+
+### EXP-20260209-GLM47-SPARSE-SUBSET-ABLATION-RESUME
+
+**Status**: planned
+
+**Question**: After crash recovery, do sparse-only, sparse+cycle, and sparse+multicycle show distinct cycle-usage and performance behavior on GLM in a completed sweep?
+
+**Hypothesis**: Sparse variants will remain below dense throughput, but cycle-enabled variants (especially multicycle) will show stronger cycle share in `edge_utilization_proxy` and a measurable topology usage difference versus sparse-only.
+
+**Change set**:
+- none (measurement-only resume run; uses newly added CLI knobs from prior local edits)
+
+**Method**:
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 16384 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --compute-edge-utilization-proxy --out-dir benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_234958_resume`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 16384 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --compute-edge-utilization-proxy --out-dir benchmarks/mlx/glm4_7_flash_sparse_cycle_20260209_234958_resume`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 16384 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --compute-edge-utilization-proxy --out-dir benchmarks/mlx/glm4_7_flash_sparse_multicycle_20260209_234958_resume`
+
+**Controls**: model fixed, same seq_lens, batch/warmup/iters, dtype, path/window/seed, retro disabled; dense reference from per-row baseline attention.
+
+**Metrics to capture**: tok/s and peak-memory deltas vs dense baseline, plus `edge_utilization_proxy` and `resolved_num_cycles`.
+
+**Decision**: pending
+
+**Next action**: run three sparse variants, compute dense deltas and cycle-usage summary table.
+
+### EXP-20260209-GLM47-CONSUMER-MULTITURN-PARITY-RESUME
+
+**Status**: planned
+
+**Question**: Over 8-turn conversations at 8K context, does Wayfinder preserve quality and user-experience timing close to dense baseline?
+
+**Hypothesis**: Wayfinder should keep quality accuracy near dense while maintaining comparable or better multi-turn latency and memory under matched settings.
+
+**Change set**:
+- none (measurement-only resume run)
+
+**Method**:
+- Dense baseline:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --seed 42 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --no-swap --out-dir benchmarks/mlx/glm4_7_flash_consumer_dense_mt8_20260209_234958_resume`
+- Wayfinder treatment:
+  - `PYTHONPATH=. python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 256 --repeats 1 --turns 8 --multi-decode-len 128 --multi-target-context 65536 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 384 --active-dense-threshold 49152 --seed 42 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --out-dir benchmarks/mlx/glm4_7_flash_consumer_wayfinder_mt8_20260209_234958_resume`
+
+**Controls**: all knobs identical except `--no-swap`; same seed, prompts, target context, and evaluation dataset.
+
+**Metrics to capture**: per-turn `ttft_sec`, `itl_p50_sec`, `itl_p95_sec`, `e2e_sec`, `decode_tok_s`, `peak_memory_bytes`; quality `accuracy`, `correct/num_tasks`, and per-task correctness parity.
+
+**Decision**: pending
+
+**Next action**: run dense/treatment and compute per-turn and quality deltas vs dense.
+
+### EXP-20260209-GLM47-SPARSE-LANDMARKS-2048-SAFE-PRERUN
+
+**Status**: planned
+
+**Question**: With one-run-per-process constraints and graph metrics disabled, what is the sparse landmarks (`num_cycles=0`) baseline behavior for GLM-4.7-Flash at `seq_len=2048`?
+
+**Hypothesis**: A single sparse-landmarks run at 2K should complete stably and produce a reproducible throughput/memory reference; Wayfinder sparse attention is expected to run slower than dense attention at this short context.
+
+**Change set**:
+- none (measurement-only)
+
+**Method**:
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_safe_2048`
+
+**Controls**: model fixed, single seq_len, batch/warmup/iters fixed, graph metrics disabled by omitting `--collect-graph-stats` and `--compute-*` flags, retro disabled.
+
+**Metrics to capture**: `wayfinder_attention.tokens_per_sec`, `wayfinder_attention.peak_memory_bytes`, and dense baseline deltas from the same `results.json`.
+
+**Decision**: pending
+
+**Next action**: execute run and record absolute + delta + percent delta metrics vs dense baseline.
+
+### EXP-20260209-GLM47-SPARSE-LANDMARKS-2048-SAFE-RESULT
+
+**Status**: completed
+
+**Baseline run path**: `benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_safe_2048/results.json`
+
+**Metrics (level_a_real_qkv attention)**:
+- dense baseline tok/s: `64321.3555`
+- Wayfinder sparse tok/s: `3629.6196`
+- tok/s delta vs baseline: `-60691.7359` (`-94.3571%`)
+- dense baseline peak memory: `426232364` bytes
+- Wayfinder sparse peak memory: `11731143488` bytes
+- peak-memory delta vs baseline: `+11304911124` bytes (`+2652.2883%`)
+- memory reduction sign convention `100 * (1 - wayfinder/dense)`: `-2652.2883%`
+- resolved cycles: `0` (`num_cycles=0`, `enforce_hamiltonian=false`)
+
+**Decision**: follow-up
+
+**Next action**: run cycle (`num_cycles=1`) and multicycle (`num_cycles=auto`, `--no-edge-disjoint`) at the same `seq_len=2048` one-by-one, then compare whether cycle structure improves throughput and/or memory relative to sparse-landmarks.
+
+### EXP-20260209-GLM47-SPARSE-CYCLE-MULTICYCLE-2048-SAFE-PRERUN
+
+**Status**: planned
+
+**Question**: At `seq_len=2048`, do cycle (`num_cycles=1`) and multicycle (`num_cycles=auto`, `--no-edge-disjoint`) improve sparse attention behavior relative to sparse-landmarks (`num_cycles=0`)?
+
+**Hypothesis**: Adding cycle structure may improve sparse attention utilization and could reduce the severe regression observed in landmarks-only sparse at 2K; multicycle may trade extra overhead for connectivity.
+
+**Change set**:
+- none (measurement-only)
+
+**Method**:
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_cycle_20260209_safe_2048`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_multicycle_20260209_safe_2048`
+
+**Controls**: one run per process; model/path/window/batch/warmup/iters fixed; graph metrics disabled; retro disabled.
+
+**Metrics to capture**: absolute tok/s and peak memory; deltas vs dense baseline; comparison vs sparse-landmarks run.
+
+**Decision**: pending
+
+**Next action**: run cycle then multicycle sequentially and record dense + sparse-landmarks deltas.
+
+### EXP-20260209-GLM47-SPARSE-CYCLE-MULTICYCLE-2048-SAFE-RESULT
+
+**Status**: completed
+
+**Baseline run path**: `benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_safe_2048/results.json` (landmarks); companion runs at `...sparse_cycle_...` and `...sparse_multicycle_...`.
+
+**Absolute metrics and dense deltas (level_a_real_qkv attention)**:
+- landmarks (`num_cycles=0`):
+  - tok/s: `3629.6196` vs dense `64321.3555` (delta `-60691.7359`, `-94.3571%`)
+  - peak memory: `11731143488` vs dense `426232364` (delta `+11304911124`, `+2652.2883%`)
+  - reduction sign convention `100*(1-wayfinder/dense)`: `-2652.2883%`
+- cycle (`num_cycles=1`):
+  - tok/s: `3639.6999` vs dense `65194.1220` (delta `-61554.4221`, `-94.4171%`)
+  - peak memory: `11973937984` vs dense `426232364` (delta `+11547705620`, `+2709.2512%`)
+  - reduction sign convention: `-2709.2512%`
+- multicycle (`num_cycles=auto`, `resolved_num_cycles=22`, `--no-edge-disjoint`):
+  - tok/s: `3051.8828` vs dense `64587.0030` (delta `-61535.1203`, `-95.2748%`)
+  - peak memory: `13367872320` vs dense `426232364` (delta `+12941639956`, `+3036.2875%`)
+  - reduction sign convention: `-3036.2875%`
+
+**Cycle/multicycle vs sparse-landmarks (Wayfinder-only comparison)**:
+- cycle vs landmarks tok/s delta: `+10.0803` (`+0.2777%`)
+- cycle vs landmarks memory delta: `+242794496` bytes (`+2.0697%`)
+- multicycle vs landmarks tok/s delta: `-577.7368` (`-15.9173%`)
+- multicycle vs landmarks memory delta: `+1636728832` bytes (`+13.9520%`)
+
+**Decision**: follow-up
+
+**Next action**: keep one-run-per-process safety protocol and shift focus to `path=permute` plus cache-lifetime cleanup before attempting higher `seq_len` sparse repeats.
+
+### EXP-20260209-GLM47-SPARSE-SUBSET-4096-SAFE-PRERUN
+
+**Status**: planned
+
+**Question**: Under strict one-run-per-process constraints, how do sparse landmarks, cycle, and multicycle compare at `seq_len=4096`?
+
+**Hypothesis**: Relative ordering from 2K will persist at 4K, with cycle near landmarks and multicycle slower/heavier; all sparse variants likely remain far below dense at this context.
+
+**Change set**:
+- none (measurement-only)
+
+**Method**:
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_safe_4096`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_cycle_20260209_safe_4096`
+- `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 4096 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --out-dir benchmarks/mlx/glm4_7_flash_sparse_multicycle_20260209_safe_4096`
+
+**Controls**: model/window/batch/warmup/iters fixed; graph metrics disabled; no parallel runs.
+
+**Metrics to capture**: absolute tok/s and peak memory; deltas and % deltas vs dense baseline; memory reduction sign convention `100*(1-wayfinder/dense)`.
+
+**Decision**: pending
+
+**Next action**: execute landmarks/cycle/multicycle sequentially and compare against 2K behavior.
+
+### EXP-20260210-MLX-MEMORY-HARDENING-PRERUN
+
+**Status**: planned
+
+**Question**: Do minimal benchmark/runtime hardening changes reduce cache retention risk and host-memory spikes while preserving existing CLI functionality?
+
+**Hypothesis**: Adding per-seq cleanup + one-seq-per-process guard and replacing NumPy-copy byte accounting with zero-copy size reads will eliminate obvious runaway memory vectors without breaking benchmark script interfaces.
+
+**Change set**:
+- `scripts/bench_glm_wayfinder_mlx.py`
+- `scripts/bench_qwen_wayfinder_mlx.py`
+- `hcsa/integrations/qwen_mlx.py`
+
+**Method**:
+- `python3 scripts/bench_glm_wayfinder_mlx.py --help`
+- `python3 scripts/bench_qwen_wayfinder_mlx.py --help`
+- `PYTHONPATH=. python3 -m pytest tests/mlx/test_glm_hamiltonian_e2e.py tests/mlx/test_graph_cache.py tests/mlx/test_cache_key_stability.py -q`
+
+**Controls**: no benchmark model run, no parallel benchmark jobs, retro/backfill defaults unchanged (inference-off default retained).
+
+**Metrics to capture**: command pass/fail, test pass count, and any regressions in CLI parsing.
+
+**Decision**: pending
+
+**Next action**: run validation commands and append result entry with outcomes.
+
+### EXP-20260210-MLX-MEMORY-HARDENING-RESULT
+
+**Status**: completed
+
+**Question**: Do minimal benchmark/runtime hardening changes reduce cache retention risk and host-memory spikes while preserving existing CLI functionality?
+
+**Hypothesis**: Adding per-seq cleanup + one-seq-per-process guard and replacing NumPy-copy byte accounting with zero-copy size reads will eliminate obvious runaway memory vectors without breaking benchmark script interfaces.
+
+**Change set**:
+- `scripts/bench_glm_wayfinder_mlx.py`
+- `scripts/bench_qwen_wayfinder_mlx.py`
+- `hcsa/integrations/qwen_mlx.py`
+
+**Command**:
+- `python3 scripts/bench_glm_wayfinder_mlx.py --help`
+- `python3 scripts/bench_qwen_wayfinder_mlx.py --help`
+- `PYTHONPATH=. python3 -m pytest tests/mlx/test_glm_hamiltonian_e2e.py tests/mlx/test_graph_cache.py tests/mlx/test_cache_key_stability.py -q`
+- `python3 scripts/bench_glm_wayfinder_mlx.py --seq-lens 1 2` (expect guard failure)
+- `python3 scripts/bench_qwen_wayfinder_mlx.py --seq-lens 1 2` (expect guard failure)
+
+**Controls**:
+- No benchmark model execution for performance claims.
+- No parallel benchmark jobs.
+- Retro/backfill defaults unchanged (inference default remains off).
+
+**Key result**:
+- CLI help for both scripts succeeds and exposes new safety knobs:
+  - `--allow-multi-seq` (both scripts)
+  - `--run-block-bench` (GLM + Qwen benchmarks; default remains skipped unless explicitly enabled)
+- Targeted MLX validation suite passes (`18` tests total across selected files).
+- One-seq-per-process guard is active by default in both scripts and raises expected `ValueError` unless `--allow-multi-seq` is supplied.
+- Integration memory accounting now uses zero-copy byte reads (`arr.nbytes`) before fallback paths, avoiding forced `np.asarray(...)` copies in normal operation.
+
+**Decision**: keep
+
+**Next action**: use single-seq isolated runs for GLM sparse subset + dense comparison under strict stop thresholds; only enable block/full-swap when explicitly needed.
+
+### EXP-20260210-GLM47-SAFE-SPARSE-T2048-PRERUN
+
+**Status**: planned
+
+**Question**: Under strict one-process-at-a-time constraints, what are GLM-4.7-Flash sparse landmarks/cycle/multicycle metrics at `seq_len=2048` with dense comparison embedded?
+
+**Hypothesis**: At `T=2048`, sparse variants may still underperform dense and may increase memory, but sequential isolated runs should complete safely with explicit swap/compressor stop gates.
+
+**Change set**:
+- none (measurement-only)
+
+**Method**:
+- `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --out-dir benchmarks/mlx/glm47_safe_20260210_t2048/landmarks`
+- `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --out-dir benchmarks/mlx/glm47_safe_20260210_t2048/cycle`
+- `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 0 --num-cycles 4 --no-edge-disjoint --out-dir benchmarks/mlx/glm47_safe_20260210_t2048/multicycle`
+
+**Controls**: one benchmark process at a time; graph metrics disabled by default; retro/backfill remains off by default; block benchmark not enabled.
+
+**Metrics to capture**: dense vs wayfinder tok/s and peak memory bytes; absolute and % deltas; memory reduction sign convention `100*(1-wayfinder/dense)`.
+
+**Stop conditions**:
+- swap used increase > 512 MB vs pre-run baseline
+- swap free < 1024 MB
+- compressor pages increase > 100000 pages vs pre-run baseline
+- any watchdog/compressor instability signs
+
+**Decision**: pending
+
+**Next action**: execute landmarks, then re-check thresholds before cycle and multicycle.
+
+### EXP-20260210-GLM-CLI-NONHAMILTONIAN-PRERUN
+
+**Status**: planned
+
+**Question**: Can we safely run GLM sparse landmarks (`num_cycles=0`) by exposing non-Hamiltonian and edge-disjoint toggles in the GLM benchmark CLI?
+
+**Hypothesis**: Adding `--allow-non-hamiltonian` and `--no-edge-disjoint` to `bench_glm_wayfinder_mlx.py` (wired to existing config fields) will unblock sparse landmarks/multicycle runs without changing inference defaults.
+
+**Change set**:
+- `scripts/bench_glm_wayfinder_mlx.py`
+
+**Method**:
+- patch CLI args and config wiring
+- validate with `python3 scripts/bench_glm_wayfinder_mlx.py --help`
+- re-run sparse landmarks command at `seq_len=2048`
+
+**Controls**: one process at a time; retro defaults unchanged; block bench still opt-in.
+
+**Metrics to capture**: CLI flag visibility, command success/failure state for landmarks run.
+
+**Decision**: pending
+
+**Next action**: apply minimal CLI patch and re-run landmarks.
+
+### EXP-20260210-GLM-CLI-NONHAMILTONIAN-RESULT
+
+**Status**: completed
+
+**Question**: Can we safely run GLM sparse landmarks (`num_cycles=0`) by exposing non-Hamiltonian and edge-disjoint toggles in the GLM benchmark CLI?
+
+**Hypothesis**: Adding `--allow-non-hamiltonian` and `--no-edge-disjoint` to `bench_glm_wayfinder_mlx.py` (wired to existing config fields) will unblock sparse landmarks/multicycle runs without changing inference defaults.
+
+**Change set**:
+- `scripts/bench_glm_wayfinder_mlx.py`
+
+**Command**:
+- `python3 scripts/bench_glm_wayfinder_mlx.py --help`
+- `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --out-dir benchmarks/mlx/glm47_safe_20260210_t2048/landmarks`
+
+**Controls**: one process at a time; retro defaults unchanged; block bench still opt-in.
+
+**Key result**:
+- GLM benchmark CLI now exposes:
+  - `--allow-non-hamiltonian`
+  - `--edge-disjoint` / `--no-edge-disjoint`
+- Landmarks command now executes successfully (previous failure `Head 0 token 0 has <2 cycle neighbors` no longer blocks the run).
+
+**Decision**: keep
+
+**Next action**: continue sparse subset only when memory stop gates are green.
+
+### EXP-20260210-GLM47-SAFE-SPARSE-T2048-RESULT
+
+**Status**: halted by safety gate
+
+**Question**: Under strict one-process-at-a-time constraints, what are GLM-4.7-Flash sparse landmarks/cycle/multicycle metrics at `seq_len=2048` with dense comparison embedded?
+
+**Hypothesis**: At `T=2048`, sparse variants may still underperform dense and may increase memory, but sequential isolated runs should complete safely with explicit swap/compressor stop gates.
+
+**Change set**:
+- none (measurement-only)
+
+**Executed command**:
+- `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --out-dir benchmarks/mlx/glm47_safe_20260210_t2048/landmarks`
+
+**Controls**: one benchmark process at a time; graph metrics disabled by default; retro/backfill off by default; block benchmark disabled.
+
+**Pre-run safety baseline**:
+- swap used: `3952.38 MB`
+- swap free: `1167.62 MB`
+- compressor occupied pages: `323,581`
+
+**Post-run safety check**:
+- swap used: `3944.38 MB` (delta `-8.00 MB`)
+- swap free: `1175.62 MB` (delta `+8.00 MB`)
+- compressor occupied pages: `725,738` (delta `+402,157`)
+
+**Landmarks metrics (dense comparison embedded in-row)**:
+- artifact: `benchmarks/mlx/glm47_safe_20260210_t2048/landmarks/results.json`
+- tok/s: dense `62,128.8537`, wayfinder `3,620.0239`, delta `-58,508.8298` (`-94.1734%`)
+- peak memory: dense `426,232,364`, wayfinder `11,731,143,488`, delta `+11,304,911,124` (`+2652.2883%`)
+- memory reduction sign convention `100*(1-wayfinder/dense)`: `-2652.2883%`
+
+**Decision**: stop
+
+**Next action**: do not proceed to cycle/multicycle in this host state; wait for user confirmation to continue with stricter safeguards (or after system memory pressure decreases).
+
+### EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP-PRERUN
+
+**Status**: planned
+
+**Question**: Can we establish a safety-critical benchmark preflight setup (script/CLI checks + memory baselines) without running any inference?
+
+**Hypothesis**: A setup-only preflight command that runs file/help checks and captures swap/compressor baselines will validate readiness for the next GLM safe run while keeping inference completely off.
+
+**Change set**:
+- `scripts/bench_protocol_preflight_setup.sh`
+- `notes/LAB_NOTEBOOK.md`
+- `notes/experiments.ndjson`
+
+**Command**:
+- `bash /Volumes/VIXinSSD/wayfinder/scripts/bench_protocol_preflight_setup.sh --run-id EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP --out-dir /Volumes/VIXinSSD/wayfinder/notes/preflight`
+
+**Controls**: one process at a time; no benchmark/inference command execution; retro/backfill remains inference-off by default; graph metrics and block/full-swap not enabled.
+
+**Metrics to capture**:
+- file/CLI preflight status for benchmark entrypoints
+- pre_run/post_run swap used/free MB
+- pre_run/post_run compressor occupied pages
+- safety deltas and artifact paths
+
+**Decision**: pending
+
+**Next action**: run setup command once, then append result entry with captured metrics and deltas.
+
+### EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP-RESULT
+
+**Status**: completed
+
+**Question**: Can we establish a safety-critical benchmark preflight setup (script/CLI checks + memory baselines) without running any inference?
+
+**Hypothesis**: A setup-only preflight command that runs file/help checks and captures swap/compressor baselines will validate readiness for the next GLM safe run while keeping inference completely off.
+
+**Change set**:
+- `scripts/bench_protocol_preflight_setup.sh`
+- `notes/LAB_NOTEBOOK.md`
+- `notes/experiments.ndjson`
+
+**Executed command**:
+- `bash /Volumes/VIXinSSD/wayfinder/scripts/bench_protocol_preflight_setup.sh --run-id EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP --out-dir /Volumes/VIXinSSD/wayfinder/notes/preflight`
+
+**Controls**: one process at a time; no benchmark/inference command execution; retro/backfill remains inference-off by default; graph metrics and block/full-swap not enabled.
+
+**Preflight check outcomes**:
+- file checks: all required benchmark scripts present (`5/5`)
+- CLI help checks: all passed (`6/6`)
+- benchmark/inference execution: none (`0` model runs)
+
+**Pre-run safety baseline**:
+- swap used: `20227.75 MB`
+- swap free: `1276.25 MB`
+- compressor occupied pages: `79,517`
+- compressor occupied bytes: `1,302,806,528`
+
+**Post-run safety check**:
+- swap used: `20227.75 MB` (delta `+0.00 MB`, `+0.00%` vs baseline)
+- swap free: `1276.25 MB` (delta `+0.00 MB`, `+0.00%` vs baseline)
+- compressor occupied pages: `79,163` (delta `-354`, `-0.45%` vs baseline)
+- compressor occupied bytes: `1,297,006,592` (delta `-5,799,936`, `-0.45%` vs baseline)
+
+**Artifacts**:
+- summary: `/Volumes/VIXinSSD/wayfinder/notes/preflight/EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP_summary.json`
+- raw: `/Volumes/VIXinSSD/wayfinder/notes/preflight/EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP_raw.txt`
+
+**Stop-gate evaluation**:
+- compressor pages delta `-354` (threshold `> +100000`): not triggered
+- swap used delta `+0.00 MB` (threshold `> +1024 MB`): not triggered
+- kernel watchdog / OOM signal: not observed during setup command
+
+**Decision**: keep
+
+**Next action**: on explicit go-ahead, run one GLM safe benchmark command (single `seq_len`, single process) and record fresh pre/post safety baselines for that run.
+
+### EXP-20260210T025409Z-GLM-POST-REBOOT-PROTOCOL-PRERUN
+
+**Status**: planned
+
+**Question**: Can we produce a complete post-reboot GLM benchmark protocol (dense vs Wayfinder permute + fidelity parity) that is executable end-to-end with explicit stop gates and logging requirements?
+
+**Hypothesis**: A single runbook with copy/paste shell blocks for preflight, per-run memory gates, long-context benchmark runs, and quality parity checks will reduce operator error and make the next benchmark day reproducible.
+
+**Change set**:
+- `notes/GLM_POST_REBOOT_FULL_BENCH_PROTOCOL.md`
+- `notes/LAB_NOTEBOOK.md`
+- `notes/experiments.ndjson`
+
+**Command**:
+- `python3 - <<'PY' ...` (validate protocol file exists and required sections are present)
+
+**Controls**: no inference execution in this authoring step; one-path documentation only; keep retro inference off in all prescribed commands.
+
+**Metrics to capture**:
+- protocol file path and line count
+- required section coverage
+- validation pass/fail
+
+**Decision**: pending
+
+**Next action**: validate protocol file content and append result entry with validation metrics.
+
+### EXP-20260210T025409Z-GLM-POST-REBOOT-PROTOCOL-RESULT
+
+**Status**: completed
+
+**Question**: Can we produce a complete post-reboot GLM benchmark protocol (dense vs Wayfinder permute + fidelity parity) that is executable end-to-end with explicit stop gates and logging requirements?
+
+**Hypothesis**: A single runbook with copy/paste shell blocks for preflight, per-run memory gates, long-context benchmark runs, and quality parity checks will reduce operator error and make the next benchmark day reproducible.
+
+**Change set**:
+- `notes/GLM_POST_REBOOT_FULL_BENCH_PROTOCOL.md`
+- `notes/LAB_NOTEBOOK.md`
+- `notes/experiments.ndjson`
+
+**Executed command**:
+- `python3 - <<'PY'` to assert protocol file exists and required sections are present.
+
+**Controls**: no inference execution in this authoring step; one-path documentation only; all protocol commands preserve retro inference default off.
+
+**Key result**:
+- protocol created: `notes/GLM_POST_REBOOT_FULL_BENCH_PROTOCOL.md`
+- validation: pass
+- line count: `352`
+- required section coverage: all present (`Step 1`, `Step 3`, `Step 4`, `Step 6`)
+- included protocol scopes:
+  - preflight/no-inference setup
+  - one-seq-per-process GLM permute benchmark path
+  - explicit host memory stop gates
+  - dense-vs-wayfinder delta extraction
+  - consumer quality/fidelity parity checks
+  - Bell Labs notebook entry requirements
+
+**Decision**: keep
+
+**Next action**: after reboot, execute the runbook top-to-bottom and record PRERUN/RESULT entries for each real benchmark run.
+
+## 2026-02-10 — Post-Reboot Six-Run Queue (planned, no inference executed)
+
+### EXP-20260210T085850Z-GLM-POST-REBOOT-PREFLIGHT-PRERUN
+
+**Status**: planned
+
+**Question**: Is the host/session safe to start the post-reboot GLM benchmark sequence without running inference yet?
+
+**Hypothesis**: The setup preflight script will pass file/help checks and produce baseline safety artifacts for swap/compressor tracking.
+
+**Change set**:
+- none (planning-only queue entry)
+
+**Command**:
+- `bash /Volumes/VIXinSSD/wayfinder/scripts/bench_protocol_preflight_setup.sh --run-id EXP-20260210T085850Z-GLM-POST-REBOOT-PREFLIGHT --out-dir /Volumes/VIXinSSD/wayfinder/notes/preflight`
+
+**Controls**:
+- no model inference/benchmark execution in this step
+- one process only
+- retro/backfill inference remains off
+
+**Metrics to capture**:
+- preflight pass/fail
+- swap/compressor pre and post baselines
+- artifact paths in `notes/preflight`
+
+**Decision**: pending
+
+**Next action**: run setup preflight, then append RESULT entry with captured safety deltas.
+
+### EXP-20260210T085850Z-GLM-PERM-T8192-PRERUN
+
+**Status**: planned
+
+**Question**: At `seq_len=8192`, does Wayfinder permute improve throughput and reduce peak memory versus embedded dense baseline?
+
+**Hypothesis**: At 8k, Wayfinder should show positive memory reduction and competitive-to-positive throughput delta when measured under strict memory gates.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `run_with_mem_gate "glm_perm_t8192" python3 /Volumes/VIXinSSD/wayfinder/scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir "$RUN_ROOT/glm_perm_t8192"`
+
+**Controls**:
+- one process at a time
+- one `seq_len` per process
+- memory gates from protocol Step 2
+- retro/backfill off
+
+**Metrics to capture**:
+- absolute tok/s and peak memory (dense and wayfinder)
+- delta and delta%
+- memory reduction sign convention `100 * (1 - wayfinder/dense)`
+
+**Decision**: pending
+
+**Next action**: run command, then extract delta summary from `results.json`.
+
+### EXP-20260210T085850Z-GLM-PERM-T32768-PRERUN
+
+**Status**: planned
+
+**Question**: At `seq_len=32768`, does Wayfinder permute outperform dense on the throughput/memory tradeoff under host safety gates?
+
+**Hypothesis**: At 32k, Wayfinder should produce stronger memory reduction and likely positive throughput delta versus dense baseline.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `run_with_mem_gate "glm_perm_t32768" python3 /Volumes/VIXinSSD/wayfinder/scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 32768 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path permute --window 64 --landmark-stride 0 --num-cycles 1 --seed 42 --permute-head-chunk-size 2 --permute-query-chunk-size 192 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --out-dir "$RUN_ROOT/glm_perm_t32768"`
+
+**Controls**:
+- same controls as 8k run
+- no parallel jobs/sweeps
+- stop immediately on memory gate failure
+
+**Metrics to capture**:
+- absolute tok/s and peak memory (dense and wayfinder)
+- delta and delta%
+- memory reduction sign convention `100 * (1 - wayfinder/dense)`
+
+**Decision**: pending
+
+**Next action**: run command, then extract delta summary from `results.json`.
+
+### EXP-20260210T085850Z-CONSUMER-DENSE-QUALITY-PRERUN
+
+**Status**: planned
+
+**Question**: What is the dense quality baseline on the fixed consumer dataset at `seq_len=8192`?
+
+**Hypothesis**: Dense run provides the reference `correct/num_tasks/accuracy` for parity judgment.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `run_with_mem_gate "consumer_dense_quality" python3 /Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --active-dense-threshold 0 --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --skip-multi-turn --no-swap --out-dir "$RUN_ROOT/consumer_dense_quality"`
+
+**Controls**:
+- same dataset and seed used for Wayfinder quality run
+- quality-only mode (no single-turn or multi-turn benchmark sections)
+- memory gates active
+
+**Metrics to capture**:
+- `correct`, `num_tasks`, `accuracy`
+- quality row IDs for parity matching
+
+**Decision**: pending
+
+**Next action**: run dense quality baseline and persist `results.json`.
+
+### EXP-20260210T085850Z-CONSUMER-WAYFINDER-QUALITY-PRERUN
+
+**Status**: planned
+
+**Question**: Does Wayfinder preserve quality parity versus dense on the same consumer dataset and prompt set?
+
+**Hypothesis**: Wayfinder quality should remain near dense with matching task IDs and small accuracy delta.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `run_with_mem_gate "consumer_wayfinder_quality" python3 /Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --active-dense-threshold 0 --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --skip-multi-turn --out-dir "$RUN_ROOT/consumer_wayfinder_quality"`
+
+**Controls**:
+- identical dataset/seed/config versus dense quality baseline except swap mode
+- memory gates active
+- one process only
+
+**Metrics to capture**:
+- `correct`, `num_tasks`, `accuracy`
+- delta vs dense baseline
+
+**Decision**: pending
+
+**Next action**: run Wayfinder quality command and generate parity comparison summary.
+
+### EXP-20260210T085850Z-CONSUMER-QUALITY-COMPARE-PRERUN
+
+**Status**: planned
+
+**Question**: Do dense and Wayfinder quality outputs match task IDs and remain within acceptable accuracy drift?
+
+**Hypothesis**: Comparator script will confirm task-ID parity and report a small accuracy delta.
+
+**Change set**:
+- none (measurement-only comparator)
+
+**Command**:
+- `python3 - <<'PY' "$RUN_ROOT/consumer_dense_quality/results.json" "$RUN_ROOT/consumer_wayfinder_quality/results.json" "$RUN_ROOT/consumer_quality_parity_summary.json"` (exact Step 4C comparator block from `notes/GLM_POST_REBOOT_FULL_BENCH_PROTOCOL.md`)
+
+**Controls**:
+- strict comparator over fixed input artifacts from Step 4A/4B
+- no additional model run in this step
+
+**Metrics to capture**:
+- dense and wayfinder `correct/num_tasks/accuracy`
+- `accuracy_delta`
+- task ID equality check
+
+**Decision**: pending
+
+**Next action**: run comparator block and append RESULT entry with parity verdict.
+
+
+### EXP-20260210T091500Z-ZMLX-QWEN3-GLM-KERNEL-COMBO-PRERUN
+
+**Status**: planned
+
+**Question**: Which Qwen3 MoE custom-kernel combination is fastest while preserving fidelity, and do the same toggles transfer to GLM-4.7-Flash?
+
+**Hypothesis**: Qwen3 `moe_mlp` control plus optional router argpartition should remain fidelity-safe with neutral memory impact; fp32 no-FMA combine overrides are likely regressive. GLM should not benefit from Qwen-only router env.
+
+**Change set**:
+- `<ZMLX_ROOT>/src/zmlx/patch/patterns/moe_mlp.py`
+- `<ZMLX_ROOT>/src/zmlx/kernels/moe.py`
+- `<ZMLX_ROOT>/benchmarks/bench_qwen3_a3b_experiments.py`
+- `<ZMLX_ROOT>/tests/test_moe_fused_swiglu_gate.py`
+
+**Command**:
+- `python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 5 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 5 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_COMBINE_MODE=fp32_no_fma python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 3 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 ZMLX_QWEN_COMBINE_MODE=fp32_no_fma python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 3 --max-tokens 200 --patterns moe_mlp`
+- `python -m zmlx.validate mlx-community/GLM-4.7-Flash-4bit --patterns swiglu_mlp moe_mlp --runs 3 --max-tokens 200`
+
+**Controls**:
+- device: Apple M4 Max (36 GB)
+- macOS: 26.1
+- MLX: 0.30.7.dev20260207+8fe1d092
+- ZMLX: 0.8.3 (`094296f`)
+- Python: 3.14
+- `has_gather_qmm_swiglu=True`
+
+**Metrics to capture**:
+- decode tok/s (absolute, delta, delta %)
+- prefill tok/s (absolute, delta, delta %)
+- peak memory GB (absolute, delta, delta %)
+- fidelity verdict and matched/total tokens
+
+**Decision**: pending
+
+**Next action**: append result summary and choose default-safe kernel combo for Qwen3 + transfer status for GLM.
+
+### EXP-20260210T091500Z-ZMLX-QWEN3-GLM-KERNEL-COMBO-RESULT
+
+**Status**: completed
+
+**Question**: Which Qwen3 MoE custom-kernel combination is fastest while preserving fidelity, and do the same toggles transfer to GLM-4.7-Flash?
+
+**Hypothesis**: Qwen3 `moe_mlp` control plus optional router argpartition should remain fidelity-safe with neutral memory impact; fp32 no-FMA combine overrides are likely regressive. GLM should not benefit from Qwen-only router env.
+
+**Change set**:
+- none (measurement-only from existing repro capsules)
+
+**Command**:
+- `python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 5 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 5 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_COMBINE_MODE=fp32_no_fma python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 3 --max-tokens 200 --patterns moe_mlp`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 ZMLX_QWEN_COMBINE_MODE=fp32_no_fma python -m zmlx.validate mlx-community/Qwen3-30B-A3B-4bit --runs 3 --max-tokens 200 --patterns moe_mlp`
+- `python -m zmlx.validate mlx-community/GLM-4.7-Flash-4bit --patterns swiglu_mlp moe_mlp --runs 3 --max-tokens 200`
+
+**Controls**:
+- device: Apple M4 Max (36 GB)
+- macOS: 26.1
+- MLX: 0.30.7.dev20260207+8fe1d092
+- ZMLX: 0.8.3 (`094296f`)
+- Python: 3.14
+- `has_gather_qmm_swiglu=True`
+
+**Key result**:
+- Qwen3 control (`control_patterns_moe_mlp`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v2_control_t200_r5.json`):
+  - decode tok/s: 108.8 -> 114.5 (delta +5.70, +5.24%, speedup 1.0524x)
+  - prefill tok/s: 323.5 -> 330.7 (delta +7.20, +2.23%)
+  - peak memory GB: 17.24 -> 17.24 (delta +0.00, +0.00%)
+- Qwen3 router argpartition (`qwen_router_argpartition_logits`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v2_router_t200_r5.json`):
+  - decode tok/s: 112.9 -> 115.4 (delta +2.50, +2.21%, speedup 1.0221x)
+  - prefill tok/s: 329.1 -> 331.5 (delta +2.40, +0.73%)
+  - peak memory GB: 17.24 -> 17.24 (delta +0.00, +0.00%)
+- Qwen3 combine fp32_no_fma (`qwen_combine_fp32_no_fma`, fidelity FAIL 93/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v1_combine_t200_r3.json`):
+  - decode tok/s: 111.7 -> 41.8 (delta -69.90, -62.58%, speedup 0.3742x)
+  - prefill tok/s: 334.8 -> 207.4 (delta -127.40, -38.05%)
+  - peak memory GB: 17.24 -> 17.71 (delta +0.47, +2.73%)
+- Qwen3 router+combine fp32_no_fma (`qwen_router_argpartition_logits_combine_fp32_no_fma`, fidelity FAIL 93/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v1_router_combine_t200_r3.json`):
+  - decode tok/s: 114.7 -> 42.7 (delta -72.00, -62.77%, speedup 0.3723x)
+  - prefill tok/s: 338.8 -> 210.3 (delta -128.50, -37.93%)
+  - peak memory GB: 17.24 -> 17.72 (delta +0.48, +2.78%)
+- GLM control with Qwen router env present (`control_swiglu_moe`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/glm47_combo_transfer_v1_control_qwenrouterenv_t200_r3.json`):
+  - decode tok/s: 80.3 -> 78.7 (delta -1.60, -1.99%, speedup 0.9801x)
+  - prefill tok/s: 271.2 -> 262.4 (delta -8.80, -3.24%)
+  - peak memory GB: 16.91 -> 16.91 (delta +0.00, +0.00%)
+
+**Decision**: keep Qwen3 `moe_mlp` control as default; keep `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1` optional; keep `ZMLX_QWEN_COMBINE_MODE=fp32_no_fma` disabled (fidelity/perf regression).
+
+**Next action**: focus next kernel candidates on fidelity-safe Qwen paths only (no full-router replacement); require PASS before any promotion.
+
+
+### EXP-20260210T093500Z-ZMLX-QWEN3-GLM-ISO-SWEEP-PRERUN
+
+**Status**: planned
+
+**Question**: Can we identify the best Qwen3 custom-kernel combo with stable memory by running each candidate in process-isolated mode, and does the Qwen router env transfer to GLM?
+
+**Hypothesis**: Isolated single-variant runs avoid Metal OOM seen in multi-variant sweeps; Qwen control/router will remain fidelity-safe and close in performance; GLM results with and without Qwen router env should be effectively identical.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_full_eval_t200_r3.json --variants control_patterns_moe_mlp qwen_router_argpartition_logits qwen_fused_downproj_combine qwen_fused_downproj_combine_kvec qwen_combine_fp32_no_fma qwen_router_argpartition_logits_combine_fp32_no_fma`
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_control_iso_t200_r3.json --variants control_patterns_moe_mlp`
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_router_iso_t200_r3.json --variants qwen_router_argpartition_logits`
+- `python benchmarks/bench_glm47_flash_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/glm47_combo_transfer_v2_control_t200_r3.json --variants control_swiglu_moe`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 python benchmarks/bench_glm47_flash_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/glm47_combo_transfer_v2_control_qwenrouterenv_t200_r3.json --variants control_swiglu_moe`
+
+**Controls**:
+- device: Apple M4 Max (36 GB)
+- macOS: 26.1
+- MLX: 0.30.7.dev20260207+8fe1d092
+- ZMLX: 0.8.3 (`094296f`)
+- Python: 3.14
+
+**Metrics to capture**:
+- decode/prefill tok/s and peak memory (absolute, delta, delta %)
+- fidelity matched/total
+- OOM behavior for multi-variant vs isolated runs
+
+**Decision**: pending
+
+**Next action**: append result with final combo selection and transfer verdict.
+
+### EXP-20260210T093500Z-ZMLX-QWEN3-GLM-ISO-SWEEP-RESULT
+
+**Status**: completed
+
+**Question**: Can we identify the best Qwen3 custom-kernel combo with stable memory by running each candidate in process-isolated mode, and does the Qwen router env transfer to GLM?
+
+**Hypothesis**: Isolated single-variant runs avoid Metal OOM seen in multi-variant sweeps; Qwen control/router will remain fidelity-safe and close in performance; GLM results with and without Qwen router env should be effectively identical.
+
+**Change set**:
+- none (measurement-only)
+
+**Command**:
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_full_eval_t200_r3.json --variants control_patterns_moe_mlp qwen_router_argpartition_logits qwen_fused_downproj_combine qwen_fused_downproj_combine_kvec qwen_combine_fp32_no_fma qwen_router_argpartition_logits_combine_fp32_no_fma`
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_control_iso_t200_r3.json --variants control_patterns_moe_mlp`
+- `python benchmarks/bench_qwen3_a3b_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/qwen3_a3b_combo_v3_router_iso_t200_r3.json --variants qwen_router_argpartition_logits`
+- `python benchmarks/bench_glm47_flash_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/glm47_combo_transfer_v2_control_t200_r3.json --variants control_swiglu_moe`
+- `ZMLX_QWEN_ROUTER_ARGPARTITION_LOGITS=1 python benchmarks/bench_glm47_flash_experiments.py --runs 3 --max-tokens 200 --json-out benchmarks/repro_capsules/glm47_combo_transfer_v2_control_qwenrouterenv_t200_r3.json --variants control_swiglu_moe`
+
+**Controls**:
+- device: Apple M4 Max (36 GB)
+- macOS: 26.1
+- MLX: 0.30.7.dev20260207+8fe1d092
+- ZMLX: 0.8.3 (`094296f`)
+- Python: 3.14
+
+**Key result**:
+- Multi-variant Qwen sweeps in one process reproducibly hit Metal OOM (`kIOGPUCommandBufferCallbackErrorOutOfMemory`) before completing all variants.
+- Qwen3 control isolated (`control_patterns_moe_mlp`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v3_control_iso_t200_r3.json`):
+  - decode tok/s: 118.7 -> 120.5 (delta +1.80, +1.52%, speedup 1.0152x)
+  - prefill tok/s: 337.0 -> 340.2 (delta +3.20, +0.95%)
+  - peak memory GB: 17.24 -> 17.24 (delta +0.00, +0.00%)
+- Qwen3 router argpartition isolated (`qwen_router_argpartition_logits`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v3_router_iso_t200_r3.json`):
+  - decode tok/s: 118.6 -> 120.5 (delta +1.90, +1.60%, speedup 1.0160x)
+  - prefill tok/s: 338.2 -> 340.8 (delta +2.60, +0.77%)
+  - peak memory GB: 17.24 -> 17.24 (delta +0.00, +0.00%)
+- Qwen3 combine fp32_no_fma (reference) (`qwen_combine_fp32_no_fma`, fidelity FAIL 93/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v1_combine_t200_r3.json`):
+  - decode tok/s: 111.7 -> 41.8 (delta -69.90, -62.58%, speedup 0.3742x)
+  - prefill tok/s: 334.8 -> 207.4 (delta -127.40, -38.05%)
+  - peak memory GB: 17.24 -> 17.71 (delta +0.47, +2.73%)
+- Qwen3 router+combine fp32_no_fma (reference) (`qwen_router_argpartition_logits_combine_fp32_no_fma`, fidelity FAIL 93/200, capsule `benchmarks/repro_capsules/qwen3_a3b_combo_v1_router_combine_t200_r3.json`):
+  - decode tok/s: 114.7 -> 42.7 (delta -72.00, -62.77%, speedup 0.3723x)
+  - prefill tok/s: 338.8 -> 210.3 (delta -128.50, -37.93%)
+  - peak memory GB: 17.24 -> 17.72 (delta +0.48, +2.78%)
+- GLM control isolated (no Qwen env) (`control_swiglu_moe`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/glm47_combo_transfer_v2_control_t200_r3.json`):
+  - decode tok/s: 86.4 -> 90.6 (delta +4.20, +4.86%, speedup 1.0486x)
+  - prefill tok/s: 277.3 -> 274.2 (delta -3.10, -1.12%)
+  - peak memory GB: 16.91 -> 16.91 (delta +0.00, +0.00%)
+- GLM control isolated (Qwen router env on) (`control_swiglu_moe`, fidelity PASS 200/200, capsule `benchmarks/repro_capsules/glm47_combo_transfer_v2_control_qwenrouterenv_t200_r3.json`):
+  - decode tok/s: 86.6 -> 90.9 (delta +4.30, +4.97%, speedup 1.0497x)
+  - prefill tok/s: 278.2 -> 272.7 (delta -5.50, -1.98%)
+  - peak memory GB: 16.91 -> 16.91 (delta +0.00, +0.00%)
+
+**Decision**: keep Qwen `moe_mlp` control as default best-safe path; keep router argpartition optional (near-equal performance, fidelity-safe); keep fp32_no_fma combine disabled; for GLM, Qwen router env has no material transfer effect.
+
+**Next action**: if exploring new kernels, run one variant per process and require fidelity PASS + speedup above control before promotion.
