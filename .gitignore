@@ -51,6 +51,7 @@ runs/mlx/qwen_env_check_full.json
 !/README.md
 !AGENTS.md
 !NO_INFERENCE_PLANNING_PROMPT.md
+!docs/FIRST_RELEASE.md
 
 # IDE / editor
 .idea/
