@@ -1,26 +1,112 @@
-# Wayfinder (HCSA)
+# Wayfinder (HCSA) - graph-sparse causal attention for inference
 
-## What It Is
-Wayfinder implements **Hamiltonian Cycle Sparse Attention (HCSA)**: causal self-attention where each token attends to a bounded neighborhood defined by a graph over positions `0..T-1`.
+Wayfinder implements Hamiltonian Cycle Sparse Attention (HCSA): an inference-time runtime that replaces dense causal self-attention with a bounded-degree graph neighborhood.
 
-Core neighborhood ingredients:
+The graph has three ingredients:
 - local causal window
-- Hamiltonian-cycle backbone
-- optional landmarks/rewires
+- Hamiltonian-cycle backbone from a random permutation of token positions
+- optional landmark tokens (every k-th position)
 
-Execution targets:
-- PyTorch path
-- MLX path
+In this repo, "Hamiltonian cycle" means a permutation-induced cycle over token indices (each token gets two cycle neighbors, then causal masking is applied), not a metric-space TSP claim.
 
-Graph ABI (`hcsa/graph/abi.py`):
-- `neigh_idx`: padded `int32` adjacency list, `-1` for padding, shape `[T, D]` or `[H, T, D]`
-- `edge_type`: `uint8` edge labels in `{PAD, CYCLE, WINDOW, LANDMARK, REWIRE}`
+Status for this release:
+- Validated path: MLX backend (`hcsa/integrations/glm_mlx.py`) on Apple Silicon, model `mlx-community/GLM-4.7-Flash-4bit`, `T=8192`, `decode_len=32`, single-turn benchmark.
+- Decode policy: dense by default (`wayfinder_decode_backend="dense"`), and decode steps (`q_len <= 2`) route to standard dense SDPA. Wayfinder is intentionally a prefill optimization path.
+- Experimental/non-default: Qwen and Nanbeige integrations.
+- PyTorch backend exists (`hcsa/torch/`) but is not the validated focus of this release.
 
-This first public release is primarily a **GLM-4.7-Flash-4bit stable-path** release.
-Nanbeige long-boundary slices remain experimental/non-default.
+Important: if a model was trained with dense attention, Wayfinder changes the computation. It is an approximation. Evaluate quality on your workload.
+
+## Where this fits
+
+This is:
+- A training-free sparse-attention runtime + ABI + benchmark harness.
+- In the same research space as XAttention and SpargeAttn (training-free sparse inference acceleration), but with a different mechanism: Wayfinder uses a graph-defined neighborhood (window + permutation-cycle + landmarks) instead of their selection schemes.
+- A real cross-backend graph ABI: `neigh_idx` int32 with shape `[T,D]` or `[H,T,D]`, padded with `-1`; `edge_type` uint8 enum `{PAD, CYCLE, WINDOW, LANDMARK, REWIRE}`.
+
+This is not:
+- A quality-parity guarantee for every model or prompt.
+- Exact dense attention with a faster kernel (that is the FlashAttention / FlashInfer category).
+
+Mental model: dense causal attention is a complete causal DAG over positions; HCSA is a bounded-degree sparse causal DAG.
+
+## Attention pattern comparison
+
+Five causal attention patterns at `T=64`:
+
+![Attention pattern comparison](docs/assets/attention_comparison_5panel.png)
+
+| Pattern | Edges | Out-degree | Notes |
+|---|---|---|---|
+| Dense causal | `T(T+1)/2` | `O(T)` | Baseline |
+| Sliding window | `O(T*w)` | `O(w)` | Local only |
+| Longformer-style | `O(T*w + T*g)` | `O(w+g)` | Window + global prefix tokens |
+| BigBird-style | `O(T*w + T*g + T*r)` | `O(w+g+r)` | Window + global + random keys |
+| HCSA (Wayfinder) | `O(T*w + T + T/s)` | `O(w+2+T/s)` | Window + cycle backbone + landmarks |
+
+The HCSA panel uses the same mask logic as the implementation: random Hamiltonian permutation + causal cycle-neighbor edges + window + landmark stride.
+
+Reproduce:
+```bash
+python3 scripts/viz/attention_pattern_comparison.py --seq-len 64 --window 8
+python3 scripts/viz/graph_viz.py --seq-len 32 --out docs/assets/hcsa_graph_circle.png
+```
+
+## Results: GLM-4.7-Flash-4bit (Apple Silicon, MLX)
+
+Validated run: `EXP-20260218T151213Z-STABLE-PROFILE` (`T=8192`, `decode_len=32`, single turn).
+
+| Metric | Dense | Wayfinder | Delta (Wayfinder vs Dense) |
+|---|---:|---:|---:|
+| End-to-end (s) | `17.1473` | `10.5563` | `-38.44%` |
+| Prefill (s) | `16.3586` | `9.7533` | `-40.38%` |
+| Decode (s) | `0.7886` | `0.8030` | `+1.82%` |
+| Decode throughput (tok/s) | `40.5762` | `39.8499` | `-1.79%` |
+| Peak memory | `~20.66 GB` | `~20.07 GB` | `-2.85%` |
+
+Takeaway: speedup comes from prefill. Decode behavior is intentionally dense-first, which avoids decode-quality regression from sparse decode routing.
+
+Full evidence and artifacts: `docs/FIRST_RELEASE.md`.
+
+## Research context
+
+Sparse structured attention references:
+- Longformer: <https://arxiv.org/abs/2004.05150>
+- BigBird: <https://arxiv.org/abs/2007.14062>
+- Mistral 7B (sliding-window attention): <https://arxiv.org/abs/2310.06825>
+
+Training-free sparse inference papers in the same space:
+- XAttention (ICML 2025): <https://arxiv.org/abs/2503.16428>
+- SpargeAttn (ICML 2025): <https://arxiv.org/abs/2502.18137>
+
+Different bucket (exact attention, faster kernels):
+- FlashAttention: <https://arxiv.org/abs/2205.14135>
+- FlashInfer: <https://arxiv.org/abs/2501.01005>
+
+## Try It Now (Interactive Chat)
+
+This script is a thin wrapper over `mlx_lm.load` and `mlx_lm.stream_generate`:
+- `scripts/chat_glm_wayfinder.py`
+
+```bash
+git clone https://github.com/Hmbown/Wayfinder && cd Wayfinder
+pip install -e ".[mlx]"
+python3 scripts/chat_glm_wayfinder.py --model-path /path/to/GLM-4.7-Flash-4bit
+```
+
+Or let `mlx_lm` download it automatically:
+
+```bash
+python3 scripts/chat_glm_wayfinder.py
+```
+
+Dense baseline:
+
+```bash
+python3 scripts/chat_glm_wayfinder.py --mode dense
+```
 
 ## Quick Start (5 Minutes)
-Use this exact sequence as a new user:
 
 ```bash
 git clone <this-repo> && cd <this-repo>
@@ -38,12 +124,7 @@ Expected verify artifacts:
 - `benchmarks/mlx/preflight/<RUN_ID>_summary.json`
 - `benchmarks/mlx/preflight/<RUN_ID>_raw.txt`
 
-Interpretation:
-- if verify exits `0` and all three artifacts exist, environment/setup is ready
-- if not, fix environment issues before running benchmarks
-
 ## First Successful Run
-Run a dense sanity benchmark first:
 
 ```bash
 python3 scripts/bench_glm_consumer_mlx.py \
@@ -57,80 +138,40 @@ python3 scripts/bench_glm_consumer_mlx.py \
 ```
 
 Success criteria:
-- command exits `0`
+- exit code is `0`
 - `benchmarks/mlx/first_release/first_run_dense_t2048/results.json` exists
 
 ## Stable Public Profile (Default)
-This is the default public benchmark path.
 
 ```bash
 ./scripts/run_public_stable_profile_glm.sh
 ```
 
-Optional explicit form:
-
-```bash
-./scripts/run_public_stable_profile_glm.sh \
-  --run-id EXP-YYYYMMDDTHHMMSSZ-STABLE-PROFILE \
-  --out-root benchmarks/mlx/first_release \
-  --model-path mlx-community/GLM-4.7-Flash-4bit \
-  --seq-len 8192 \
-  --decode-len 32 \
-  --repeats 1
-```
-
-Default behavior:
-- strict sequential execution (dense, then wayfinder)
-- conservative flags (`--skip-multi-turn --skip-quality`)
-- retro/backfill inference default remains off
-
-Output artifacts per run:
+Output artifacts:
 - `<out-root>/<run-id>/dense/results.json`
 - `<out-root>/<run-id>/wayfinder/results.json`
 - `<out-root>/<run-id>/stable_profile_summary.json`
 - `<out-root>/<run-id>/stable_profile_summary.md`
 
 ## Support Matrix (Validated vs Experimental)
+
 | Tier | Status | Scope | Default | Evidence |
 |---|---|---|---|---|
-| Validated | Recommended | GLM-4.7 stable wrapper path | Yes | `docs/FIRST_RELEASE.md` |
+| Validated | Recommended | GLM-4.7 stable wrapper path (`T=8192`, `decode_len=32`) | Yes | `docs/FIRST_RELEASE.md` |
 | Experimental | Opt-in only | Qwen and Nanbeige diagnostic slices | No | `docs/FIRST_RELEASE.md` |
 | Known regression | Non-default | Nanbeige `T=131072, decode_len=256` | No | `docs/FIRST_RELEASE.md` |
 
-Additional boundary context:
-- Nanbeige `T=131072, decode_len=32` completed with informative fallback diagnostics but remains experimental/non-default.
-- Full measured tables, deltas, reproduction commands, and artifact paths are in `docs/FIRST_RELEASE.md`.
+Boundary note: Nanbeige `T=131072, decode_len=32` has diagnostic data but remains experimental/non-default.
 
 ## Troubleshooting
-If a run fails or quality/perf looks wrong, check these first:
 
-- OOM or heavy memory pressure:
-  - re-run `./scripts/verify_install_and_preflight.sh` and inspect swap/compressor deltas
-  - reduce `--seq-lens` and retry one command at a time
+- If verify or benchmark exits nonzero, treat the run as failed and fix environment first.
+- If `results.json` is missing, do not compute deltas from partial outputs.
+- For fallback diagnostics, add `--hsa-trace`.
+- Keep Nanbeige `T=131072` slices non-default unless release evidence changes.
 
-- Missing artifacts:
-  - treat missing `results.json` as failed run
-  - do not compute deltas from partial outputs
-
-- Queue dry-run path collisions:
-  - `scripts/run_section4_queue.py --dry-run` rejects existing out dirs unless `--overwrite` is used
-
-- Fallback diagnostics unclear:
-  - include `--hsa-trace` for diagnostic wayfinder runs
-  - if fallback appears but reasons are missing/unspecified, treat as follow-up
-
-- Non-default reminder:
-  - keep Nanbeige long-boundary slices (`T=131072`) experimental unless release evidence is updated
-
-## Docs Map
-Use these docs by audience:
-
-- Release evidence and reproduction: `docs/FIRST_RELEASE.md`
-- Architecture and internals: `docs/ARCHITECTURE.md`
-- Research direction and citations: `docs/RESEARCH.md`
-
-Related workflow policy:
-- Experiment discipline and ledger protocol: `AGENTS.md`
+Release evidence: `docs/FIRST_RELEASE.md`. Architecture details: `docs/ARCHITECTURE.md`. Research notes: `docs/RESEARCH.md`.
 
 ## License
+
 MIT. See `LICENSE`.
