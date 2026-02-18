@@ -32,9 +32,7 @@ Mental model: dense causal attention is a complete causal DAG over positions; HC
 
 ## Attention pattern comparison
 
-Five causal attention patterns at `T=64`:
-
-![Attention pattern comparison](docs/assets/attention_comparison_5panel.png)
+Five causal attention patterns at sequence length `T=64` (illustrative mask size, not the benchmark length):
 
 | Pattern | Edges | Out-degree | Notes |
 |---|---|---|---|
@@ -56,13 +54,13 @@ python3 scripts/viz/graph_viz.py --seq-len 32 --out docs/assets/hcsa_graph_circl
 
 Validated run: `EXP-20260218T151213Z-STABLE-PROFILE` (`T=8192`, `decode_len=32`, single turn).
 
-| Metric | Dense | Wayfinder | Delta (Wayfinder vs Dense) |
-|---|---:|---:|---:|
-| End-to-end (s) | `17.1473` | `10.5563` | `-38.44%` |
-| Prefill (s) | `16.3586` | `9.7533` | `-40.38%` |
-| Decode (s) | `0.7886` | `0.8030` | `+1.82%` |
-| Decode throughput (tok/s) | `40.5762` | `39.8499` | `-1.79%` |
-| Peak memory | `~20.66 GB` | `~20.07 GB` | `-2.85%` |
+| Metric | Unit | Dense | Wayfinder | Delta (Wayfinder vs Dense) |
+|---|---:|---:|---:|---:|
+| End-to-end time | `s` | `17.1473 s` | `10.5563 s` | `-38.44%` |
+| Prefill time | `s` | `16.3586 s` | `9.7533 s` | `-40.38%` |
+| Decode time | `s` | `0.7886 s` | `0.8030 s` | `+1.82%` |
+| Decode throughput | `tok/s` | `40.5762 tok/s` | `39.8499 tok/s` | `-1.79%` |
+| Peak memory | `GB` | `~20.66 GB` | `~20.07 GB` | `-2.85%` |
 
 Takeaway: speedup comes from prefill. Decode behavior is intentionally dense-first, which avoids decode-quality regression from sparse decode routing.
 
