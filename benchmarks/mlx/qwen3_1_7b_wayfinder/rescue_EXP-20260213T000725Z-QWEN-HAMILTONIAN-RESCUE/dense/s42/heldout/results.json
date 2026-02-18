@@ -1,0 +1,291 @@
+{
+  "created_at": "2026-02-13T00:20:19.961844+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --mode dense --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_holdout_v1.json --skip-multi-turn --out-dir benchmarks/mlx/qwen3_1_7b_wayfinder/rescue_EXP-20260213T000725Z-QWEN-HAMILTONIAN-RESCUE/dense/s42/heldout",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 3.54461275000358,
+      "ttft_sec": 0.029651625009137206,
+      "itl_p50_sec": 0.007438375003403053,
+      "itl_p95_sec": 0.007796667006914504,
+      "decode_sec": 0.50566512500518,
+      "e2e_sec": 4.05027787500876,
+      "decode_tok_s": 126.56597585080519,
+      "peak_memory_bytes": 3840100388,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 3.5530313329945784,
+      "ttft_sec": 0.03173624999180902,
+      "itl_p50_sec": 0.007453500002156943,
+      "itl_p95_sec": 0.008155415998771787,
+      "decode_sec": 0.5096423750073882,
+      "e2e_sec": 4.062673708001967,
+      "decode_tok_s": 125.57825474985711,
+      "peak_memory_bytes": 3840100388,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 3.581055208007456,
+      "ttft_sec": 0.046873874991433695,
+      "itl_p50_sec": 0.0074155000038445,
+      "itl_p95_sec": 0.007607084000483155,
+      "decode_sec": 0.5184474159905221,
+      "e2e_sec": 4.099502623997978,
+      "decode_tok_s": 123.44549905360122,
+      "peak_memory_bytes": 3840100388,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_holdout_v1.json",
+    "num_tasks": 24,
+    "correct": 9,
+    "accuracy": 0.375,
+    "rows": [
+      {
+        "id": "extract-h01",
+        "expected": "V7K2",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket **ARBOR-1103**, we need to look at the information provided in **Record A**.\n\n### Given:\n- **Record A**:\n  - Ticket: **ARBOR-1103**\n  - Owner: **",
+        "correct": false,
+        "ttft_sec": 0.006182291996083222,
+        "itl_p95_sec": 0.004904667002847418,
+        "peak_memory_bytes": 1101310716
+      },
+      {
+        "id": "extract-h02",
+        "expected": "Q1M8",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket \"CLOUD-3305,\" we need to examine the records provided. \n\nRecord A contains the ticket \"CLOUD-3305\" with the owner \"TEO\" and the checksum \"Q1M8.\" This indicates",
+        "correct": true,
+        "ttft_sec": 0.005840083002112806,
+        "itl_p95_sec": 0.004896041995380074,
+        "peak_memory_bytes": 1092717036
+      },
+      {
+        "id": "extract-h03",
+        "expected": "R9D4",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket EMBER-5507, we need to look at the information provided in Record A. \n\nRecord A contains the following details:\n- ticket: EMBER-5507\n- owner: KAI\n- checksum: R9",
+        "correct": false,
+        "ttft_sec": 0.005503958003828302,
+        "itl_p95_sec": 0.00500741699943319,
+        "peak_memory_bytes": 1092717036
+      },
+      {
+        "id": "extract-h04",
+        "expected": "J8W6",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket **GLINT-7709**, we need to analyze the information provided in the two records:\n\n1. **Record A**:\n   - Ticket: **GLINT-7709**\n   - Owner: **SOL**\n  ",
+        "correct": false,
+        "ttft_sec": 0.005936457993811928,
+        "itl_p95_sec": 0.004979792007361539,
+        "peak_memory_bytes": 1092717036
+      },
+      {
+        "id": "extract-h05",
+        "expected": "F5R7",
+        "output": " The answer is in the form of a 4-digit code.\nTo solve this problem, we need to determine the checksum for the ticket \"IONIC-9911\" from the given records. Let's break down the problem step by step.\n\nFirst, we have two records:\n- Record A: ticket=",
+        "correct": false,
+        "ttft_sec": 0.005547084001591429,
+        "itl_p95_sec": 0.0050098749925382435,
+        "peak_memory_bytes": 1100892664
+      },
+      {
+        "id": "extract-h06",
+        "expected": "T6Q4",
+        "output": " The answer is in the form of \\boxed{...}.\n\nThe checksum for ticket KAPPA-2133 is \\boxed{T6Q4}. The checksum for ticket LUMEN-3244 is \\boxed{G1V9}. The owner of ticket KAPPA-21",
+        "correct": true,
+        "ttft_sec": 0.0062270409980556,
+        "itl_p95_sec": 0.004865916009293869,
+        "peak_memory_bytes": 1099680244
+      },
+      {
+        "id": "extract-h07",
+        "expected": "Y2H7",
+        "output": " The answer is in the form of a 4-digit number.\nTo solve this problem, we need to determine the checksum for the ticket \"METRO-4355\" from the given records. Let's break down the problem step by step.\n\nFirst, let's look at the information provided:\n\n- Record A",
+        "correct": false,
+        "ttft_sec": 0.005732707999413833,
+        "itl_p95_sec": 0.00479766599892173,
+        "peak_memory_bytes": 1098451440
+      },
+      {
+        "id": "extract-h08",
+        "expected": "S4B3",
+        "output": " The answer is in the form of a 4-digit number.\nTo solve this problem, we need to determine the checksum for the ticket \"ORBIT-6577\" from the given records. Let's break down the problem step by step.\n\nFirst, let's look at the information provided:\n\n- Record A",
+        "correct": false,
+        "ttft_sec": 0.005607333994703367,
+        "itl_p95_sec": 0.004774500004714355,
+        "peak_memory_bytes": 1098451440
+      },
+      {
+        "id": "extract-h09",
+        "expected": "E3P6",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket \"QUILL-8799,\" we need to look at the information provided in the records. \n\nRecord A contains the ticket number \"QUILL-8799\" and the owner \"ANA\" with a checksum \"E3P",
+        "correct": false,
+        "ttft_sec": 0.005730042001232505,
+        "itl_p95_sec": 0.0048355409962823614,
+        "peak_memory_bytes": 1092717036
+      },
+      {
+        "id": "extract-h10",
+        "expected": "L7N5",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket \"SONIC-1112,\" we need to look at the information provided in the records.\n\nRecord A contains the following details:\n- Ticket: SONIC-1112\n- Owner: MAX\n- Checksum: L7",
+        "correct": false,
+        "ttft_sec": 0.0056871249980758876,
+        "itl_p95_sec": 0.004839708999497816,
+        "peak_memory_bytes": 1092422120
+      },
+      {
+        "id": "extract-h11",
+        "expected": "H9Q1",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket \"UMBRA-3334,\" we need to look at the information provided in Record A. \n\nRecord A contains the following details:\n- Ticket: UMBRA-3334\n- Owner: NEO\n- Checksum:",
+        "correct": false,
+        "ttft_sec": 0.005547584005398676,
+        "itl_p95_sec": 0.004771749998326413,
+        "peak_memory_bytes": 1099680244
+      },
+      {
+        "id": "extract-h12",
+        "expected": "P2K4",
+        "output": " The answer must be given as a single word.\nThe answer must be given as a single word.\nThe answer must be given as a single word.\nThe answer must be given as a single word.\nThe answer must be given as a single word.\nThe answer must be given as a single word.\nThe answer must be",
+        "correct": false,
+        "ttft_sec": 0.005422083995654248,
+        "itl_p95_sec": 0.004892708995612338,
+        "peak_memory_bytes": 1098451440
+      },
+      {
+        "id": "extract-h13",
+        "expected": "B5T9",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket **YARNS-7778**, we need to analyze the information provided in the two records.\n\n### Given:\n- **Record A**:\n  - Ticket: **YARNS-7778**\n  - Owner: **",
+        "correct": false,
+        "ttft_sec": 0.005613542001810856,
+        "itl_p95_sec": 0.004788082995219156,
+        "peak_memory_bytes": 1099680244
+      },
+      {
+        "id": "extract-h14",
+        "expected": "N1R3",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket \"ALLOY-9990,\" we need to look at the provided records. \n\nRecord A has the ticket \"ALLOY-9990\" and the checksum \"N1R3.\" \n\nRecord B is for a different ticket",
+        "correct": true,
+        "ttft_sec": 0.0058070410013897344,
+        "itl_p95_sec": 0.004826457996387035,
+        "peak_memory_bytes": 1098451440
+      },
+      {
+        "id": "extract-h15",
+        "expected": "K3P7",
+        "output": " The problem is to find the checksum for the ticket CREST-2112, but I only have the checksums for the other two tickets. The checksums are given as K3P7 for ticket DELVE-3223 and F8Q2 for ticket DELVE-3223",
+        "correct": true,
+        "ttft_sec": 0.0055955419957172126,
+        "itl_p95_sec": 0.004842874986934476,
+        "peak_memory_bytes": 1100892664
+      },
+      {
+        "id": "extract-h16",
+        "expected": "T4L6",
+        "output": " The answer is in the box.\nTo determine the checksum for the ticket **EPOCH-4334**, we need to analyze the information provided in the two records:\n\n1. **Record A**:\n   - `ticket=EPOCH-4334`\n   - `owner=RIO`\n   - `",
+        "correct": false,
+        "ttft_sec": 0.005678582994733006,
+        "itl_p95_sec": 0.005006000006687827,
+        "peak_memory_bytes": 1092717036
+      },
+      {
+        "id": "lookup-h01",
+        "expected": "33",
+        "output": " 14, 27, 33, 18. 14, 27, 33, 18. 14, 27, 33, 18. 14, 27, 33, 18.",
+        "correct": true,
+        "ttft_sec": 0.0054943330032983795,
+        "itl_p95_sec": 0.004784250006196089,
+        "peak_memory_bytes": 1024624976
+      },
+      {
+        "id": "lookup-h02",
+        "expected": "31",
+        "output": "4\n\nTo determine the \"west\" value, we need to look at the given map coordinates. The map is given as follows:\n\n- North: 44\n- South: 12\n- East: 29\n- West: 31\n\nThe question asks to return only the \"west",
+        "correct": true,
+        "ttft_sec": 0.005506834000698291,
+        "itl_p95_sec": 0.004775290988618508,
+        "peak_memory_bytes": 1019484364
+      },
+      {
+        "id": "lookup-h03",
+        "expected": "silver",
+        "output": " The answer is: silver\nThe given IDs are AX10, BY20, and CZ30. Each has a corresponding color: amber, teal, and silver. The question asks for the color of CZ30, which is silver. So the answer is silver.\n! The answer is: silver\n\n",
+        "correct": true,
+        "ttft_sec": 0.005608457999187522,
+        "itl_p95_sec": 0.004790791994309984,
+        "peak_memory_bytes": 1023510860
+      },
+      {
+        "id": "lookup-h04",
+        "expected": "7",
+        "output": " The answer is: 7\n! / 100000000000000000000000000000000000000000000000000000",
+        "correct": true,
+        "ttft_sec": 0.0054949159966781735,
+        "itl_p95_sec": 0.004783750002388842,
+        "peak_memory_bytes": 1023510860
+      },
+      {
+        "id": "math-h01",
+        "expected": "273",
+        "output": " \nWait, that's not a valid mathematical expression. Let me try again. What is the value of 73 multiplied by 4, and then subtract 19? Alright, let's break it down step by step. First, multiply 73 by 4. Then subtract 19 from the",
+        "correct": false,
+        "ttft_sec": 0.005475250000017695,
+        "itl_p95_sec": 0.004851250007050112,
+        "peak_memory_bytes": 1018386636
+      },
+      {
+        "id": "math-h02",
+        "expected": "49",
+        "output": " 256 divided by 8 is 32, and 32 plus 17 is 49. 256 divided by 8 is 32, and 32 plus 17 is 49. 256 divided by 8 is 32",
+        "correct": true,
+        "ttft_sec": 0.00547841600200627,
+        "itl_p95_sec": 0.004859749999013729,
+        "peak_memory_bytes": 1018759396
+      },
+      {
+        "id": "math-h03",
+        "expected": "231",
+        "output": " 15 is 15, 15 is 15, 15 is 15, 15 is 15, 15 is 15, 15 is 15, 15 is 15, 15 is 15,",
+        "correct": false,
+        "ttft_sec": 0.005826583001180552,
+        "itl_p95_sec": 0.004792665989953093,
+        "peak_memory_bytes": 1016367308
+      },
+      {
+        "id": "math-h04",
+        "expected": "74",
+        "output": " 900 divided by 30 plus 44.\nOkay, let's see. I need to calculate 900 divided by 30 plus 44. Hmm, so first, I should do the division part first, right? Because of the order of operations, parentheses and exponents",
+        "correct": false,
+        "ttft_sec": 0.005374999993364327,
+        "itl_p95_sec": 0.004737625000416301,
+        "peak_memory_bytes": 1018386636
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

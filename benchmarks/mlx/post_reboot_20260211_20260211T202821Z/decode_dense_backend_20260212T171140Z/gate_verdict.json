@@ -1,0 +1,30 @@
+{
+  "all_pass": true,
+  "gates": {
+    "G1_six_task_acc_gte_040": {
+      "pass": true,
+      "value": 0.5,
+      "threshold": 0.4
+    },
+    "G2_heldout_acc_gte_004": {
+      "pass": true,
+      "value": 0.125,
+      "threshold": 0.04
+    },
+    "G3_decode_tok_s_gte_40": {
+      "pass": true,
+      "value": 44.393988672401875,
+      "threshold": 40.0
+    },
+    "G4_peak_mem_delta_lte_5pct": {
+      "pass": true,
+      "value": 0.016656866855499074,
+      "threshold": 5.0
+    },
+    "G5_dense_sparse_stable": {
+      "pass": true,
+      "dense_decode_delta_pct": -0.06918869688866379,
+      "sparse_decode_delta_pct": -2.236360458059486
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "baseline": {
+    "extract": {
+      "dense_accuracy": 1.0,
+      "wayfinder_accuracy": 0.5,
+      "delta": -0.5,
+      "delta_pct_vs_dense": -50.0,
+      "n": 2
+    },
+    "lookup": {
+      "dense_accuracy": 0.5,
+      "wayfinder_accuracy": 0.5,
+      "delta": 0.0,
+      "delta_pct_vs_dense": 0.0,
+      "n": 2
+    },
+    "math": {
+      "dense_accuracy": 0.0,
+      "wayfinder_accuracy": 0.0,
+      "delta": 0.0,
+      "delta_pct_vs_dense": null,
+      "n": 2
+    }
+  },
+  "pooled_fullset_diagnostics": {
+    "extract": {
+      "dense_accuracy": 1.0,
+      "wayfinder_accuracy": 0.5,
+      "delta": -0.5,
+      "delta_pct_vs_dense": -50.0,
+      "dense_n": 8,
+      "wayfinder_n": 10
+    },
+    "lookup": {
+      "dense_accuracy": 0.5,
+      "wayfinder_accuracy": 0.5,
+      "delta": 0.0,
+      "delta_pct_vs_dense": 0.0,
+      "dense_n": 8,
+      "wayfinder_n": 10
+    },
+    "math": {
+      "dense_accuracy": 0.0,
+      "wayfinder_accuracy": 0.0,
+      "delta": 0.0,
+      "delta_pct_vs_dense": null,
+      "dense_n": 8,
+      "wayfinder_n": 10
+    }
+  }
+}

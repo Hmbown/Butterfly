@@ -1,0 +1,129 @@
+{
+  "created_at": "2026-02-12T19:07:46.990408+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --mode dense --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 99 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --skip-multi-turn --out-dir benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s99/main",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 3.5155992079962743,
+      "ttft_sec": 0.027007791999494657,
+      "itl_p50_sec": 0.007144584000343457,
+      "itl_p95_sec": 0.007348416998866014,
+      "decode_sec": 0.48192191700218245,
+      "e2e_sec": 3.997521124998457,
+      "decode_tok_s": 132.80159657007292,
+      "peak_memory_bytes": 3840100396,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 3.5174861249979585,
+      "ttft_sec": 0.027352917000825983,
+      "itl_p50_sec": 0.007185000002209563,
+      "itl_p95_sec": 0.007480207998014521,
+      "decode_sec": 0.4861406670024735,
+      "e2e_sec": 4.003626792000432,
+      "decode_tok_s": 131.64913849857857,
+      "peak_memory_bytes": 3840100396,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 3.518432082993968,
+      "ttft_sec": 0.02447224999923492,
+      "itl_p50_sec": 0.007087874997523613,
+      "itl_p95_sec": 0.00726941700122552,
+      "decode_sec": 0.47510075000172947,
+      "e2e_sec": 3.9935328329956974,
+      "decode_tok_s": 134.7082697717632,
+      "peak_memory_bytes": 3840100396,
+      "sample_output_text": " three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 4,
+    "accuracy": 0.6666666666666666,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " /literal/\nThe checksum for ticket ALPHA-7721 is Q9X4.\n**Reasoning:**\nThe question asks for the checksum of the ticket with the ticket number ALPHA-7721. By examining the provided records, we can see that the checksum for ticket ALPHA-7721",
+        "correct": true,
+        "ttft_sec": 0.005917957998462953,
+        "itl_p95_sec": 0.0046247080026660115,
+        "peak_memory_bytes": 1119324748
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": " The answer must be in a code format, like \\boxed{...}.\n\nTo solve this problem, we need to identify the amount from the given log entries. The log entries are as follows:\n\n- 2026-01-03: amount=17\n- 2026",
+        "correct": false,
+        "ttft_sec": 0.004724458005512133,
+        "itl_p95_sec": 0.00456300000223564,
+        "peak_memory_bytes": 1124764248
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": " 48 * 7 is 336, so 336 - 19 is 317. 317 is the final answer.\nThe final answer is 317.\n\\boxed{317}\n```python\n# Calculate the result of (48 *",
+        "correct": true,
+        "ttft_sec": 0.0046291660037240945,
+        "itl_p95_sec": 0.004560166002193,
+        "peak_memory_bytes": 1033767312
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": " 144 divided by 12 plus 39.\nOkay, let's see. I need to calculate 144 divided by 12 plus 39. Hmm, so first, I should do the division part first, right? Because of the order of operations, parentheses, exponents",
+        "correct": false,
+        "ttft_sec": 0.004659209000237752,
+        "itl_p95_sec": 0.0045147499986342154,
+        "peak_memory_bytes": 1037765012
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": " /literal/\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9}.\n\nThe answer is \\boxed{9",
+        "correct": true,
+        "ttft_sec": 0.00476104200060945,
+        "itl_p95_sec": 0.004583875001117121,
+        "peak_memory_bytes": 1048086960
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " The user is asking for the color of the item with the ID BM77. From the given information, BM77 is associated with the color green. So, the answer is green.\nThe final answer is green.\nThe final answer is \\boxed{green}.\nThe final answer is \\boxed{green}.\nThe",
+        "correct": true,
+        "ttft_sec": 0.004681999998865649,
+        "itl_p95_sec": 0.004747416001919191,
+        "peak_memory_bytes": 1052068276
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

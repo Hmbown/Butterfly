@@ -325,7 +325,27 @@ def main() -> None:
     p.add_argument("--path", type=str, default="permute", choices=["sparse", "permute"])
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
-    p.add_argument("--num-cycles", type=int, default=1)
+    p.add_argument("--num-cycles", type=str, default="1")
+    p.add_argument(
+        "--edge-disjoint",
+        dest="edge_disjoint",
+        action="store_true",
+        default=True,
+        help="Require edge-disjoint cycles when num_cycles > 1 (default).",
+    )
+    p.add_argument(
+        "--no-edge-disjoint",
+        dest="edge_disjoint",
+        action="store_false",
+        help="Allow overlapping cycles when num_cycles > 1.",
+    )
+    p.add_argument(
+        "--allow-non-hamiltonian",
+        dest="enforce_hamiltonian",
+        action="store_false",
+        default=True,
+        help="Allow graphs without Hamiltonian backbone (e.g., num_cycles=0).",
+    )
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--permute-head-chunk-size", type=int, default=8)
     p.add_argument("--permute-query-chunk-size", type=int, default=256)
@@ -386,12 +406,20 @@ def main() -> None:
     )
     _log("Model loaded")
 
+    num_cycles_raw = str(args.num_cycles).lower()
+    num_cycles: int | str
+    if num_cycles_raw == "auto":
+        num_cycles = "auto"
+    else:
+        num_cycles = int(num_cycles_raw)
+
     wf_cfg = GPT2WayfinderConfig(
         path=args.path,  # type: ignore[arg-type]
         strategy="random",
         window=int(args.window),
         landmark_stride=None if int(args.landmark_stride) <= 0 else int(args.landmark_stride),
-        num_cycles=int(args.num_cycles),
+        num_cycles=num_cycles,
+        edge_disjoint=bool(args.edge_disjoint),
         seed=int(args.seed),
         permute_head_chunk_size=int(args.permute_head_chunk_size),
         query_chunk_size=int(args.permute_query_chunk_size),
@@ -406,6 +434,7 @@ def main() -> None:
         retro_backfill_alpha=float(args.retro_alpha),
         retro_backfill_training_only=bool(args.retro_training_only),
         retro_backfill_causal_only=bool(args.retro_causal_only),
+        enforce_hamiltonian=bool(args.enforce_hamiltonian),
     )
 
     model_tag = args.model_path.rstrip("/").split("/")[-1].lower().replace("-", "_")

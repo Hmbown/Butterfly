@@ -1,0 +1,547 @@
+{
+  "created_at": "2026-02-12T14:46:16.732003+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-quality --skip-multi-turn --seed 42 --swap-layer-indices 16 --active-dense-threshold 16384 --hsa-trace --hsa-trace-max-layers 1 --hsa-trace-max-steps 16 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/hsa_trace_diag_20260212T144401Z/s42_idx16_trace_v2",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      16
+    ],
+    "requested_layer_indices": [
+      16
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "16",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 16.768474417003745,
+      "ttft_sec": 0.21756654199998593,
+      "itl_p50_sec": 0.019449499995971564,
+      "itl_p95_sec": 0.019574041994928848,
+      "decode_sec": 0.5103125829991768,
+      "e2e_sec": 17.27878700000292,
+      "decode_tok_s": 31.35333231637326,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } }",
+      "hsa_trace_summary": {
+        "sample_count": 18,
+        "layer_observations": 18,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 16
+        },
+        "path_counts": {
+          "permute": 1,
+          "permute_dense_fallback": 1,
+          "permute_decode_local_tail": 16
+        },
+        "cache_source_counts": {
+          "runtime": 1,
+          "dense_fallback": 1,
+          "decode_local_tail": 16
+        },
+        "graph_seq_len_counts": {
+          "4096": 1,
+          "8193": 1,
+          "8194": 1,
+          "8195": 1,
+          "8196": 1,
+          "8197": 1,
+          "8198": 1,
+          "8199": 1,
+          "8200": 1,
+          "8201": 1,
+          "8202": 1,
+          "8203": 1,
+          "8204": 1,
+          "8205": 1,
+          "8206": 1,
+          "8207": 1,
+          "8208": 1
+        },
+        "q_len_counts": {
+          "4096": 1,
+          "1": 16
+        },
+        "dense_fallback_reason_counts": {
+          "active_large_q": 1
+        },
+        "active_query_ratio": 0.8888888888888888,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.9444444444444444
+      },
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 4096,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute",
+              "graph_build_ms": 5.553083002567291,
+              "attention_ms": 0.3565420061349869,
+              "total_ms": 6.174457989633083,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 4096,
+          "chunk_end": 8192,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.009916000068187714,
+              "total_ms": 0.06916700303554535,
+              "notes": {
+                "cache_hit": true,
+                "cache_source": "dense_fallback",
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": true
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005959004163742065,
+              "total_ms": 0.07016699761152267,
+              "notes": {
+                "seq_len": 8193,
+                "graph_seq_len": 8193,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.00720900297164917,
+              "total_ms": 0.08095800131559372,
+              "notes": {
+                "seq_len": 8194,
+                "graph_seq_len": 8194,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005750000476837158,
+              "total_ms": 0.0559999942779541,
+              "notes": {
+                "seq_len": 8195,
+                "graph_seq_len": 8195,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004292003810405731,
+              "total_ms": 0.04420800507068634,
+              "notes": {
+                "seq_len": 8196,
+                "graph_seq_len": 8196,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0054579973220825195,
+              "total_ms": 0.049415990710258484,
+              "notes": {
+                "seq_len": 8197,
+                "graph_seq_len": 8197,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005125001072883606,
+              "total_ms": 0.05558299273252487,
+              "notes": {
+                "seq_len": 8198,
+                "graph_seq_len": 8198,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004500001668930054,
+              "total_ms": 0.03987499326467514,
+              "notes": {
+                "seq_len": 8199,
+                "graph_seq_len": 8199,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005166001617908478,
+              "total_ms": 0.044374994933605194,
+              "notes": {
+                "seq_len": 8200,
+                "graph_seq_len": 8200,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 9,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0050420016050338745,
+              "total_ms": 0.04441700130701065,
+              "notes": {
+                "seq_len": 8201,
+                "graph_seq_len": 8201,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 10,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004458002746105194,
+              "total_ms": 0.036750003695487976,
+              "notes": {
+                "seq_len": 8202,
+                "graph_seq_len": 8202,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 11,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005791999399662018,
+              "total_ms": 0.061416998505592346,
+              "notes": {
+                "seq_len": 8203,
+                "graph_seq_len": 8203,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 12,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005667001008987427,
+              "total_ms": 0.06670799851417542,
+              "notes": {
+                "seq_len": 8204,
+                "graph_seq_len": 8204,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 13,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.006207995116710663,
+              "total_ms": 0.06658300012350082,
+              "notes": {
+                "seq_len": 8205,
+                "graph_seq_len": 8205,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 14,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0052499920129776,
+              "total_ms": 0.06045800447463989,
+              "notes": {
+                "seq_len": 8206,
+                "graph_seq_len": 8206,
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "decode_local_tail",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 0,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false,
+                "decode_local_tail_tokens": 129
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

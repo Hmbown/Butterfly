@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import statistics
 import sys
@@ -72,6 +73,18 @@ def _bench(fn, *, warmup: int, iters: int, label: str):
     return _median(times), _peak_memory()
 
 
+def _clear_graph_caches() -> None:
+    _QWEN_GRAPH_CACHE_STORE.clear()
+    _QWEN_GRAPH_CACHE_BY_KEY.clear()
+
+
+def _post_seq_cleanup() -> None:
+    _clear_graph_caches()
+    if hasattr(mx, "clear_cache"):
+        mx.clear_cache()
+    gc.collect()
+
+
 def _model_layers(model: Any) -> Sequence[Any]:
     if hasattr(model, "layers"):
         return model.layers
@@ -93,6 +106,7 @@ def _bench_one_seq(
     graph_cache_root: Path,
     full_swap: bool,
     permute_memory_budget_multiplier: float,
+    run_block_bench: bool,
 ) -> Dict[str, Any]:
     _log(f"  building inputs for T={seq_len}")
     dtype = getattr(mx, dtype_name)
@@ -178,48 +192,52 @@ def _bench_one_seq(
         },
     }
 
-    def baseline_block_fn():
-        return layer0(x, mask="causal", cache=None)
-
-    _log("  stage: level_a baseline block")
-    base_block_s, base_block_mem = _bench(
-        baseline_block_fn,
-        warmup=max(1, warmup // 2),
-        iters=max(1, iters // 2),
-        label=f"T={seq_len} baseline_block",
-    )
-
-    orig_attn = layer0.self_attn
-    layer0.self_attn = wf_attn
-    try:
-
-        def wf_block_fn():
+    if run_block_bench:
+        def baseline_block_fn():
             return layer0(x, mask="causal", cache=None)
 
-        _log("  stage: level_a Wayfinder block")
-        wf_block_s, wf_block_mem = _bench(
-            wf_block_fn,
+        _log("  stage: level_a baseline block")
+        base_block_s, base_block_mem = _bench(
+            baseline_block_fn,
             warmup=max(1, warmup // 2),
             iters=max(1, iters // 2),
-            label=f"T={seq_len} wf_block",
+            label=f"T={seq_len} baseline_block",
         )
-        row["block"] = {
-            "baseline": {
-                "tokens_per_sec": float((batch * seq_len) / max(base_block_s, 1e-12)),
-                "latency_ms": float(base_block_s * 1000.0),
-                "peak_memory_bytes": int(base_block_mem),
-            },
-            "wayfinder": {
-                "tokens_per_sec": float((batch * seq_len) / max(wf_block_s, 1e-12)),
-                "latency_ms": float(wf_block_s * 1000.0),
-                "peak_memory_bytes": int(wf_block_mem),
-                "cache_persistent_bytes": int(wf_attn.cache_persistent_bytes()),
-                "edge_utilization_proxy": wf_attn.last_edge_utilization_proxy,
-                "graph_metrics": wf_attn.last_graph_metrics,
-            },
-        }
-    finally:
-        layer0.self_attn = orig_attn
+
+        orig_attn = layer0.self_attn
+        layer0.self_attn = wf_attn
+        try:
+
+            def wf_block_fn():
+                return layer0(x, mask="causal", cache=None)
+
+            _log("  stage: level_a Wayfinder block")
+            wf_block_s, wf_block_mem = _bench(
+                wf_block_fn,
+                warmup=max(1, warmup // 2),
+                iters=max(1, iters // 2),
+                label=f"T={seq_len} wf_block",
+            )
+            row["block"] = {
+                "baseline": {
+                    "tokens_per_sec": float((batch * seq_len) / max(base_block_s, 1e-12)),
+                    "latency_ms": float(base_block_s * 1000.0),
+                    "peak_memory_bytes": int(base_block_mem),
+                },
+                "wayfinder": {
+                    "tokens_per_sec": float((batch * seq_len) / max(wf_block_s, 1e-12)),
+                    "latency_ms": float(wf_block_s * 1000.0),
+                    "peak_memory_bytes": int(wf_block_mem),
+                    "cache_persistent_bytes": int(wf_attn.cache_persistent_bytes()),
+                    "edge_utilization_proxy": wf_attn.last_edge_utilization_proxy,
+                    "graph_metrics": wf_attn.last_graph_metrics,
+                },
+            }
+        finally:
+            layer0.self_attn = orig_attn
+    else:
+        row["block"] = {"skipped": True, "reason": "skip_block_bench flag"}
+        _log("  stage: level_a block benchmark skipped via flag")
 
     if full_swap:
         _log("  stage: level_b full-model swap smoke")
@@ -340,6 +358,40 @@ def main() -> None:
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument("--num-cycles", type=int, default=1)
+    p.add_argument(
+        "--edge-disjoint",
+        dest="edge_disjoint",
+        action="store_true",
+        default=True,
+        help="Require edge-disjoint cycles when num_cycles > 1 (default).",
+    )
+    p.add_argument(
+        "--no-edge-disjoint",
+        dest="edge_disjoint",
+        action="store_false",
+        help="Allow overlapping cycles when num_cycles > 1.",
+    )
+    p.add_argument(
+        "--allow-non-hamiltonian",
+        dest="enforce_hamiltonian",
+        action="store_false",
+        default=True,
+        help="Allow graphs without Hamiltonian backbone (e.g., num_cycles=0).",
+    )
+    p.add_argument(
+        "--run-block-bench",
+        dest="run_block_bench",
+        action="store_true",
+        default=False,
+        help="Run block-level benchmark stage (disabled by default for memory safety).",
+    )
+    # Backward-compatibility alias; default is already skipped.
+    p.add_argument(
+        "--skip-block-bench",
+        dest="run_block_bench",
+        action="store_false",
+        help=argparse.SUPPRESS,
+    )
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--window-drop", type=float, default=0.0)
     p.add_argument("--permute-head-chunk-size", type=int, default=2)
@@ -393,8 +445,19 @@ def main() -> None:
     p.add_argument("--graph-spec", type=Path, default=None)
     p.add_argument("--graph-cache-root", type=Path, default=Path(".cache/wayfinder"))
     p.add_argument("--full-swap", action="store_true")
+    p.add_argument(
+        "--allow-multi-seq",
+        action="store_true",
+        help="Allow multiple --seq-lens in one process. Default is one seq_len per process.",
+    )
     p.add_argument("--out-dir", type=Path, default=None)
     args = p.parse_args()
+    if len(args.seq_lens) > 1 and not bool(args.allow_multi_seq):
+        raise ValueError(
+            "Memory-safety guard: run one seq_len per process. "
+            "Pass --allow-multi-seq to override."
+        )
+    run_block_bench = bool(args.run_block_bench)
 
     _log(f"Loading model {args.model_path}")
     model, tokenizer, config = load(
@@ -411,6 +474,8 @@ def main() -> None:
         window=int(args.window),
         landmark_stride=None if int(args.landmark_stride) <= 0 else int(args.landmark_stride),
         num_cycles=int(args.num_cycles),
+        edge_disjoint=bool(args.edge_disjoint),
+        enforce_hamiltonian=bool(args.enforce_hamiltonian),
         seed=int(args.seed),
         edge_bias=True,
         window_drop=float(args.window_drop),
@@ -453,17 +518,19 @@ def main() -> None:
                 graph_cache_root=args.graph_cache_root,
                 full_swap=bool(args.full_swap),
                 permute_memory_budget_multiplier=float(args.permute_memory_budget_multiplier),
+                run_block_bench=run_block_bench,
             )
-            rows.append(row)
             _log(f"[{i}/{total}] seq_len={int(T)} done in {time.perf_counter() - seq_t0:.2f}s")
         except Exception as exc:  # pragma: no cover - runtime dependent
-            rows.append(
-                {
-                    "seq_len": int(T),
-                    "error": f"{type(exc).__name__}: {exc}",
-                }
-            )
+            row = {
+                "seq_len": int(T),
+                "error": f"{type(exc).__name__}: {exc}",
+            }
             _log(f"[{i}/{total}] seq_len={int(T)} error: {type(exc).__name__}: {exc}")
+        finally:
+            _post_seq_cleanup()
+
+        rows.append(row)
 
         payload = _build_payload(
             args=args,

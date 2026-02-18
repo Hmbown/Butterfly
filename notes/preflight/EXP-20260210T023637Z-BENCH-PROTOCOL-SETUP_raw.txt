@@ -1,0 +1,31 @@
+id=EXP-20260210T023637Z-BENCH-PROTOCOL-SETUP
+started_at_utc=2026-02-10T02:38:58Z
+ended_at_utc=2026-02-10T02:39:07Z
+status=pass
+file_check_scripts_bench_py=ok
+file_check_scripts_bench_mlx_wayfinder_scale_py=ok
+file_check_scripts_bench_qwen_wayfinder_mlx_py=ok
+file_check_scripts_bench_glm_wayfinder_mlx_py=ok
+file_check_scripts_wayc_py=ok
+help_check_bench_py=ok
+help_check_bench_mlx_wayfinder_scale_py=ok
+help_check_bench_qwen_wayfinder_mlx_py=ok
+help_check_bench_glm_wayfinder_mlx_py=ok
+help_check_wayc_py=ok
+help_check_wayc_bench=ok
+pre_swap_line=total = 21504.00M  used = 20227.75M  free = 1276.25M  (encrypted)
+pre_swap_used_mb=20227.75
+pre_swap_free_mb=1276.25
+pre_page_size_bytes=16384
+pre_pages_occupied_by_compressor=79517
+pre_pages_stored_in_compressor=2145172
+post_swap_line=total = 21504.00M  used = 20227.75M  free = 1276.25M  (encrypted)
+post_swap_used_mb=20227.75
+post_swap_free_mb=1276.25
+post_page_size_bytes=16384
+post_pages_occupied_by_compressor=79163
+post_pages_stored_in_compressor=2144441
+delta_swap_used_mb=0.00
+delta_swap_free_mb=0.00
+delta_pages_occupied_by_compressor=-354
+delta_compressor_occupied_bytes=-5799936

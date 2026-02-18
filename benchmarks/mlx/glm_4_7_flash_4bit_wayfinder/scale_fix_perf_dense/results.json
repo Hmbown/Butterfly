@@ -1,0 +1,142 @@
+{
+  "created_at": "2026-02-15T03:23:15.819216+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --no-swap --skip-quality --skip-multi-turn --seq-lens 2048 8192 --decode-len 256 --repeats 1 --cooldown-sec 10 --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/scale_fix_perf_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 2.5080059999600053,
+      "ttft_sec": 0.14659462496638298,
+      "itl_p50_sec": 0.01635758299380541,
+      "itl_p95_sec": 0.01705254102125764,
+      "decode_sec": 4.349265583965462,
+      "e2e_sec": 6.857271583925467,
+      "decode_tok_s": 58.860512207808405,
+      "peak_memory_bytes": 18284344600,
+      "sample_output_text": "marize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 257,
+        "layer_observations": 257,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 256
+        },
+        "path_counts": {
+          "dense": 257
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 256,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 257
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 16.29883195803268,
+      "ttft_sec": 0.21626529103377834,
+      "itl_p50_sec": 0.01974395802244544,
+      "itl_p95_sec": 0.020197917008772492,
+      "decode_sec": 5.275245458993595,
+      "e2e_sec": 21.574077417026274,
+      "decode_tok_s": 48.5285475320497,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 258,
+        "layer_observations": 258,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 256
+        },
+        "path_counts": {
+          "dense": 258
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 2,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 256,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 2,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 258
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import json
+import math
 import statistics
 import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import mlx.core as mx
 from mlx_lm import load
@@ -50,6 +52,97 @@ def _log(message: str) -> None:
     print(message, flush=True)
 
 
+def _parse_num_cycles(raw: str) -> int | str:
+    value = str(raw).strip().lower()
+    if value == "auto":
+        return "auto"
+    parsed = int(value)
+    if parsed < 0:
+        raise ValueError("--num-cycles must be >= 0 or 'auto'")
+    return parsed
+
+
+def _resolved_cycle_count_for_degree(num_cycles: int | str, seq_len: int) -> int:
+    if num_cycles == "auto":
+        from hcsa.cycles import recommended_num_cycles
+
+        return int(recommended_num_cycles(int(seq_len)))
+    return int(num_cycles)
+
+
+def _landmark_stride_for_budget(
+    *,
+    seq_len: int,
+    max_degree: int,
+    window: int,
+    num_cycles: int,
+) -> Optional[int]:
+    budget = int(max_degree) - int(window) - 1 - 2 * int(num_cycles)
+    if budget <= 0:
+        return None
+    stride = math.ceil(float(seq_len - 1) / float(budget))
+    return int(max(1, stride))
+
+
+def _resolve_landmark_stride(
+    *,
+    seq_len: int,
+    base_landmark_stride: Optional[int],
+    use_max_degree_budget: bool,
+    max_degree: Optional[int],
+    window: int,
+    num_cycles: int | str,
+) -> Optional[int]:
+    if not use_max_degree_budget:
+        return base_landmark_stride
+    if max_degree is None or int(max_degree) <= 0:
+        raise ValueError("--max-degree must be a positive integer when --landmark-stride-from-max-degree is used")
+    cycles_for_degree = _resolved_cycle_count_for_degree(num_cycles, seq_len)
+    return _landmark_stride_for_budget(
+        seq_len=seq_len,
+        max_degree=int(max_degree),
+        window=int(window),
+        num_cycles=int(cycles_for_degree),
+    )
+
+
+def _make_wf_cfg(
+    *,
+    args: argparse.Namespace,
+    seq_len: int,
+    num_cycles: int | str,
+    base_landmark_stride: Optional[int],
+) -> QwenWayfinderConfig:
+    landmark_stride = _resolve_landmark_stride(
+        seq_len=int(seq_len),
+        base_landmark_stride=base_landmark_stride,
+        use_max_degree_budget=bool(args.landmark_stride_from_max_degree),
+        max_degree=None if args.max_degree is None else int(args.max_degree),
+        window=int(args.window),
+        num_cycles=num_cycles,
+    )
+    return QwenWayfinderConfig(
+        path=args.path,  # type: ignore[arg-type]
+        strategy="random",
+        window=int(args.window),
+        landmark_stride=landmark_stride,
+        num_cycles=num_cycles,
+        edge_disjoint=bool(args.edge_disjoint),
+        enforce_hamiltonian=bool(args.enforce_hamiltonian),
+        seed=int(args.seed),
+        edge_bias=True,
+        window_drop=float(args.window_drop),
+        compiled_graph_dir=None,
+        compute_edge_utilization_proxy=False,
+        compute_graph_metrics=False,
+        permute_log_chunks=False,
+        retro_backfill_enabled=bool(args.retro_backfill),
+        retro_backfill_alpha=float(args.retro_alpha),
+        retro_backfill_training_only=bool(args.retro_training_only),
+        retro_backfill_causal_only=bool(args.retro_causal_only),
+    )
+
+
 def _bench(fn, *, warmup: int, iters: int, label: str):
     warmup_n = max(1, warmup)
     iter_n = max(1, iters)
@@ -73,6 +166,18 @@ def _bench(fn, *, warmup: int, iters: int, label: str):
     return _median(times), _peak_memory()
 
 
+def _clear_graph_caches() -> None:
+    _QWEN_GRAPH_CACHE_STORE.clear()
+    _QWEN_GRAPH_CACHE_BY_KEY.clear()
+
+
+def _post_seq_cleanup() -> None:
+    _clear_graph_caches()
+    if hasattr(mx, "clear_cache"):
+        mx.clear_cache()
+    gc.collect()
+
+
 def _bench_one_seq(
     model,
     *,
@@ -85,6 +190,7 @@ def _bench_one_seq(
     graph_spec: Path | None,
     graph_cache_root: Path,
     full_swap: bool,
+    run_block_bench: bool,
 ) -> Dict[str, Any]:
     _log(f"  building inputs for T={seq_len}")
     dtype = getattr(mx, dtype_name)
@@ -150,6 +256,15 @@ def _bench_one_seq(
     row: Dict[str, Any] = {
         "seq_len": int(seq_len),
         "batch": int(batch),
+        "wayfinder_config": {
+            "path": str(wf_cfg.path),
+            "window": int(wf_cfg.window),
+            "landmark_stride": None if wf_cfg.landmark_stride is None else int(wf_cfg.landmark_stride),
+            "num_cycles": wf_cfg.num_cycles,
+            "resolved_num_cycles": int(wf_attn.graph_runtime.num_cycles),
+            "edge_disjoint": bool(wf_cfg.edge_disjoint),
+            "enforce_hamiltonian": bool(wf_cfg.enforce_hamiltonian),
+        },
         "level_a_real_qkv": {
             "sanity_mae": float(mae.item()),
             "baseline_attention": {
@@ -169,47 +284,51 @@ def _bench_one_seq(
         },
     }
 
-    def baseline_block_fn():
-        return layer0(x, mask="causal", cache=None)
-
-    _log("  stage: level_a baseline block")
-    base_block_s, base_block_mem = _bench(
-        baseline_block_fn,
-        warmup=max(1, warmup // 2),
-        iters=max(1, iters // 2),
-        label=f"T={seq_len} baseline_block",
-    )
-
-    orig_attn = layer0.self_attn
-    layer0.self_attn = wf_attn
-    try:
-        def wf_block_fn():
+    if run_block_bench:
+        def baseline_block_fn():
             return layer0(x, mask="causal", cache=None)
 
-        _log("  stage: level_a Wayfinder block")
-        wf_block_s, wf_block_mem = _bench(
-            wf_block_fn,
+        _log("  stage: level_a baseline block")
+        base_block_s, base_block_mem = _bench(
+            baseline_block_fn,
             warmup=max(1, warmup // 2),
             iters=max(1, iters // 2),
-            label=f"T={seq_len} wf_block",
+            label=f"T={seq_len} baseline_block",
         )
-        row["block"] = {
-            "baseline": {
-                "tokens_per_sec": float((batch * seq_len) / max(base_block_s, 1e-12)),
-                "latency_ms": float(base_block_s * 1000.0),
-                "peak_memory_bytes": int(base_block_mem),
-            },
-            "wayfinder": {
-                "tokens_per_sec": float((batch * seq_len) / max(wf_block_s, 1e-12)),
-                "latency_ms": float(wf_block_s * 1000.0),
-                "peak_memory_bytes": int(wf_block_mem),
-                "cache_persistent_bytes": int(wf_attn.cache_persistent_bytes()),
-                "edge_utilization_proxy": wf_attn.last_edge_utilization_proxy,
-                "graph_metrics": wf_attn.last_graph_metrics,
-            },
-        }
-    finally:
-        layer0.self_attn = orig_attn
+
+        orig_attn = layer0.self_attn
+        layer0.self_attn = wf_attn
+        try:
+            def wf_block_fn():
+                return layer0(x, mask="causal", cache=None)
+
+            _log("  stage: level_a Wayfinder block")
+            wf_block_s, wf_block_mem = _bench(
+                wf_block_fn,
+                warmup=max(1, warmup // 2),
+                iters=max(1, iters // 2),
+                label=f"T={seq_len} wf_block",
+            )
+            row["block"] = {
+                "baseline": {
+                    "tokens_per_sec": float((batch * seq_len) / max(base_block_s, 1e-12)),
+                    "latency_ms": float(base_block_s * 1000.0),
+                    "peak_memory_bytes": int(base_block_mem),
+                },
+                "wayfinder": {
+                    "tokens_per_sec": float((batch * seq_len) / max(wf_block_s, 1e-12)),
+                    "latency_ms": float(wf_block_s * 1000.0),
+                    "peak_memory_bytes": int(wf_block_mem),
+                    "cache_persistent_bytes": int(wf_attn.cache_persistent_bytes()),
+                    "edge_utilization_proxy": wf_attn.last_edge_utilization_proxy,
+                    "graph_metrics": wf_attn.last_graph_metrics,
+                },
+            }
+        finally:
+            layer0.self_attn = orig_attn
+    else:
+        row["block"] = {"skipped": True, "reason": "run_block_bench flag disabled"}
+        _log("  stage: level_a block benchmark skipped by default for memory safety")
 
     if full_swap:
         _log("  stage: level_b full-model swap smoke")
@@ -257,7 +376,7 @@ def _build_payload(
     args: argparse.Namespace,
     tokenizer: Any,
     config: Dict[str, Any],
-    wf_cfg: QwenWayfinderConfig,
+    wayfinder_config: Dict[str, Any],
     rows: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     return {
@@ -273,7 +392,7 @@ def _build_payload(
             "max_position_embeddings": config.get("max_position_embeddings"),
             "rope_scaling": config.get("rope_scaling"),
         },
-        "wayfinder_config": wf_cfg.__dict__,
+        "wayfinder_config": wayfinder_config,
         "results": rows,
     }
 
@@ -325,7 +444,38 @@ def main() -> None:
     p.add_argument("--path", type=str, default="permute", choices=["sparse", "permute"])
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
-    p.add_argument("--num-cycles", type=int, default=1)
+    p.add_argument(
+        "--landmark-stride-from-max-degree",
+        action="store_true",
+        help="Compute landmark stride per seq_len from --max-degree, --window, and --num-cycles.",
+    )
+    p.add_argument(
+        "--max-degree",
+        type=int,
+        default=None,
+        help="Target max degree used by --landmark-stride-from-max-degree.",
+    )
+    p.add_argument("--num-cycles", type=str, default="1")
+    p.add_argument(
+        "--edge-disjoint",
+        dest="edge_disjoint",
+        action="store_true",
+        default=True,
+        help="Require edge-disjoint cycles when num_cycles > 1 (default).",
+    )
+    p.add_argument(
+        "--no-edge-disjoint",
+        dest="edge_disjoint",
+        action="store_false",
+        help="Allow overlapping cycles when num_cycles > 1.",
+    )
+    p.add_argument(
+        "--allow-non-hamiltonian",
+        dest="enforce_hamiltonian",
+        action="store_false",
+        default=True,
+        help="Allow graphs without Hamiltonian backbone (e.g., num_cycles=0).",
+    )
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--window-drop", type=float, default=0.0)
     p.add_argument("--retro-backfill", action="store_true")
@@ -358,9 +508,29 @@ def main() -> None:
     )
     p.add_argument("--graph-spec", type=Path, default=None)
     p.add_argument("--graph-cache-root", type=Path, default=Path(".cache/wayfinder"))
+    p.add_argument(
+        "--run-block-bench",
+        action="store_true",
+        help="Run block-level benchmark stage (disabled by default for memory safety).",
+    )
     p.add_argument("--full-swap", action="store_true")
+    p.add_argument(
+        "--allow-multi-seq",
+        action="store_true",
+        help="Allow multiple --seq-lens in one process. Default is one seq_len per process.",
+    )
     p.add_argument("--out-dir", type=Path, default=None)
     args = p.parse_args()
+
+    num_cycles = _parse_num_cycles(args.num_cycles)
+    base_landmark_stride = None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
+    if bool(args.landmark_stride_from_max_degree) and (args.max_degree is None or int(args.max_degree) <= 0):
+        raise ValueError("--max-degree must be a positive integer with --landmark-stride-from-max-degree")
+    if len(args.seq_lens) > 1 and not bool(args.allow_multi_seq):
+        raise ValueError(
+            "Memory-safety guard: run one seq_len per process. "
+            "Pass --allow-multi-seq to override."
+        )
 
     _log(f"Loading model {args.model_path}")
     model, tokenizer, config = load(
@@ -371,24 +541,23 @@ def main() -> None:
     )
     _log("Model loaded")
 
-    wf_cfg = QwenWayfinderConfig(
-        path=args.path,  # type: ignore[arg-type]
-        strategy="random",
-        window=int(args.window),
-        landmark_stride=None if int(args.landmark_stride) <= 0 else int(args.landmark_stride),
-        num_cycles=int(args.num_cycles),
-        seed=int(args.seed),
-        edge_bias=True,
-        window_drop=float(args.window_drop),
-        compiled_graph_dir=None,
-        compute_edge_utilization_proxy=False,
-        compute_graph_metrics=False,
-        permute_log_chunks=False,
-        retro_backfill_enabled=bool(args.retro_backfill),
-        retro_backfill_alpha=float(args.retro_alpha),
-        retro_backfill_training_only=bool(args.retro_training_only),
-        retro_backfill_causal_only=bool(args.retro_causal_only),
-    )
+    wayfinder_config: Dict[str, Any] = {
+        "path": str(args.path),
+        "strategy": "random",
+        "window": int(args.window),
+        "landmark_stride": base_landmark_stride,
+        "landmark_stride_from_max_degree": bool(args.landmark_stride_from_max_degree),
+        "max_degree": None if args.max_degree is None else int(args.max_degree),
+        "num_cycles": num_cycles,
+        "edge_disjoint": bool(args.edge_disjoint),
+        "enforce_hamiltonian": bool(args.enforce_hamiltonian),
+        "seed": int(args.seed),
+        "window_drop": float(args.window_drop),
+        "retro_backfill_enabled": bool(args.retro_backfill),
+        "retro_backfill_alpha": float(args.retro_alpha),
+        "retro_backfill_training_only": bool(args.retro_training_only),
+        "retro_backfill_causal_only": bool(args.retro_causal_only),
+    }
 
     # Derive a short model tag from the model path for output directory naming
     model_tag = args.model_path.rstrip("/").split("/")[-1].lower().replace("-", "_")
@@ -404,6 +573,12 @@ def main() -> None:
         seq_t0 = time.perf_counter()
         _log(f"[{i}/{total}] seq_len={int(T)} start")
         try:
+            wf_cfg = _make_wf_cfg(
+                args=args,
+                seq_len=int(T),
+                num_cycles=num_cycles,
+                base_landmark_stride=base_landmark_stride,
+            )
             row = _bench_one_seq(
                 model,
                 seq_len=int(T),
@@ -415,6 +590,7 @@ def main() -> None:
                 graph_spec=args.graph_spec,
                 graph_cache_root=args.graph_cache_root,
                 full_swap=bool(args.full_swap),
+                run_block_bench=bool(args.run_block_bench),
             )
             rows.append(row)
             _log(f"[{i}/{total}] seq_len={int(T)} done in {time.perf_counter() - seq_t0:.2f}s")
@@ -426,12 +602,14 @@ def main() -> None:
                 }
             )
             _log(f"[{i}/{total}] seq_len={int(T)} error: {type(exc).__name__}: {exc}")
+        finally:
+            _post_seq_cleanup()
 
         payload = _build_payload(
             args=args,
             tokenizer=tokenizer,
             config=config,
-            wf_cfg=wf_cfg,
+            wayfinder_config=wayfinder_config,
             rows=rows,
         )
         _write_outputs(out_dir, payload)

@@ -1,0 +1,64 @@
+{
+  "created_at": "2026-02-12T13:56:24.502509+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --skip-quality --active-dense-threshold 16384 --seed 99 --no-swap --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_gate_midband4_20260212T135043Z/s99_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.777247541998804,
+      "ttft_sec": 0.16992929200205253,
+      "itl_p50_sec": 0.01949054199940292,
+      "itl_p95_sec": 0.019818666005448904,
+      "decode_sec": 1.4110426250044839,
+      "e2e_sec": 18.188290167003288,
+      "decode_tok_s": 45.35653201815688,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.137272874999326,
+      "ttft_sec": 0.14082295799744315,
+      "itl_p50_sec": 0.019492624996928498,
+      "itl_p95_sec": 0.01971225000306731,
+      "decode_sec": 1.3781104580048122,
+      "e2e_sec": 17.515383333004138,
+      "decode_tok_s": 46.440399336826246,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.15746279200539,
+      "ttft_sec": 0.14695962499536108,
+      "itl_p50_sec": 0.019411749999562744,
+      "itl_p95_sec": 0.019720500000403263,
+      "decode_sec": 1.3816608330016606,
+      "e2e_sec": 17.53912362500705,
+      "decode_tok_s": 46.321064092813494,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

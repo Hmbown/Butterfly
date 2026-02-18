@@ -1,0 +1,242 @@
+{
+  "run_root": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z",
+  "seeds": [
+    42,
+    7,
+    99
+  ],
+  "modes": [
+    "dense",
+    "wayfinder",
+    "sparse"
+  ],
+  "per_seed": {
+    "42": {
+      "dense": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s42_dense/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s42_dense/results.json",
+        "decode_tok_s_median": 46.58573002661056,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s42_wayfinder/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s42_wayfinder/results.json",
+        "decode_tok_s_median": 26.436528883996814,
+        "peak_memory_bytes_median": 20668045724.0,
+        "six_task_accuracy": 0.16666666666666666,
+        "heldout_accuracy": 0.0,
+        "six_task_correct": 1,
+        "heldout_correct": 0,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s42_sparse/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s42_sparse/results.json",
+        "decode_tok_s_median": 46.0387492916992,
+        "peak_memory_bytes_median": 33502935284.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.08333333333333333,
+        "six_task_correct": 3,
+        "heldout_correct": 2,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    },
+    "7": {
+      "dense": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s7_dense/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s7_dense/results.json",
+        "decode_tok_s_median": 46.2850910788497,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s7_wayfinder/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s7_wayfinder/results.json",
+        "decode_tok_s_median": 26.91624898731933,
+        "peak_memory_bytes_median": 20668045724.0,
+        "six_task_accuracy": 0.0,
+        "heldout_accuracy": 0.0,
+        "six_task_correct": 0,
+        "heldout_correct": 0,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s7_sparse/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s7_sparse/results.json",
+        "decode_tok_s_median": 46.72238658259565,
+        "peak_memory_bytes_median": 33502935292.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.08333333333333333,
+        "six_task_correct": 3,
+        "heldout_correct": 2,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    },
+    "99": {
+      "dense": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s99_dense/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s99_dense/results.json",
+        "decode_tok_s_median": 46.36765008575196,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s99_wayfinder/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s99_wayfinder/results.json",
+        "decode_tok_s_median": 26.807927690618367,
+        "peak_memory_bytes_median": 20668045724.0,
+        "six_task_accuracy": 0.0,
+        "heldout_accuracy": 0.0,
+        "six_task_correct": 0,
+        "heldout_correct": 0,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/six_task/s99_sparse/results.json",
+        "heldout_results_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s99_sparse/results.json",
+        "decode_tok_s_median": 46.45525253351408,
+        "peak_memory_bytes_median": 33502935296.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.0,
+        "six_task_correct": 3,
+        "heldout_correct": 0,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    }
+  },
+  "summary": {
+    "dense": {
+      "decode_tok_s_median_of_seeds": 46.36765008575196,
+      "peak_memory_bytes_median_of_seeds": 20660500140.0,
+      "six_task_accuracy_mean": 0.5,
+      "heldout_accuracy_mean": 0.125,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          46.58573002661056,
+          46.2850910788497,
+          46.36765008575196
+        ],
+        "peak_memory_bytes_medians": [
+          20660500140.0,
+          20660500140.0,
+          20660500140.0
+        ],
+        "six_task_accuracies": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "heldout_accuracies": [
+          0.125,
+          0.125,
+          0.125
+        ]
+      },
+      "decode_delta_vs_dense_abs": 0.0,
+      "decode_delta_vs_dense_pct": 0.0,
+      "peak_memory_delta_vs_dense_abs_bytes": 0.0,
+      "peak_memory_delta_vs_dense_pct": 0.0,
+      "memory_reduction_pct_vs_dense": 0.0,
+      "six_task_drift_vs_dense_abs": 0.0,
+      "six_task_drift_vs_dense_pct": 0.0,
+      "heldout_drift_vs_dense_abs": 0.0,
+      "heldout_drift_vs_dense_pct": 0.0
+    },
+    "wayfinder": {
+      "decode_tok_s_median_of_seeds": 26.807927690618367,
+      "peak_memory_bytes_median_of_seeds": 20668045724.0,
+      "six_task_accuracy_mean": 0.05555555555555555,
+      "heldout_accuracy_mean": 0.0,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          26.436528883996814,
+          26.91624898731933,
+          26.807927690618367
+        ],
+        "peak_memory_bytes_medians": [
+          20668045724.0,
+          20668045724.0,
+          20668045724.0
+        ],
+        "six_task_accuracies": [
+          0.16666666666666666,
+          0.0,
+          0.0
+        ],
+        "heldout_accuracies": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "decode_delta_vs_dense_abs": -19.559722395133594,
+      "decode_delta_vs_dense_pct": -42.18398465085033,
+      "peak_memory_delta_vs_dense_abs_bytes": 7545584.0,
+      "peak_memory_delta_vs_dense_pct": 0.036521787705377395,
+      "memory_reduction_pct_vs_dense": -0.03652178770536807,
+      "six_task_drift_vs_dense_abs": -0.4444444444444444,
+      "six_task_drift_vs_dense_pct": -88.88888888888889,
+      "heldout_drift_vs_dense_abs": -0.125,
+      "heldout_drift_vs_dense_pct": -100.0
+    },
+    "sparse": {
+      "decode_tok_s_median_of_seeds": 46.45525253351408,
+      "peak_memory_bytes_median_of_seeds": 33502935292.0,
+      "six_task_accuracy_mean": 0.5,
+      "heldout_accuracy_mean": 0.05555555555555555,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          46.0387492916992,
+          46.72238658259565,
+          46.45525253351408
+        ],
+        "peak_memory_bytes_medians": [
+          33502935284.0,
+          33502935292.0,
+          33502935296.0
+        ],
+        "six_task_accuracies": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "heldout_accuracies": [
+          0.08333333333333333,
+          0.08333333333333333,
+          0.0
+        ]
+      },
+      "decode_delta_vs_dense_abs": 0.08760244776211579,
+      "decode_delta_vs_dense_pct": 0.18893010018861106,
+      "peak_memory_delta_vs_dense_abs_bytes": 12842435152.0,
+      "peak_memory_delta_vs_dense_pct": 62.15936238221192,
+      "memory_reduction_pct_vs_dense": -62.15936238221191,
+      "six_task_drift_vs_dense_abs": 0.0,
+      "six_task_drift_vs_dense_pct": 0.0,
+      "heldout_drift_vs_dense_abs": -0.06944444444444445,
+      "heldout_drift_vs_dense_pct": -55.55555555555556
+    }
+  }
+}

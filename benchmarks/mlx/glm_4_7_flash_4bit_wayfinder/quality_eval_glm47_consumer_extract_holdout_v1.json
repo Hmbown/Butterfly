@@ -1,0 +1,128 @@
+{
+  "name": "glm47_consumer_extract_holdout_v1",
+  "version": "2026-02-12",
+  "source": "synthetic_heldout_manual_v1",
+  "notes": "Held-out extract-heavy set for last4 default confirmation. 24 tasks: extract=16, lookup=4, math=4.",
+  "tasks": [
+    {
+      "id": "extract-h01",
+      "prompt": "Two records: Record A: ticket=ALPHA-9101, owner=MIA, checksum=K7Q2. Record B: ticket=BETA-2204, owner=NOA, checksum=R3L8. Return only the checksum for ticket ALPHA-9101.",
+      "expected": "K7Q2"
+    },
+    {
+      "id": "extract-h02",
+      "prompt": "Two records: Record A: ticket=GAMMA-7310, owner=LEO, checksum=T5N1. Record B: ticket=DELTA-8842, owner=AVA, checksum=H2P9. Return only the checksum for ticket GAMMA-7310.",
+      "expected": "T5N1"
+    },
+    {
+      "id": "extract-h03",
+      "prompt": "Two records: Record A: ticket=OMEGA-4411, owner=ZOE, checksum=W8C4. Record B: ticket=SIGMA-5522, owner=IAN, checksum=D1M7. Return only the checksum for ticket OMEGA-4411.",
+      "expected": "W8C4"
+    },
+    {
+      "id": "extract-h04",
+      "prompt": "Two records: Record A: ticket=NOVA-1033, owner=RAY, checksum=B6V5. Record B: ticket=LUNA-2044, owner=KAI, checksum=F9J2. Return only the checksum for ticket NOVA-1033.",
+      "expected": "B6V5"
+    },
+    {
+      "id": "extract-h05",
+      "prompt": "Two records: Record A: ticket=PIXEL-7788, owner=UMA, checksum=Q4R6. Record B: ticket=VECTOR-8899, owner=ELI, checksum=S2K3. Return only the checksum for ticket PIXEL-7788.",
+      "expected": "Q4R6"
+    },
+    {
+      "id": "extract-h06",
+      "prompt": "Two records: Record A: ticket=CLOUD-1357, owner=ADA, checksum=N8T1. Record B: ticket=RIVER-2468, owner=EVE, checksum=P3D4. Return only the checksum for ticket CLOUD-1357.",
+      "expected": "N8T1"
+    },
+    {
+      "id": "extract-h07",
+      "prompt": "Two records: Record A: ticket=EMBER-3124, owner=MAX, checksum=C5H7. Record B: ticket=FROST-9182, owner=LIA, checksum=Y1G6. Return only the checksum for ticket EMBER-3124.",
+      "expected": "C5H7"
+    },
+    {
+      "id": "extract-h08",
+      "prompt": "Two records: Record A: ticket=CYPER-6650, owner=NIA, checksum=J9B8. Record B: ticket=TERRA-7741, owner=SAM, checksum=M2X5. Return only the checksum for ticket CYPER-6650.",
+      "expected": "J9B8"
+    },
+    {
+      "id": "extract-h09",
+      "prompt": "Two records: Record A: ticket=ORBIT-4401, owner=MOE, checksum=U3Z7. Record B: ticket=QUARK-5512, owner=NED, checksum=A8L4. Return only the checksum for ticket ORBIT-4401.",
+      "expected": "U3Z7"
+    },
+    {
+      "id": "extract-h10",
+      "prompt": "Two records: Record A: ticket=AURUM-6023, owner=IVA, checksum=E6Q9. Record B: ticket=BORON-7134, owner=TOM, checksum=V5C2. Return only the checksum for ticket AURUM-6023.",
+      "expected": "E6Q9"
+    },
+    {
+      "id": "extract-h11",
+      "prompt": "Two records: Record A: ticket=CIRRO-8245, owner=JIN, checksum=G7N3. Record B: ticket=DRIFT-9356, owner=YAS, checksum=L4P8. Return only the checksum for ticket CIRRO-8245.",
+      "expected": "G7N3"
+    },
+    {
+      "id": "extract-h12",
+      "prompt": "Two records: Record A: ticket=EPOCH-1467, owner=RIO, checksum=R9F1. Record B: ticket=FLARE-2578, owner=TEO, checksum=K2D6. Return only the checksum for ticket EPOCH-1467.",
+      "expected": "R9F1"
+    },
+    {
+      "id": "extract-h13",
+      "prompt": "Two records: Record A: ticket=GLINT-3689, owner=MEI, checksum=Z1H5. Record B: ticket=HALO-4790, owner=ZEN, checksum=C8V2. Return only the checksum for ticket GLINT-3689.",
+      "expected": "Z1H5"
+    },
+    {
+      "id": "extract-h14",
+      "prompt": "Two records: Record A: ticket=IONIC-5801, owner=TAI, checksum=B3M4. Record B: ticket=JETTY-6912, owner=SOL, checksum=N6R7. Return only the checksum for ticket IONIC-5801.",
+      "expected": "B3M4"
+    },
+    {
+      "id": "extract-h15",
+      "prompt": "Two records: Record A: ticket=KAPPA-7023, owner=IVY, checksum=P8T6. Record B: ticket=LATCH-8134, owner=REX, checksum=D2Q1. Return only the checksum for ticket KAPPA-7023.",
+      "expected": "P8T6"
+    },
+    {
+      "id": "extract-h16",
+      "prompt": "Two records: Record A: ticket=MORPH-9245, owner=NOVA, checksum=H7W3. Record B: ticket=NEXUS-0356, owner=ORI, checksum=F4K9. Return only the checksum for ticket MORPH-9245.",
+      "expected": "H7W3"
+    },
+    {
+      "id": "lookup-h01",
+      "prompt": "Table: K1=14, K2=27, K3=33, K4=18. Return only K3.",
+      "expected": "33"
+    },
+    {
+      "id": "lookup-h02",
+      "prompt": "Map: north=44, south=12, east=29, west=31. Return only east.",
+      "expected": "29"
+    },
+    {
+      "id": "lookup-h03",
+      "prompt": "IDs: AX10->amber, BY20->teal, CZ30->silver. Return only color for BY20.",
+      "expected": "teal"
+    },
+    {
+      "id": "lookup-h04",
+      "prompt": "Catalog: puma=7, lynx=11, tiger=5, otter=9. Return only value for lynx.",
+      "expected": "11"
+    },
+    {
+      "id": "math-h01",
+      "prompt": "Compute exactly and return only a number: (73 * 4) - 19.",
+      "expected": "273"
+    },
+    {
+      "id": "math-h02",
+      "prompt": "Compute exactly and return only a number: 256 / 8 + 17.",
+      "expected": "49"
+    },
+    {
+      "id": "math-h03",
+      "prompt": "Compute exactly and return only a number: (15 * 15) + 6.",
+      "expected": "231"
+    },
+    {
+      "id": "math-h04",
+      "prompt": "Compute exactly and return only a number: 900 / 30 + 44.",
+      "expected": "74"
+    }
+  ]
+}

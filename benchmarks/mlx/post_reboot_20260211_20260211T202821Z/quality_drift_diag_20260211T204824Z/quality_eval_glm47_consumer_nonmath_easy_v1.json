@@ -1,0 +1,22 @@
+{
+  "name": "glm47_consumer_quality_nonmath_easy_v1",
+  "version": "2026-02-11",
+  "source_dataset": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+  "tasks": [
+    {
+      "id": "extract-01",
+      "prompt": "You are given notes. Record A: ticket=ALPHA-7721, owner=RUI, checksum=Q9X4. Record B: ticket=BETA-1988, owner=JAE, checksum=M1P2. Question: return only the checksum for ticket ALPHA-7721.",
+      "expected": "Q9X4"
+    },
+    {
+      "id": "extract-02",
+      "prompt": "Log entries: 2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05 amount=11. Question: return only the amount on 2026-01-04.",
+      "expected": "23"
+    },
+    {
+      "id": "lookup-01",
+      "prompt": "Table: NYC=8, SF=5, SEA=9, BOS=4. Question: return only the value for SEA.",
+      "expected": "9"
+    }
+  ]
+}

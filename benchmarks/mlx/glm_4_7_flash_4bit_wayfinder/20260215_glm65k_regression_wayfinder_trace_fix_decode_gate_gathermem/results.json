@@ -1,0 +1,2935 @@
+{
+  "created_at": "2026-02-15T22:09:11.374830+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_regression_wayfinder_trace_fix_decode_gate_gathermem",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "wayfinder",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": null,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true,
+    "enable_decode_local_tail_fastpath": false,
+    "wayfinder_decode_backend": "dense"
+  },
+  "swap": {
+    "replaced_layers": 47,
+    "replaced_layer_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": true,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46
+    ]
+  },
+  "single_turn": [
+    {
+      "seq_len": 65536,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 1690.32191233302,
+      "ttft_sec": 30.735738791991025,
+      "itl_p50_sec": 0.05554333399049938,
+      "itl_p95_sec": 2.566493750025984,
+      "decode_sec": 41.92978908296209,
+      "e2e_sec": 1732.251701415982,
+      "decode_tok_s": 0.7631805620744943,
+      "peak_memory_bytes": 32641251032,
+      "sample_output_text": " and\n }{{\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n.\n",
+      "expected_primary_path": "permute",
+      "hsa_trace_summary": {
+        "sample_count": 48,
+        "layer_observations": 384,
+        "phase_counts": {
+          "prefill": 16,
+          "decode": 32
+        },
+        "path_counts": {
+          "wayfinder": 128,
+          "wayfinder_dense_fallback": 256
+        },
+        "cache_source_counts": {
+          "runtime": 128,
+          "dense_fallback": 256
+        },
+        "graph_seq_len_counts": {
+          "4096": 8,
+          "8192": 8,
+          "12288": 8,
+          "16384": 8,
+          "20480": 8,
+          "24576": 8,
+          "28672": 8,
+          "32768": 8,
+          "36864": 8,
+          "40960": 8,
+          "45056": 8,
+          "49152": 8,
+          "53248": 8,
+          "57344": 8,
+          "61440": 8,
+          "65536": 8
+        },
+        "q_len_counts": {
+          "4096": 128,
+          "1": 256
+        },
+        "dense_fallback_reason_counts": {
+          "unspecified": 256
+        },
+        "fallback_layer_observations": 256,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 256,
+        "prefill_layer_observations": 128,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 32,
+        "prefill_step_observations": 16,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.6666666666666666,
+        "dense_fallback_share_decode_layers": 1.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.3125,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.9583333333333334
+      },
+      "path_counts": {
+        "wayfinder": 128,
+        "wayfinder_dense_fallback": 256
+      },
+      "dense_fallback_reason_counts": {
+        "unspecified": 256
+      },
+      "dense_fallback_share_run": 0.6666666666666666,
+      "dense_fallback_share_decode_steps": 1.0,
+      "observability_fallback_share_known": true,
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 4096,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 8.437959015369415,
+              "attention_ms": 0.316459059715271,
+              "total_ms": 9.378125011920929,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003000020980834961,
+              "attention_ms": 0.23199999332427979,
+              "total_ms": 0.8041670322418213,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00145798921585083,
+              "attention_ms": 0.24137496948242188,
+              "total_ms": 0.7782909870147705,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0012500286102294922,
+              "attention_ms": 0.31341707706451416,
+              "total_ms": 0.8222499489784241,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.001083970069885254,
+              "attention_ms": 0.25429195165634155,
+              "total_ms": 0.746874988079071,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.001042008399963379,
+              "attention_ms": 0.23262500762939453,
+              "total_ms": 0.3773750066757202,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0009589791297912598,
+              "attention_ms": 0.20841705799102783,
+              "total_ms": 0.35645800828933716,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0008750557899475098,
+              "attention_ms": 0.20987504720687866,
+              "total_ms": 0.3528749942779541,
+              "notes": {
+                "seq_len": 4096,
+                "graph_seq_len": 4096,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 655360,
+                "active_query_mode": false,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 4096,
+          "chunk_end": 8192,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 7.503749966621399,
+              "attention_ms": 56.14862501621246,
+              "total_ms": 63.95729202032089,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034999847412109375,
+              "attention_ms": 96.07095897197723,
+              "total_ms": 96.37920904159546,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034159421920776367,
+              "attention_ms": 90.31570798158646,
+              "total_ms": 90.59637498855591,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0033330321311950684,
+              "attention_ms": 90.9023750424385,
+              "total_ms": 91.22158300876617,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0035410523414611816,
+              "attention_ms": 90.63608402013779,
+              "total_ms": 90.94841700792313,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0038750171661376953,
+              "attention_ms": 90.7172919511795,
+              "total_ms": 91.03649997711182,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034160614013671875,
+              "attention_ms": 90.87354093790054,
+              "total_ms": 91.14187502861023,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003583967685699463,
+              "attention_ms": 90.68308305740356,
+              "total_ms": 90.96866703033447,
+              "notes": {
+                "seq_len": 8192,
+                "graph_seq_len": 8192,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1310720,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 3,
+          "chunk_start": 8192,
+          "chunk_end": 12288,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 22.902709007263184,
+              "attention_ms": 88.34754204750061,
+              "total_ms": 111.60624998807907,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032919645309448242,
+              "attention_ms": 109.75941699743271,
+              "total_ms": 110.06450003385544,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0027920007705688477,
+              "attention_ms": 103.47683298587799,
+              "total_ms": 103.79162502288818,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003332972526550293,
+              "attention_ms": 103.41658294200897,
+              "total_ms": 103.72770893573761,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00333404541015625,
+              "attention_ms": 103.66891598701477,
+              "total_ms": 103.97866702079773,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004333019256591797,
+              "attention_ms": 103.37470805644989,
+              "total_ms": 103.67474991083145,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003750026226043701,
+              "attention_ms": 103.92379206418991,
+              "total_ms": 104.237124979496,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004209041595458984,
+              "attention_ms": 103.6399160027504,
+              "total_ms": 103.932707965374,
+              "notes": {
+                "seq_len": 12288,
+                "graph_seq_len": 12288,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 1966080,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 4,
+          "chunk_start": 12288,
+          "chunk_end": 16384,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 16.670083045959473,
+              "attention_ms": 100.5155000090599,
+              "total_ms": 117.50424998998642,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003207981586456299,
+              "attention_ms": 121.07975000143051,
+              "total_ms": 121.37729102373123,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032089948654174805,
+              "attention_ms": 115.94916701316833,
+              "total_ms": 116.22920805215836,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034999847412109375,
+              "attention_ms": 115.61295795440674,
+              "total_ms": 115.89170801639557,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.002792060375213623,
+              "attention_ms": 115.6390410065651,
+              "total_ms": 115.90241694450378,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034999847412109375,
+              "attention_ms": 115.39683300256729,
+              "total_ms": 115.71570801734924,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003332972526550293,
+              "attention_ms": 116.30891698598862,
+              "total_ms": 116.60754197835922,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.002790987491607666,
+              "attention_ms": 115.64291697740555,
+              "total_ms": 115.92012494802475,
+              "notes": {
+                "seq_len": 16384,
+                "graph_seq_len": 16384,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 2621440,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 5,
+          "chunk_start": 16384,
+          "chunk_end": 20480,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 30.469249963760376,
+              "attention_ms": 122.47295796871185,
+              "total_ms": 153.24050003290176,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0030840039253234863,
+              "attention_ms": 134.13520795106888,
+              "total_ms": 134.433207988739,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0031249523162841797,
+              "attention_ms": 296.3469580411911,
+              "total_ms": 296.70091700553894,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0059999823570251465,
+              "attention_ms": 134.66170799732208,
+              "total_ms": 135.021458029747,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00404202938079834,
+              "attention_ms": 137.81100004911423,
+              "total_ms": 138.0957499742508,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034169554710388184,
+              "attention_ms": 134.73108303546906,
+              "total_ms": 135.03737497329712,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0031249523162841797,
+              "attention_ms": 155.5774160027504,
+              "total_ms": 155.88466596603394,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034170150756835938,
+              "attention_ms": 134.01125007867813,
+              "total_ms": 134.31595796346664,
+              "notes": {
+                "seq_len": 20480,
+                "graph_seq_len": 20480,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3276800,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 6,
+          "chunk_start": 20480,
+          "chunk_end": 24576,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 20.515749990940094,
+              "attention_ms": 160.35820895433426,
+              "total_ms": 181.23516702651978,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004708051681518555,
+              "attention_ms": 148.0517499446869,
+              "total_ms": 148.39129197597504,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0048329830169677734,
+              "attention_ms": 319.2404999732971,
+              "total_ms": 319.5530830025673,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003542006015777588,
+              "attention_ms": 157.28095799684525,
+              "total_ms": 157.588957965374,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032920241355895996,
+              "attention_ms": 157.68633300065994,
+              "total_ms": 157.99149996042252,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004499971866607666,
+              "attention_ms": 149.7299159169197,
+              "total_ms": 150.07829201221466,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032909512519836426,
+              "attention_ms": 164.58612501621246,
+              "total_ms": 164.88945895433426,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0033749938011169434,
+              "attention_ms": 147.5941670536995,
+              "total_ms": 147.90716695785522,
+              "notes": {
+                "seq_len": 24576,
+                "graph_seq_len": 24576,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 3932160,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 7,
+          "chunk_start": 24576,
+          "chunk_end": 28672,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 30.97208297252655,
+              "attention_ms": 165.31820803880692,
+              "total_ms": 196.67762500047684,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0036670565605163574,
+              "attention_ms": 160.0508330464363,
+              "total_ms": 160.36520797014236,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0038340091705322266,
+              "attention_ms": 154.2210420370102,
+              "total_ms": 154.53854197263718,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003917038440704346,
+              "attention_ms": 160.54683405160904,
+              "total_ms": 160.85966700315475,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032500624656677246,
+              "attention_ms": 153.88362503051758,
+              "total_ms": 154.1807079911232,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003000020980834961,
+              "attention_ms": 160.47525000572205,
+              "total_ms": 160.752749979496,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003083944320678711,
+              "attention_ms": 162.03824996948242,
+              "total_ms": 162.32270801067352,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0033339858055114746,
+              "attention_ms": 160.7453750371933,
+              "total_ms": 161.00995802879333,
+              "notes": {
+                "seq_len": 28672,
+                "graph_seq_len": 28672,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 4587520,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 8,
+          "chunk_start": 28672,
+          "chunk_end": 32768,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 23.182375013828278,
+              "attention_ms": 1086.5093329548836,
+              "total_ms": 1110.5370420217514,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0064580440521240234,
+              "attention_ms": 416.6522909998894,
+              "total_ms": 416.96891593933105,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0029579997062683105,
+              "attention_ms": 3656.389167010784,
+              "total_ms": 3656.6944999694824,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.007833003997802734,
+              "attention_ms": 4403.439499974251,
+              "total_ms": 4403.845666944981,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.002875030040740967,
+              "attention_ms": 2402.928332924843,
+              "total_ms": 2403.2639169692993,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0030409693717956543,
+              "attention_ms": 2618.338332951069,
+              "total_ms": 2618.690124988556,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003625035285949707,
+              "attention_ms": 1628.988665997982,
+              "total_ms": 1629.3525000214577,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004041016101837158,
+              "attention_ms": 1779.3996669650078,
+              "total_ms": 1779.7017080187798,
+              "notes": {
+                "seq_len": 32768,
+                "graph_seq_len": 32768,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5242880,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 9,
+          "chunk_start": 32768,
+          "chunk_end": 36864,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 40.08179199695587,
+              "attention_ms": 1185.4012079834938,
+              "total_ms": 1226.201417028904,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.005042016506195068,
+              "attention_ms": 513.4047500491142,
+              "total_ms": 513.9116659760475,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0038340091705322266,
+              "attention_ms": 2741.284915983677,
+              "total_ms": 2741.54787504673,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00920802354812622,
+              "attention_ms": 2053.448749959469,
+              "total_ms": 2053.7957919836044,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0033749938011169434,
+              "attention_ms": 2168.612375020981,
+              "total_ms": 2168.9064170122147,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0037080049514770508,
+              "attention_ms": 3750.2712920308113,
+              "total_ms": 3750.5825419425964,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0032500028610229492,
+              "attention_ms": 1196.198291003704,
+              "total_ms": 1196.5060420632362,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0031659603118896484,
+              "attention_ms": 2273.2574999928474,
+              "total_ms": 2273.568833053112,
+              "notes": {
+                "seq_len": 36864,
+                "graph_seq_len": 36864,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 5898240,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 10,
+          "chunk_start": 36864,
+          "chunk_end": 40960,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 53.53654193878174,
+              "attention_ms": 1338.115334033966,
+              "total_ms": 1392.5319579839706,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.005000054836273193,
+              "attention_ms": 576.2632080316544,
+              "total_ms": 576.5907089710236,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0034580230712890625,
+              "attention_ms": 2611.094250023365,
+              "total_ms": 2611.3899589776993,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.015332937240600586,
+              "attention_ms": 5185.193624973297,
+              "total_ms": 5185.625125050545,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003209054470062256,
+              "attention_ms": 2799.5624160170555,
+              "total_ms": 2799.856208026409,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00291597843170166,
+              "attention_ms": 2247.4287499785423,
+              "total_ms": 2247.731791973114,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.002917051315307617,
+              "attention_ms": 2607.865625023842,
+              "total_ms": 2608.152875006199,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003207981586456299,
+              "attention_ms": 3924.4910420179367,
+              "total_ms": 3924.8540830016136,
+              "notes": {
+                "seq_len": 40960,
+                "graph_seq_len": 40960,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 6553600,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 11,
+          "chunk_start": 40960,
+          "chunk_end": 45056,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 84.94395798444748,
+              "attention_ms": 1833.353375017643,
+              "total_ms": 1919.123166024685,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006040990352630615,
+              "attention_ms": 694.0708749890327,
+              "total_ms": 694.4245419502258,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004041016101837158,
+              "attention_ms": 2765.7365409731865,
+              "total_ms": 2766.0252499580383,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.009665966033935547,
+              "attention_ms": 3688.2786660194397,
+              "total_ms": 3688.5710829496384,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00379103422164917,
+              "attention_ms": 2235.1213750243187,
+              "total_ms": 2235.460542023182,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003332972526550293,
+              "attention_ms": 3027.7012080550194,
+              "total_ms": 3028.176458001137,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00387495756149292,
+              "attention_ms": 2580.1982499957085,
+              "total_ms": 2580.5195410251617,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004999995231628418,
+              "attention_ms": 4434.032249927521,
+              "total_ms": 4438.210833013058,
+              "notes": {
+                "seq_len": 45056,
+                "graph_seq_len": 45056,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7208960,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 12,
+          "chunk_start": 45056,
+          "chunk_end": 49152,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 45.02916598320007,
+              "attention_ms": 1976.899874985218,
+              "total_ms": 2023.935917019844,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.012666940689086914,
+              "attention_ms": 2751.7326249480247,
+              "total_ms": 2755.7830000519753,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004500031471252441,
+              "attention_ms": 10236.677249968052,
+              "total_ms": 10240.874666929245,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006416022777557373,
+              "attention_ms": 5906.89041697979,
+              "total_ms": 5907.330749988556,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.009166955947875977,
+              "attention_ms": 9578.822207987309,
+              "total_ms": 9582.668792009354,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.003750026226043701,
+              "attention_ms": 9512.065792024136,
+              "total_ms": 9516.276082992554,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.018499910831451416,
+              "attention_ms": 5522.462041974068,
+              "total_ms": 5525.010124981403,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.005540966987609863,
+              "attention_ms": 5325.609332978725,
+              "total_ms": 5331.349583983421,
+              "notes": {
+                "seq_len": 49152,
+                "graph_seq_len": 49152,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 7864320,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 13,
+          "chunk_start": 49152,
+          "chunk_end": 53248,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 56.02675002813339,
+              "attention_ms": 1985.7481250166893,
+              "total_ms": 2052.590207993984,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.49000000953674316,
+              "attention_ms": 2663.927791953087,
+              "total_ms": 2684.0379590392113,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.009999990463256836,
+              "attention_ms": 3339.509874999523,
+              "total_ms": 3342.636792063713,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.00937497615814209,
+              "attention_ms": 5194.249540984631,
+              "total_ms": 5201.277332961559,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004833042621612549,
+              "attention_ms": 4098.46529096365,
+              "total_ms": 4101.594500005245,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006542026996612549,
+              "attention_ms": 2432.2740409970284,
+              "total_ms": 2435.5675000548363,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004415988922119141,
+              "attention_ms": 2747.590958058834,
+              "total_ms": 2752.137584030628,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004541993141174316,
+              "attention_ms": 4314.260625004768,
+              "total_ms": 4316.4235000014305,
+              "notes": {
+                "seq_len": 53248,
+                "graph_seq_len": 53248,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 8519680,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 14,
+          "chunk_start": 53248,
+          "chunk_end": 57344,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 69.21945893764496,
+              "attention_ms": 2042.1745419502258,
+              "total_ms": 2111.9187089800835,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.02133399248123169,
+              "attention_ms": 2540.7478749752045,
+              "total_ms": 2554.3383749723434,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004375040531158447,
+              "attention_ms": 4185.462832927704,
+              "total_ms": 4185.836250007153,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.012082993984222412,
+              "attention_ms": 5497.2785829901695,
+              "total_ms": 5501.728915989399,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006417036056518555,
+              "attention_ms": 4323.600084006786,
+              "total_ms": 4324.37537497282,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.046999990940093994,
+              "attention_ms": 3965.2494170069695,
+              "total_ms": 3966.2642080187798,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0046250224113464355,
+              "attention_ms": 2580.666124999523,
+              "total_ms": 2581.427457988262,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.0051250457763671875,
+              "attention_ms": 3586.263958990574,
+              "total_ms": 3593.395999968052,
+              "notes": {
+                "seq_len": 57344,
+                "graph_seq_len": 57344,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9175040,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 15,
+          "chunk_start": 57344,
+          "chunk_end": 61440,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 59.72133296728134,
+              "attention_ms": 2359.3746250271797,
+              "total_ms": 2419.517082989216,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.009708046913146973,
+              "attention_ms": 1376.6774579882622,
+              "total_ms": 1390.4452919960022,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.007082998752593994,
+              "attention_ms": 2985.9318749904633,
+              "total_ms": 2988.2190420031548,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.015457987785339355,
+              "attention_ms": 2532.1429159641266,
+              "total_ms": 2533.8449169397354,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006416022777557373,
+              "attention_ms": 2192.7441670298576,
+              "total_ms": 2193.244417011738,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.005459010601043701,
+              "attention_ms": 2941.557042002678,
+              "total_ms": 2942.7792499661446,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.018458008766174316,
+              "attention_ms": 3090.138667047024,
+              "total_ms": 3091.0769159793854,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004707992076873779,
+              "attention_ms": 2477.2555000185966,
+              "total_ms": 2478.4268339276314,
+              "notes": {
+                "seq_len": 61440,
+                "graph_seq_len": 61440,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 9830400,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 16,
+          "chunk_start": 61440,
+          "chunk_end": 65536,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "wayfinder",
+              "graph_build_ms": 97.95283395051956,
+              "attention_ms": 2503.2039999961853,
+              "total_ms": 2613.4185410141945,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": false,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "wayfinder",
+              "graph_build_ms": 0.04670804738998413,
+              "attention_ms": 1462.4668329954147,
+              "total_ms": 1489.1638749837875,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004916965961456299,
+              "attention_ms": 2760.883082985878,
+              "total_ms": 2762.525375008583,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "wayfinder",
+              "graph_build_ms": 0.010834038257598877,
+              "attention_ms": 2800.0712919831276,
+              "total_ms": 2801.2246249318123,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 4,
+              "path": "wayfinder",
+              "graph_build_ms": 0.006374955177307129,
+              "attention_ms": 2651.9009580016136,
+              "total_ms": 2652.7026660442352,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 5,
+              "path": "wayfinder",
+              "graph_build_ms": 0.012750029563903809,
+              "attention_ms": 3009.8310840129852,
+              "total_ms": 3012.9840419888496,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 6,
+              "path": "wayfinder",
+              "graph_build_ms": 0.008374929428100586,
+              "attention_ms": 3033.955749988556,
+              "total_ms": 3034.6710410118103,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            },
+            {
+              "layer_idx": 7,
+              "path": "wayfinder",
+              "graph_build_ms": 0.004999935626983643,
+              "attention_ms": 3078.783374965191,
+              "total_ms": 3084.5697079896927,
+              "notes": {
+                "seq_len": 65536,
+                "graph_seq_len": 65536,
+                "q_len": 4096,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 10485760,
+                "active_query_mode": true,
+                "active_dense_triggered": false,
+                "active_large_q_dense_triggered": false,
+                "adaptive_graph_reuse": false
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

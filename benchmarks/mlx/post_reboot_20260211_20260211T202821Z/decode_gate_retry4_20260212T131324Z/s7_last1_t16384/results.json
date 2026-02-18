@@ -1,0 +1,99 @@
+{
+  "created_at": "2026-02-12T13:17:53.900274+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --skip-quality --seed 7 --swap-last-n-layers 1 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_gate_retry4_20260212T131324Z/s7_last1_t16384",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 7,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      46
+    ],
+    "requested_layer_indices": [
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 1,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 17.77687683399563,
+      "ttft_sec": 0.18286616599652916,
+      "itl_p50_sec": 0.01981112499925075,
+      "itl_p95_sec": 0.020984249997127336,
+      "decode_sec": 1.4521269159959047,
+      "e2e_sec": 19.229003749991534,
+      "decode_tok_s": 44.07328264148813,
+      "peak_memory_bytes": 20662466236,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.104680791002465,
+      "ttft_sec": 0.1799889579997398,
+      "itl_p50_sec": 0.019802541995886713,
+      "itl_p95_sec": 0.020169832998362835,
+      "decode_sec": 1.4404794170040987,
+      "e2e_sec": 17.545160208006564,
+      "decode_tok_s": 44.429652547973824,
+      "peak_memory_bytes": 20662466236,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.10240495800099,
+      "ttft_sec": 0.17449675000534626,
+      "itl_p50_sec": 0.01960316699842224,
+      "itl_p95_sec": 0.019813083003100473,
+      "decode_sec": 1.4211387500035926,
+      "e2e_sec": 17.52354370800458,
+      "decode_tok_s": 45.03430787446913,
+      "peak_memory_bytes": 20662466236,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

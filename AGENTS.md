@@ -64,3 +64,9 @@ Every experiment must include:
 2. Lock best schedule/config there (including retro experiments).
 3. Port only proven ideas to Qwen integration.
 4. Re-benchmark Qwen and update README with measured (not aspirational) numbers.
+
+## Active Program Prompt
+
+- Current long-running handoff prompt for the HCSA/Wayfinder legitimacy program:
+  - `notes/prompting/HCSA_LONGRUN_PROMPT.md`
+- Use that prompt as the default starting contract for next-agent execution on this campaign.

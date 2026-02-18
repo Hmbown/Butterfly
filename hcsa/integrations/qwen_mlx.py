@@ -17,8 +17,10 @@ from hcsa.graph.abi import WayfinderGraphABI, graph_metrics, validate_graph_abi
 from hcsa.graph.analysis import expansion_proxy, spectral_gap
 from hcsa.mlx.attention import (
     AttentionProfile,
+    sparse_gather_attention_active,
     sparse_gather_attention,
     stable_masked_softmax,
+    wayfinder_permute_window_attention_active_batched,
     wayfinder_permute_window_attention_batched,
 )
 from hcsa.mlx.graph_abi import (
@@ -43,6 +45,7 @@ class QwenWayfinderConfig:
     landmark_stride: Optional[int] = 64
     num_cycles: int | str = 1
     edge_disjoint: bool = True
+    enforce_hamiltonian: bool = True
     regular_num_clusters: int = 8
     seed: int = 0
     edge_bias: bool = True
@@ -63,6 +66,7 @@ class QwenWayfinderConfig:
     verify_spectral_gap: bool = False
     spectral_gap_threshold: float = 4.0
     use_fused_dispatch: bool = True
+    active_dense_threshold: Optional[int | str] = None
 
 
 @dataclass(frozen=True)
@@ -88,6 +92,14 @@ def _now_ms() -> float:
 
 def _mx_nbytes(arr: mx.array) -> int:
     mx.eval(arr)
+    # Avoid np.asarray(...) here: converting large MLX tensors to NumPy can
+    # transiently duplicate graph/cache storage in host memory.
+    if hasattr(arr, "nbytes"):
+        return int(arr.nbytes)
+    itemsize = getattr(arr, "itemsize", None)
+    if itemsize is not None:
+        elems = int(np.prod([int(d) for d in arr.shape]))
+        return int(elems * int(itemsize))
     return int(np.asarray(arr).nbytes)
 
 
@@ -121,8 +133,16 @@ def extract_qkv_from_qwen_attention(
     keys = attn.k_proj(x)
     values = attn.v_proj(x)
 
-    queries = attn.q_norm(queries.reshape(B, L, attn.n_heads, -1)).transpose(0, 2, 1, 3)
-    keys = attn.k_norm(keys.reshape(B, L, attn.n_kv_heads, -1)).transpose(0, 2, 1, 3)
+    q_norm = getattr(attn, "q_norm", None)
+    k_norm = getattr(attn, "k_norm", None)
+    queries = queries.reshape(B, L, attn.n_heads, -1)
+    keys = keys.reshape(B, L, attn.n_kv_heads, -1)
+    if q_norm is not None:
+        queries = q_norm(queries)
+    if k_norm is not None:
+        keys = k_norm(keys)
+    queries = queries.transpose(0, 2, 1, 3)
+    keys = keys.transpose(0, 2, 1, 3)
     values = values.reshape(B, L, attn.n_kv_heads, -1).transpose(0, 2, 1, 3)
 
     if cache is not None:
@@ -156,6 +176,7 @@ class _QwenGraphRuntime:
         spectral_gap_threshold: float = 4.0,
         store_numpy_abi: bool,
         store_graph_tensors: bool,
+        enforce_hamiltonian: bool = True,
     ):
         self.n_heads = int(n_heads)
         self.window = int(window)
@@ -172,6 +193,7 @@ class _QwenGraphRuntime:
         self.spectral_gap_threshold = float(max(0.0, spectral_gap_threshold))
         self.store_numpy_abi = bool(store_numpy_abi)
         self.store_graph_tensors = bool(store_graph_tensors)
+        self.enforce_hamiltonian = bool(enforce_hamiltonian)
         self.topology = Topology(
             n_heads=self.n_heads,
             strategy=self.strategy,
@@ -181,7 +203,7 @@ class _QwenGraphRuntime:
             seed=self.seed,
             window=self.window,
             landmark_stride=self.landmark_stride,
-            enforce_hamiltonian=True,
+            enforce_hamiltonian=self.enforce_hamiltonian,
         )
 
     @property
@@ -206,7 +228,7 @@ class _QwenGraphRuntime:
                 seed=self.seed,
                 window=self.window,
                 landmark_stride=self.landmark_stride,
-                enforce_hamiltonian=True,
+                enforce_hamiltonian=self.enforce_hamiltonian,
             )
 
     def cache_key(self, T: int) -> tuple:
@@ -216,6 +238,7 @@ class _QwenGraphRuntime:
             self.strategy,
             self.num_cycles,
             self.edge_disjoint,
+            self.enforce_hamiltonian,
             self.regular_num_clusters,
             self.window,
             self.landmark_stride,
@@ -440,7 +463,7 @@ class _QwenGraphRuntime:
             numpy_abi,
             expect_heads=self.n_heads,
             expect_tokens=T,
-            enforce_hamiltonian=True,
+            enforce_hamiltonian=self.enforce_hamiltonian,
         )
         mlx_graph = to_mlx_graph_abi(numpy_abi, heads=self.n_heads, validate=False)
         return self._build_cache(
@@ -529,8 +552,8 @@ class QwenWayfinderAttention(nn.Module):
         self.k_proj = base_attn.k_proj
         self.v_proj = base_attn.v_proj
         self.o_proj = base_attn.o_proj
-        self.q_norm = base_attn.q_norm
-        self.k_norm = base_attn.k_norm
+        self.q_norm = getattr(base_attn, "q_norm", None) or nn.Identity()
+        self.k_norm = getattr(base_attn, "k_norm", None) or nn.Identity()
         self.rope = base_attn.rope
 
         self.path = cfg.path
@@ -545,6 +568,12 @@ class QwenWayfinderAttention(nn.Module):
         self.circular = bool(cfg.circular)
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
+        if cfg.active_dense_threshold == "auto":
+            self.active_dense_threshold = (2 * cfg.window + 1) ** 2
+        elif cfg.active_dense_threshold is None:
+            self.active_dense_threshold = None
+        else:
+            self.active_dense_threshold = int(max(0, cfg.active_dense_threshold))
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -554,6 +583,7 @@ class QwenWayfinderAttention(nn.Module):
             strategy=cfg.strategy,
             num_cycles=cfg.num_cycles,
             edge_disjoint=cfg.edge_disjoint,
+            enforce_hamiltonian=cfg.enforce_hamiltonian,
             regular_num_clusters=cfg.regular_num_clusters,
             seed=cfg.seed,
             path=cfg.path,
@@ -570,6 +600,17 @@ class QwenWayfinderAttention(nn.Module):
 
         self._runtime_window_drop_override: Optional[float] = None
         self._runtime_schedule_bias_vec = np.zeros((4,), dtype=np.float32)
+        self._active_graph_seq_len: int = 0
+        # Fast graph build: perms-only path avoids O(T*D) ABI construction.
+        # When available, use exact k_len so Tg == Tk and active-row decode
+        # can keep contiguous local windows over valid tokens.
+        self._fast_graph_build = bool(
+            self.path == "permute"
+            and not cfg.compute_graph_metrics
+            and not cfg.compute_edge_utilization_proxy
+            and self.path != "sparse"
+            and not cfg.verify_spectral_gap
+        )
 
         self.last_profile: AttentionProfile = AttentionProfile(path=cfg.path)
         self.last_graph_abi: Optional[WayfinderGraphABI] = None
@@ -596,6 +637,34 @@ class QwenWayfinderAttention(nn.Module):
             h_chunk = min(h_chunk, 2)
             q_chunk = min(q_chunk, 384)
         return h_chunk, q_chunk
+
+    def _adaptive_graph_seq_len(self, *, k_len: int, q_len: int, cache: Optional[Any]) -> int:
+        target = int(k_len)
+        max_size_raw = None if cache is None else getattr(cache, "max_size", None)
+        max_size = None
+        if max_size_raw is not None:
+            try:
+                max_size = int(max_size_raw)
+            except Exception:
+                max_size = None
+        if max_size is not None and max_size > 0:
+            target = max(target, max_size)
+        elif self._fast_graph_build:
+            # Fast perms-only build is cheap; match exact data horizon.
+            return int(target)
+        elif q_len <= 2:
+            # Decode horizon bucketing: avoid rebuilding a new graph per token.
+            step = 256
+            target = ((target + step - 1) // step) * step
+        else:
+            # For larger active blocks, amortize graph builds.
+            step = max(4096, int(max(1, q_len)) * 8)
+            target = ((target + step - 1) // step) * step
+
+        if self._active_graph_seq_len >= target:
+            return int(self._active_graph_seq_len)
+        self._active_graph_seq_len = int(target)
+        return int(self._active_graph_seq_len)
 
     def _o_proj_part(self, x_btF: mx.array, f0: int, f1: int) -> mx.array:
         """Apply output projection to a feature slice [f0:f1] and return [B,T,D]."""
@@ -775,25 +844,71 @@ class QwenWayfinderAttention(nn.Module):
     ) -> mx.array:
         t_total0 = _now_ms()
         queries, keys, values = extract_qkv_from_qwen_attention(self, x, cache=cache)
+        q_len = int(queries.shape[2])
+        k_len = int(keys.shape[2])
+        sparse_active_mode = self.path == "sparse" and cache is not None and q_len < k_len
+        active_mode = self.path == "permute" and cache is not None and q_len < k_len
+        force_dense_large_active = active_mode and q_len > int(max(1, self.query_chunk_size))
+        force_dense_active = (
+            active_mode
+            and self.active_dense_threshold is not None
+            and k_len <= self.active_dense_threshold
+            and q_len > 2
+        )
+        use_active_permute = active_mode and not (force_dense_active or force_dense_large_active)
+        sparse_active_positions: Optional[mx.array] = None
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
-        if queries.shape[2] != keys.shape[2]:
+        if force_dense_active or force_dense_large_active or (
+            q_len != k_len and not (use_active_permute or sparse_active_mode)
+        ):
+            fallback_reason = "active_dense_threshold" if force_dense_active else (
+                "active_large_q" if force_dense_large_active else "q_len_mismatch"
+            )
+            fallback_graph_seq_len = (
+                self._adaptive_graph_seq_len(k_len=k_len, q_len=q_len, cache=cache)
+                if active_mode
+                else int(k_len)
+            )
+            t_attn0 = _now_ms()
             out = self._dense_fallback(queries, keys, values, mask, cache)
+            attn_ms = _now_ms() - t_attn0
             self.last_profile = AttentionProfile(
                 graph_build_ms=0.0,
                 permute_ms=0.0,
-                attention_ms=0.0,
+                attention_ms=float(attn_ms),
                 total_ms=_now_ms() - t_total0,
                 path=f"{self.path}_dense_fallback",
-                notes={"cache_hit": True, "cache_source": "dense_fallback"},
+                notes={
+                    "seq_len": int(k_len),
+                    "graph_seq_len": int(fallback_graph_seq_len),
+                    "cache_hit": True,
+                    "cache_source": "dense_fallback",
+                    "q_len": int(q_len),
+                    "active_query_mode": bool(active_mode or sparse_active_mode),
+                    "dense_fallback_reason": str(fallback_reason),
+                    "active_dense_threshold": self.active_dense_threshold,
+                    "active_dense_triggered": bool(force_dense_active),
+                    "active_large_q_dense_triggered": bool(force_dense_large_active),
+                    "adaptive_graph_reuse": bool(int(fallback_graph_seq_len) != int(k_len)),
+                    "sparse_active_mode": bool(sparse_active_mode),
+                },
             )
             return out
 
-        T = int(keys.shape[2])
+        T = k_len
+        graph_T = (
+            self._adaptive_graph_seq_len(k_len=k_len, q_len=q_len, cache=cache)
+            if use_active_permute
+            else T
+        )
         t_graph0 = _now_ms()
         if self.permute_log_chunks:
-            print(f"    qwen_wayfinder: requesting graph cache for T={T}", flush=True)
-        graph_cache, cache_hit = self.graph_runtime.get_or_build_cache(id(self), T)
+            print(
+                f"    qwen_wayfinder: requesting graph cache for T={graph_T} (seq_len={T})",
+                flush=True,
+            )
+        graph_cache, cache_hit = self.graph_runtime.get_or_build_cache(id(self), graph_T)
         graph_ms = _now_ms() - t_graph0
         if self.permute_log_chunks:
             print(
@@ -845,23 +960,98 @@ class QwenWayfinderAttention(nn.Module):
         if self.path == "sparse":
             keys_q = _repeat_kv_to_q_heads(keys, self.n_heads)
             values_q = _repeat_kv_to_q_heads(values, self.n_heads)
-            y_h, _w = sparse_gather_attention(
-                queries,
-                keys_q,
-                values_q,
-                graph_cache.mlx_graph,
-                return_weights=False,
-                precomputed_safe_idx=graph_cache.safe_idx,
-                precomputed_causal_mask=graph_cache.causal_mask,
-                edge_type_bias=self.edge_type_bias,
-                edge_type_bias_offset=scheduled_edge_bias,
-                window_drop_mask=wd_mask,
-            )
-            keep_mask = graph_cache.causal_mask if wd_mask is None else (graph_cache.causal_mask & wd_mask)
+            if sparse_active_mode:
+                sparse_active_positions = mx.arange(T - q_len, T, dtype=mx.int32)
+                y_h, _w = sparse_gather_attention_active(
+                    queries,
+                    keys_q,
+                    values_q,
+                    graph_cache.mlx_graph,
+                    query_positions=sparse_active_positions,
+                    return_weights=False,
+                    precomputed_safe_idx=graph_cache.safe_idx,
+                    precomputed_causal_mask=graph_cache.causal_mask,
+                    edge_type_bias=self.edge_type_bias,
+                    edge_type_bias_offset=scheduled_edge_bias,
+                    window_drop_mask=wd_mask,
+                )
+                keep_mask_full = (
+                    graph_cache.causal_mask
+                    if wd_mask is None
+                    else (graph_cache.causal_mask & wd_mask)
+                )
+                keep_mask = mx.take(keep_mask_full, sparse_active_positions, axis=1)
+            else:
+                y_h, _w = sparse_gather_attention(
+                    queries,
+                    keys_q,
+                    values_q,
+                    graph_cache.mlx_graph,
+                    return_weights=False,
+                    precomputed_safe_idx=graph_cache.safe_idx,
+                    precomputed_causal_mask=graph_cache.causal_mask,
+                    edge_type_bias=self.edge_type_bias,
+                    edge_type_bias_offset=scheduled_edge_bias,
+                    window_drop_mask=wd_mask,
+                )
+                keep_mask = (
+                    graph_cache.causal_mask
+                    if wd_mask is None
+                    else (graph_cache.causal_mask & wd_mask)
+                )
         elif self.path == "permute":
             h_chunk_eff, q_chunk_eff = self._effective_permute_chunking(T)
-            streamable = self.permute_stream_o_proj and h_chunk_eff == 1
-            if streamable:
+            streamable = self.permute_stream_o_proj and h_chunk_eff == 1 and not use_active_permute
+            if use_active_permute:
+                active_start = T - q_len
+                active_positions = mx.arange(active_start, T, dtype=mx.int32)
+                try:
+                    y_h, _w = wayfinder_permute_window_attention_active_batched(
+                        queries,
+                        keys,
+                        values,
+                        all_perms=graph_cache.perm_mx_stacked,
+                        all_inv_perms=graph_cache.inv_perm_stacked,
+                        query_positions=active_positions,
+                        window=self.graph_runtime.window,
+                        edge_type_bias_scalar=etb_scalar,
+                        window_drop_prob=effective_window_drop if is_training else 0.0,
+                        training=is_training,
+                        head_chunk_size=h_chunk_eff,
+                        query_chunk_size=q_chunk_eff,
+                        circular=self.circular,
+                        multi_cycle_mode=self.multi_cycle_mode,
+                        log_progress=self.permute_log_chunks,
+                        use_fused_dispatch=self.use_fused_dispatch,
+                        prefer_gather_for_small_tq=bool(q_len == 1),
+                        scale=self.scale,
+                    )
+                except Exception as exc:
+                    out = self._dense_fallback(queries, keys, values, mask, cache)
+                    attn_ms = _now_ms() - t_attn0
+                    self.last_profile = AttentionProfile(
+                        graph_build_ms=float(graph_ms),
+                        permute_ms=0.0,
+                        attention_ms=float(attn_ms),
+                        total_ms=float(_now_ms() - t_total0),
+                        path=f"{self.path}_dense_fallback",
+                        notes={
+                            "seq_len": int(T),
+                            "graph_seq_len": int(graph_T),
+                            "cache_hit": bool(cache_hit),
+                            "cache_source": "dense_fallback",
+                            "q_len": int(q_len),
+                            "active_query_mode": True,
+                            "dense_fallback_reason": "active_runtime_error",
+                            "active_dense_triggered": False,
+                            "active_large_q_dense_triggered": bool(force_dense_large_active),
+                            "adaptive_graph_reuse": bool(graph_T != T),
+                            "sparse_active_mode": False,
+                            "fallback_error": f"{type(exc).__name__}: {exc}",
+                        },
+                    )
+                    return out
+            elif streamable:
                 out_stream = self._permute_attention_project_streamed(
                     queries=queries,
                     keys=keys,
@@ -895,15 +1085,23 @@ class QwenWayfinderAttention(nn.Module):
                     retro_backfill_causal_only=self.retro_backfill_causal_only,
                     log_progress=self.permute_log_chunks,
                     use_fused_dispatch=self.use_fused_dispatch,
+                    scale=self.scale,
                 )
             keep_mask = graph_cache.causal_mask
+            if int(keep_mask.shape[1]) != T:
+                keep_mask = keep_mask[:, :T, :]
         else:
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0
 
         if self.compute_edge_utilization_proxy:
+            edge_type = graph_cache.mlx_graph.edge_type
+            if sparse_active_positions is not None:
+                edge_type = mx.take(edge_type, sparse_active_positions, axis=1)
+            elif int(edge_type.shape[1]) != int(keep_mask.shape[1]):
+                edge_type = edge_type[:, : int(keep_mask.shape[1]), :]
             self.last_edge_utilization_proxy = _edge_utilization_proxy(
-                graph_cache.mlx_graph.edge_type,
+                edge_type,
                 keep_mask,
             )
 
@@ -922,6 +1120,7 @@ class QwenWayfinderAttention(nn.Module):
             path=self.path,
             notes={
                 "seq_len": int(T),
+                "graph_seq_len": int(graph_T),
                 "max_degree": int(graph_cache.mlx_graph.neigh_idx.shape[-1]),
                 "cache_hit": bool(cache_hit),
                 "cache_mode": self.graph_runtime.cache_mode,
@@ -930,6 +1129,13 @@ class QwenWayfinderAttention(nn.Module):
                 "window_drop_effective": float(effective_window_drop),
                 "permute_head_chunk_effective": int(h_chunk_eff) if self.path == "permute" else None,
                 "permute_query_chunk_effective": int(q_chunk_eff) if self.path == "permute" else None,
+                "q_len": int(q_len),
+                "active_query_mode": bool(use_active_permute or sparse_active_mode),
+                "dense_fallback_reason": None,
+                "active_dense_triggered": False,
+                "active_large_q_dense_triggered": bool(force_dense_large_active),
+                "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
+                "sparse_active_mode": bool(sparse_active_mode),
             },
         )
         return out

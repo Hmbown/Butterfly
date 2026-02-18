@@ -1,0 +1,39 @@
+{
+  "run_root": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z",
+  "dataset": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json",
+  "seed": 42,
+  "heldout_quality": {
+    "dense": {
+      "path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z/holdout_s42_dense/results.json",
+      "accuracy": 0.125,
+      "correct": 3,
+      "num_tasks": 24,
+      "drift_vs_dense": 0.0,
+      "delta_vs_full_wayfinder": 0.125
+    },
+    "full_wayfinder": {
+      "path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z/holdout_s42_full_wayfinder/results.json",
+      "accuracy": 0.0,
+      "correct": 0,
+      "num_tasks": 24,
+      "drift_vs_dense": -0.125,
+      "delta_vs_full_wayfinder": 0.0
+    },
+    "last4": {
+      "path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z/holdout_s42_last4/results.json",
+      "accuracy": 0.16666666666666666,
+      "correct": 4,
+      "num_tasks": 24,
+      "drift_vs_dense": 0.04166666666666666,
+      "delta_vs_full_wayfinder": 0.16666666666666666
+    },
+    "last4_t16384": {
+      "path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z/holdout_s42_last4_t16384/results.json",
+      "accuracy": 0.16666666666666666,
+      "correct": 4,
+      "num_tasks": 24,
+      "drift_vs_dense": 0.04166666666666666,
+      "delta_vs_full_wayfinder": 0.16666666666666666
+    }
+  }
+}

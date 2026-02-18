@@ -1,0 +1,132 @@
+{
+  "created_at": "2026-02-12T17:48:34.750141+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --mode dense --seed 99 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s99_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.19404137499805,
+      "ttft_sec": 0.13844612499815412,
+      "itl_p50_sec": 0.019549124997865874,
+      "itl_p95_sec": 0.01987212499807356,
+      "decode_sec": 1.3812268330002553,
+      "e2e_sec": 17.575268207998306,
+      "decode_tok_s": 46.335618792592754,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.20783554099762,
+      "ttft_sec": 0.13832725000247592,
+      "itl_p50_sec": 0.019557874999009073,
+      "itl_p95_sec": 0.01980208400345873,
+      "decode_sec": 1.3795266669985722,
+      "e2e_sec": 17.587362207996193,
+      "decode_tok_s": 46.39272406327919,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.196849166000902,
+      "ttft_sec": 0.13928375000250526,
+      "itl_p50_sec": 0.019631458002550062,
+      "itl_p95_sec": 0.01989674999640556,
+      "decode_sec": 1.384339625001303,
+      "e2e_sec": 17.581188791002205,
+      "decode_tok_s": 46.23142966086791,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9. Record B: ticket ticket=ALPHA-7707, owner=JON, checksum=9Z9Z9. Question: return only;\n;\n",
+        "correct": true,
+        "ttft_sec": 0.015342332997533958,
+        "itl_p95_sec": 0.014567541002179496,
+        "peak_memory_bytes": 16979254022
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-04 amount=23;\nI need to return only the amount on 2026-01-04.\nThe input data is:\n2026-01-03 amount=17;\n2026-01-04 amount=23;\n2026-01-05 amount=11;\nThe",
+        "correct": true,
+        "ttft_sec": 0.014453791998676024,
+        "itl_p95_sec": 0.01446083300106693,
+        "peak_memory_bytes": 16958115198
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9T9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": false,
+        "ttft_sec": 0.014882916999340523,
+        "itl_p95_sec": 0.014569332997780293,
+        "peak_memory_bytes": 16901360062
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9;\nWe are asked: \"144 / 12 + 39.9;\". The instruction: \"return only a number\". So we need to compute exactly: 144 / 12 + 39.9;? Wait, the expression includes a semicolon? Possibly it's 144 / 12 +",
+        "correct": false,
+        "ttft_sec": 0.014213084003131371,
+        "itl_p95_sec": 0.014330999998492189,
+        "peak_memory_bytes": 16899920817
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.01457908399606822,
+        "itl_p95_sec": 0.014413165998121258,
+        "peak_memory_bytes": 16918371030
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.014802875004534144,
+        "itl_p95_sec": 0.014510790999338496,
+        "peak_memory_bytes": 16913467690
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "created_at": "2026-02-15T17:49:09.920885+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --skip-quality --skip-multi-turn --seq-lens 2048 8192 --decode-len 256 --repeats 1 --cooldown-sec 10 --out-dir benchmarks/mlx/qwen3_30b_a3b_wayfinder/perf_dense",
+  "model_path": "mlx-community/Qwen3-30B-A3B-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 256,
+      "repeat": 1,
+      "prefill_sec": 1.56106695800554,
+      "ttft_sec": 0.07746162504190579,
+      "itl_p50_sec": 0.011502084031235427,
+      "itl_p95_sec": 0.01175424997927621,
+      "decode_sec": 3.0248220409848727,
+      "e2e_sec": 4.585888998990413,
+      "decode_tok_s": 84.63307808899964,
+      "peak_memory_bytes": 18609385612,
+      "sample_output_text": " the policy and list three key constraints with exact numbers.\nOkay, the user is asking me to summarize the policy and list three key constraints with exact numbers. But",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 257,
+        "layer_observations": 257,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 256
+        },
+        "path_counts": {
+          "dense": 257
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 256,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 257
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

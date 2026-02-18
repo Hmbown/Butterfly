@@ -1,0 +1,101 @@
+{
+  "profile_file": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_fastpath_20260212T024915Z/profile_candidate_last4_t16384.prof",
+  "top_interesting_by_cumtime": [
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+      "line": 315,
+      "func": "__call__",
+      "tt": 0.027572157000000003,
+      "ct": 15.814536336000002,
+      "ncalls": 140
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/attention.py",
+      "line": 1098,
+      "func": "wayfinder_permute_window_attention_active_batched",
+      "tt": 0.001032279,
+      "ct": 12.212278665000001,
+      "ncalls": 132
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 191,
+      "func": "wayfinder_fused_permute_window_attention_active",
+      "tt": 0.002492587,
+      "ct": 12.210306624000001,
+      "ncalls": 132
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 263,
+      "func": "_active_via_full_prefill",
+      "tt": 12.206780953,
+      "ct": 12.207810122000001,
+      "ncalls": 132
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+      "line": 85,
+      "func": "extract_qkv_from_glm_attention",
+      "tt": 0.0019265450000000002,
+      "ct": 0.004380373,
+      "ncalls": 140
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/attention.py",
+      "line": 602,
+      "func": "wayfinder_permute_window_attention_batched",
+      "tt": 3.4499e-05,
+      "ct": 0.002394999,
+      "ncalls": 8
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 74,
+      "func": "wayfinder_fused_permute_window_attention",
+      "tt": 0.002291177,
+      "ct": 0.002357,
+      "ncalls": 8
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/attention.py",
+      "line": 1,
+      "func": "<module>",
+      "tt": 5.6084e-05,
+      "ct": 0.0019325000000000002,
+      "ncalls": 1
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+      "line": 1,
+      "func": "<module>",
+      "tt": 8.959e-06,
+      "ct": 0.001408834,
+      "ncalls": 1
+    },
+    {
+      "file": "/opt/homebrew/lib/python3.14/site-packages/torch/_higher_order_ops/flex_attention.py",
+      "line": 1,
+      "func": "<module>",
+      "tt": 2.042e-05,
+      "ct": 0.0013589160000000002,
+      "ncalls": 1
+    },
+    {
+      "file": "/opt/homebrew/lib/python3.14/site-packages/torch/nn/attention/flex_attention.py",
+      "line": 1,
+      "func": "<module>",
+      "tt": 2.5376000000000002e-05,
+      "ct": 0.0007390830000000001,
+      "ncalls": 1
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+      "line": 592,
+      "func": "swap_glm_attention_with_wayfinder",
+      "tt": 2.8959000000000002e-05,
+      "ct": 0.000733,
+      "ncalls": 1
+    }
+  ]
+}

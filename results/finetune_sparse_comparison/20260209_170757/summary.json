@@ -1,0 +1,109 @@
+{
+  "dense": {
+    "run": "dense",
+    "steps": 800,
+    "final_train_loss": 0.00806896761059761,
+    "final_train_ppl": 1.0081016094660395,
+    "avg_tokens_per_sec": 7117.65698793947,
+    "peak_memory_bytes": 6338493856,
+    "replaced_layers": [],
+    "final_val_loss": 0.007993643986992538,
+    "final_val_ppl": 1.0080256784595876,
+    "model_config": {
+      "num_hidden_layers": null,
+      "num_attention_heads": null,
+      "hidden_size": null
+    },
+    "tokenizer_vocab": 50257
+  },
+  "window_landmarks": {
+    "run": "window_landmarks",
+    "steps": 800,
+    "final_train_loss": 0.007939828559756279,
+    "final_train_ppl": 1.0079714325866818,
+    "avg_tokens_per_sec": 1900.1209058225963,
+    "peak_memory_bytes": 24822771520,
+    "replaced_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "final_val_loss": 0.007919155701529235,
+    "final_val_ppl": 1.0079505951515444,
+    "model_config": {
+      "num_hidden_layers": null,
+      "num_attention_heads": null,
+      "hidden_size": null
+    },
+    "tokenizer_vocab": 50257
+  },
+  "window_cycle": {
+    "run": "window_cycle",
+    "steps": 800,
+    "final_train_loss": 0.00786585919559002,
+    "final_train_ppl": 1.0078968763381888,
+    "avg_tokens_per_sec": 1953.8567497574893,
+    "peak_memory_bytes": 24175849280,
+    "replaced_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "final_val_loss": 0.007717464293818921,
+    "final_val_ppl": 1.0077473206771523,
+    "model_config": {
+      "num_hidden_layers": null,
+      "num_attention_heads": null,
+      "hidden_size": null
+    },
+    "tokenizer_vocab": 50257
+  },
+  "window_multicycle": {
+    "run": "window_multicycle",
+    "steps": 800,
+    "final_train_loss": 0.00799272395670414,
+    "final_train_ppl": 1.0080247510458586,
+    "avg_tokens_per_sec": 2188.207295076361,
+    "peak_memory_bytes": 21574508352,
+    "replaced_layers": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "final_val_loss": 0.007518067606724799,
+    "final_val_ppl": 1.0075463992321823,
+    "model_config": {
+      "num_hidden_layers": null,
+      "num_attention_heads": null,
+      "hidden_size": null
+    },
+    "tokenizer_vocab": 50257
+  }
+}

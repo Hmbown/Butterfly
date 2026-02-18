@@ -1,0 +1,9 @@
+======================================================================
+HCSA Long-Decode Quality Test: Qwen3-30B-A3B-4bit
+======================================================================
+
+Loading wayfinder model...
+Fetching 12 files:   0%|          | 0/12 [00:00<?, ?it/s]Fetching 12 files: 100%|██████████| 12/12 [00:00<00:00, 25864.16it/s]
+Swapped 48 layers, fast_graph_build=True
+Loading dense model...
+Fetching 12 files:   0%|          | 0/12 [00:00<?, ?it/s]Fetching 12 files: 100%|██████████| 12/12 [00:00<00:00, 24600.02it/s]

@@ -1,0 +1,164 @@
+{
+  "created_at": "2026-02-12T14:02:06.886743+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --seed 42 --swap-layer-indices 16 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_final_idx16_20260212T140034Z/s42_idx16",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      16
+    ],
+    "requested_layer_indices": [
+      16
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "16",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.44756412499555,
+      "ttft_sec": 0.17145916700246744,
+      "itl_p50_sec": 0.0193174580053892,
+      "itl_p95_sec": 0.01953916700585978,
+      "decode_sec": 1.4022785000051954,
+      "e2e_sec": 17.849842625000747,
+      "decode_tok_s": 45.64000660336936,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.10388024999702,
+      "ttft_sec": 0.13674770900252042,
+      "itl_p50_sec": 0.01930658299534116,
+      "itl_p95_sec": 0.01978058399981819,
+      "decode_sec": 1.3684804999938933,
+      "e2e_sec": 17.472360749990912,
+      "decode_tok_s": 46.767199094386505,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.09109691699996,
+      "ttft_sec": 0.14234895799745573,
+      "itl_p50_sec": 0.01933199999621138,
+      "itl_p95_sec": 0.01953470899752574,
+      "decode_sec": 1.371141625000746,
+      "e2e_sec": 17.462238542000705,
+      "decode_tok_s": 46.67643285934462,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JACK, checksum=9X7. Record B: ticket=BETA-9, owner= } } } } } } } } } } } } } } } } } } } } } } }",
+        "correct": true,
+        "ttft_sec": 0.014584291995561216,
+        "itl_p95_sec": 0.014101250002568122,
+        "peak_memory_bytes": 16981439190
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-04 amount=23;\nI need to return only the amount on 2026-01-04.\nThe input data is:\n2026-01-03 amount=17;\n2026-01-04 amount=23;\n2026-01-05 amount=11.\n\nI",
+        "correct": true,
+        "ttft_sec": 0.014560750001692213,
+        "itl_p95_sec": 0.01377633299853187,
+        "peak_memory_bytes": 16960316686
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01481904200045392,
+        "itl_p95_sec": 0.013792917001410387,
+        "peak_memory_bytes": 16903567310
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.014430082999751903,
+        "itl_p95_sec": 0.01439254200522555,
+        "peak_memory_bytes": 16902133505
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": true,
+        "ttft_sec": 0.014556249996530823,
+        "itl_p95_sec": 0.013891916001739446,
+        "peak_memory_bytes": 16920592678
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.01443029200163437,
+        "itl_p95_sec": 0.013779708002402913,
+        "peak_memory_bytes": 16915697338
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

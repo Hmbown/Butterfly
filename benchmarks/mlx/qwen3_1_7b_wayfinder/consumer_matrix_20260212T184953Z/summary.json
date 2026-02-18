@@ -1,0 +1,466 @@
+{
+  "run_root": "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z",
+  "baseline_mode": "dense",
+  "baseline_run_path_convention": "<run_root>/dense/s{seed}/{dataset}/results.json",
+  "controls": {
+    "model": "mlx-community/Qwen3-1.7B-4bit",
+    "modes": [
+      "dense",
+      "wayfinder",
+      "sparse"
+    ],
+    "seeds": [
+      42,
+      7,
+      99
+    ],
+    "datasets": {
+      "main": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+      "heldout": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_holdout_v1.json"
+    },
+    "fixed": {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeats": 3,
+      "chunk_size": 4096,
+      "kv_step": 4096,
+      "window": 64,
+      "landmark_stride": 64,
+      "num_cycles": 1,
+      "cooldown_sec": 0,
+      "retro_backfill_default_inference_off": true
+    }
+  },
+  "results_by_dataset": {
+    "main": {
+      "modes": {
+        "dense": {
+          "metrics_abs": {
+            "prefill_sec": 3.529325712887738,
+            "decode_sec": 0.49453757411215016,
+            "decode_tok_s": 129.51588749998322,
+            "ttft_sec": 0.029039296334505908,
+            "itl_p95_sec": 0.007552356333083783,
+            "peak_memory_bytes": 3840100396.0,
+            "quality_accuracy": 0.6666666666666666,
+            "quality_correct_mean": 4.0,
+            "quality_num_tasks_mean": 6.0
+          },
+          "trace": {
+            "path_counts": {},
+            "phase_counts": {},
+            "q_len_counts": {},
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s42/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s7/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s99/main/results.json"
+          ]
+        },
+        "wayfinder": {
+          "metrics_abs": {
+            "prefill_sec": 3.4420568334446418,
+            "decode_sec": 0.4977378565567455,
+            "decode_tok_s": 128.70026159494412,
+            "ttft_sec": 0.028528194555999815,
+            "itl_p95_sec": 0.007632500111261227,
+            "peak_memory_bytes": 3841673708.0,
+            "quality_accuracy": 0.7777777777777778,
+            "quality_correct_mean": 4.666666666666667,
+            "quality_num_tasks_mean": 6.0
+          },
+          "trace": {
+            "path_counts": {
+              "permute": 72,
+              "permute_dense_fallback": 4680
+            },
+            "phase_counts": {
+              "prefill": 18,
+              "decode": 576
+            },
+            "q_len_counts": {
+              "4096": 144,
+              "1": 4608
+            },
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s42/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s7/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s99/main/results.json"
+          ],
+          "delta_vs_dense": {
+            "prefill_sec_delta_vs_dense_abs": -0.08726887944309647,
+            "prefill_sec_delta_vs_dense_pct": -2.472678538124836,
+            "decode_sec_delta_vs_dense_abs": 0.0032002824445953593,
+            "decode_sec_delta_vs_dense_pct": 0.6471262472504478,
+            "decode_tok_s_delta_vs_dense_abs": -0.8156259050390986,
+            "decode_tok_s_delta_vs_dense_pct": -0.6297496938660937,
+            "ttft_sec_delta_vs_dense_abs": -0.0005111017785060928,
+            "ttft_sec_delta_vs_dense_pct": -1.760034997469194,
+            "itl_p95_sec_delta_vs_dense_abs": 8.014377817744389e-05,
+            "itl_p95_sec_delta_vs_dense_pct": 1.0611758058391232,
+            "peak_memory_bytes_delta_vs_dense_abs": 1573312.0,
+            "peak_memory_bytes_delta_vs_dense_pct": 0.04097059549898289,
+            "quality_accuracy_delta_vs_dense_abs": 0.11111111111111116,
+            "quality_accuracy_delta_vs_dense_pct": 16.666666666666675,
+            "memory_reduction_pct_convention": -0.04097059549899029
+          }
+        },
+        "sparse": {
+          "metrics_abs": {
+            "prefill_sec": 18.074663935223523,
+            "decode_sec": 111.45848644444453,
+            "decode_tok_s": 9.37622200230578,
+            "ttft_sec": 1.7483984215537525,
+            "itl_p95_sec": 1.8243512823343433,
+            "peak_memory_bytes": 24916249117.77778,
+            "quality_accuracy": 0.611111111111111,
+            "quality_correct_mean": 3.6666666666666665,
+            "quality_num_tasks_mean": 6.0
+          },
+          "trace": {
+            "path_counts": {
+              "sparse": 4752
+            },
+            "phase_counts": {
+              "prefill": 18,
+              "decode": 576
+            },
+            "q_len_counts": {
+              "4096": 144,
+              "1": 4608
+            },
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s42/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s7/main/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s99/main/results.json"
+          ],
+          "delta_vs_dense": {
+            "prefill_sec_delta_vs_dense_abs": 14.545338222335785,
+            "prefill_sec_delta_vs_dense_pct": 412.1279645350332,
+            "decode_sec_delta_vs_dense_abs": 110.96394887033239,
+            "decode_sec_delta_vs_dense_pct": 22437.92073222089,
+            "decode_tok_s_delta_vs_dense_abs": -120.13966549767744,
+            "decode_tok_s_delta_vs_dense_pct": -92.76056228830846,
+            "ttft_sec_delta_vs_dense_abs": 1.7193591252192466,
+            "ttft_sec_delta_vs_dense_pct": 5920.8016110783665,
+            "itl_p95_sec_delta_vs_dense_abs": 1.8167989260012596,
+            "itl_p95_sec_delta_vs_dense_pct": 24056.054109134213,
+            "peak_memory_bytes_delta_vs_dense_abs": 21076148721.77778,
+            "peak_memory_bytes_delta_vs_dense_pct": 548.8436902256911,
+            "quality_accuracy_delta_vs_dense_abs": -0.05555555555555558,
+            "quality_accuracy_delta_vs_dense_pct": -8.333333333333337,
+            "memory_reduction_pct_convention": -548.8436902256911
+          }
+        }
+      }
+    },
+    "heldout": {
+      "modes": {
+        "dense": {
+          "metrics_abs": {
+            "prefill_sec": 3.51343905555647,
+            "decode_sec": 0.48642809266796877,
+            "decode_tok_s": 131.58250024487435,
+            "ttft_sec": 0.023805467554969557,
+            "itl_p95_sec": 0.0074515926664591664,
+            "peak_memory_bytes": 3840100396.0,
+            "quality_accuracy": 0.375,
+            "quality_correct_mean": 9.0,
+            "quality_num_tasks_mean": 24.0
+          },
+          "trace": {
+            "path_counts": {},
+            "phase_counts": {},
+            "q_len_counts": {},
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s42/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s7/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s99/heldout/results.json"
+          ]
+        },
+        "wayfinder": {
+          "metrics_abs": {
+            "prefill_sec": 3.4266121852221354,
+            "decode_sec": 0.49241002788928906,
+            "decode_tok_s": 129.98105936630503,
+            "ttft_sec": 0.025026685110383876,
+            "itl_p95_sec": 0.00753771788974215,
+            "peak_memory_bytes": 3841673708.0,
+            "quality_accuracy": 0.3472222222222222,
+            "quality_correct_mean": 8.333333333333334,
+            "quality_num_tasks_mean": 24.0
+          },
+          "trace": {
+            "path_counts": {
+              "permute": 72,
+              "permute_dense_fallback": 4680
+            },
+            "phase_counts": {
+              "prefill": 18,
+              "decode": 576
+            },
+            "q_len_counts": {
+              "4096": 144,
+              "1": 4608
+            },
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s42/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s7/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s99/heldout/results.json"
+          ],
+          "delta_vs_dense": {
+            "prefill_sec_delta_vs_dense_abs": -0.08682687033433467,
+            "prefill_sec_delta_vs_dense_pct": -2.4712786805571256,
+            "decode_sec_delta_vs_dense_abs": 0.005981935221320289,
+            "decode_sec_delta_vs_dense_pct": 1.2297676288617447,
+            "decode_tok_s_delta_vs_dense_abs": -1.6014408785693206,
+            "decode_tok_s_delta_vs_dense_pct": -1.2170622047681472,
+            "ttft_sec_delta_vs_dense_abs": 0.0012212175554143188,
+            "ttft_sec_delta_vs_dense_pct": 5.129987691249446,
+            "itl_p95_sec_delta_vs_dense_abs": 8.612522328298351e-05,
+            "itl_p95_sec_delta_vs_dense_pct": 1.1557961785894066,
+            "peak_memory_bytes_delta_vs_dense_abs": 1573312.0,
+            "peak_memory_bytes_delta_vs_dense_pct": 0.04097059549898289,
+            "quality_accuracy_delta_vs_dense_abs": -0.02777777777777779,
+            "quality_accuracy_delta_vs_dense_pct": -7.407407407407411,
+            "memory_reduction_pct_convention": -0.04097059549899029
+          }
+        },
+        "sparse": {
+          "metrics_abs": {
+            "prefill_sec": 17.882971504444463,
+            "decode_sec": 108.37640716200015,
+            "decode_tok_s": 9.961881842899734,
+            "ttft_sec": 1.7209021388900712,
+            "itl_p95_sec": 1.7328132962211384,
+            "peak_memory_bytes": 24916257388.88889,
+            "quality_accuracy": 0.375,
+            "quality_correct_mean": 9.0,
+            "quality_num_tasks_mean": 24.0
+          },
+          "trace": {
+            "path_counts": {
+              "sparse": 4752
+            },
+            "phase_counts": {
+              "prefill": 18,
+              "decode": 576
+            },
+            "q_len_counts": {
+              "4096": 144,
+              "1": 4608
+            },
+            "dense_fallback_reason_counts": {}
+          },
+          "runs": [
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s42/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s7/heldout/results.json",
+            "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s99/heldout/results.json"
+          ],
+          "delta_vs_dense": {
+            "prefill_sec_delta_vs_dense_abs": 14.369532448887993,
+            "prefill_sec_delta_vs_dense_pct": 408.987667685959,
+            "decode_sec_delta_vs_dense_abs": 107.88997906933218,
+            "decode_sec_delta_vs_dense_pct": 22180.046896053118,
+            "decode_tok_s_delta_vs_dense_abs": -121.62061840197462,
+            "decode_tok_s_delta_vs_dense_pct": -92.42917422578176,
+            "ttft_sec_delta_vs_dense_abs": 1.6970966713351017,
+            "ttft_sec_delta_vs_dense_pct": 7129.020538732586,
+            "itl_p95_sec_delta_vs_dense_abs": 1.7253617035546793,
+            "itl_p95_sec_delta_vs_dense_pct": 23154.26756109219,
+            "peak_memory_bytes_delta_vs_dense_abs": 21076156992.88889,
+            "peak_memory_bytes_delta_vs_dense_pct": 548.8439056135784,
+            "quality_accuracy_delta_vs_dense_abs": 0.0,
+            "quality_accuracy_delta_vs_dense_pct": 0.0,
+            "memory_reduction_pct_convention": -548.8439056135784
+          }
+        }
+      }
+    }
+  },
+  "overall": {
+    "modes": {
+      "dense": {
+        "metrics_abs": {
+          "prefill_sec": 3.5213823842221044,
+          "decode_sec": 0.4904828333900595,
+          "decode_tok_s": 130.5491938724288,
+          "ttft_sec": 0.026422381944737734,
+          "itl_p95_sec": 0.007501974499771475,
+          "peak_memory_bytes": 3840100396.0,
+          "quality_accuracy": 0.5208333333333333,
+          "quality_correct_mean": 6.5,
+          "quality_num_tasks_mean": 15.0
+        },
+        "trace": {
+          "path_counts": {},
+          "phase_counts": {},
+          "q_len_counts": {},
+          "dense_fallback_reason_counts": {}
+        },
+        "runs": [
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s42/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s7/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s99/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s42/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s7/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/dense/s99/heldout/results.json"
+        ]
+      },
+      "wayfinder": {
+        "metrics_abs": {
+          "prefill_sec": 3.4343345093333886,
+          "decode_sec": 0.49507394222301726,
+          "decode_tok_s": 129.3406604806246,
+          "ttft_sec": 0.026777439833191845,
+          "itl_p95_sec": 0.007585109000501689,
+          "peak_memory_bytes": 3841673708.0,
+          "quality_accuracy": 0.5625,
+          "quality_correct_mean": 6.5,
+          "quality_num_tasks_mean": 15.0
+        },
+        "trace": {
+          "path_counts": {
+            "permute": 144,
+            "permute_dense_fallback": 9360
+          },
+          "phase_counts": {
+            "prefill": 36,
+            "decode": 1152
+          },
+          "q_len_counts": {
+            "4096": 288,
+            "1": 9216
+          },
+          "dense_fallback_reason_counts": {}
+        },
+        "runs": [
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s42/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s7/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s99/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s42/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s7/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/wayfinder/s99/heldout/results.json"
+        ],
+        "delta_vs_dense": {
+          "prefill_sec_delta_vs_dense_abs": -0.08704787488871579,
+          "prefill_sec_delta_vs_dense_pct": -2.4719801881994483,
+          "decode_sec_delta_vs_dense_abs": 0.004591108832957769,
+          "decode_sec_delta_vs_dense_pct": 0.9360386379326473,
+          "decode_tok_s_delta_vs_dense_abs": -1.2085333918041954,
+          "decode_tok_s_delta_vs_dense_pct": -0.9257302599548495,
+          "ttft_sec_delta_vs_dense_abs": 0.00035505788845411126,
+          "ttft_sec_delta_vs_dense_pct": 1.3437769887541287,
+          "itl_p95_sec_delta_vs_dense_abs": 8.31345007302137e-05,
+          "itl_p95_sec_delta_vs_dense_pct": 1.1081682660044518,
+          "peak_memory_bytes_delta_vs_dense_abs": 1573312.0,
+          "peak_memory_bytes_delta_vs_dense_pct": 0.04097059549898289,
+          "quality_accuracy_delta_vs_dense_abs": 0.04166666666666674,
+          "quality_accuracy_delta_vs_dense_pct": 8.000000000000016,
+          "memory_reduction_pct_convention": -0.04097059549899029
+        }
+      },
+      "sparse": {
+        "metrics_abs": {
+          "prefill_sec": 17.978817719833994,
+          "decode_sec": 109.91744680322235,
+          "decode_tok_s": 9.669051922602758,
+          "ttft_sec": 1.734650280221912,
+          "itl_p95_sec": 1.7785822892777408,
+          "peak_memory_bytes": 24916253253.333332,
+          "quality_accuracy": 0.4930555555555555,
+          "quality_correct_mean": 6.333333333333333,
+          "quality_num_tasks_mean": 15.0
+        },
+        "trace": {
+          "path_counts": {
+            "sparse": 9504
+          },
+          "phase_counts": {
+            "prefill": 36,
+            "decode": 1152
+          },
+          "q_len_counts": {
+            "4096": 288,
+            "1": 9216
+          },
+          "dense_fallback_reason_counts": {}
+        },
+        "runs": [
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s42/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s7/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s99/main/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s42/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s7/heldout/results.json",
+          "benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_matrix_20260212T184953Z/sparse/s99/heldout/results.json"
+        ],
+        "delta_vs_dense": {
+          "prefill_sec_delta_vs_dense_abs": 14.45743533561189,
+          "prefill_sec_delta_vs_dense_pct": 410.5613579595852,
+          "decode_sec_delta_vs_dense_abs": 109.42696396983229,
+          "decode_sec_delta_vs_dense_pct": 22310.049714382116,
+          "decode_tok_s_delta_vs_dense_abs": -120.88014194982603,
+          "decode_tok_s_delta_vs_dense_pct": -92.59355677672644,
+          "ttft_sec_delta_vs_dense_abs": 1.7082278982771741,
+          "ttft_sec_delta_vs_dense_pct": 6465.07912061041,
+          "itl_p95_sec_delta_vs_dense_abs": 1.7710803147779692,
+          "itl_p95_sec_delta_vs_dense_pct": 23608.18894854841,
+          "peak_memory_bytes_delta_vs_dense_abs": 21076152857.333332,
+          "peak_memory_bytes_delta_vs_dense_pct": 548.8437979196348,
+          "quality_accuracy_delta_vs_dense_abs": -0.027777777777777735,
+          "quality_accuracy_delta_vs_dense_pct": -5.333333333333326,
+          "memory_reduction_pct_convention": -548.8437979196348
+        }
+      }
+    }
+  },
+  "trace_analysis": {
+    "sparse": {
+      "path_counts_overall": {
+        "sparse": 9504
+      },
+      "phase_counts_overall": {
+        "prefill": 36,
+        "decode": 1152
+      },
+      "q_len_counts_overall": {
+        "4096": 288,
+        "1": 9216
+      },
+      "decode_observed": true,
+      "prefill_active_observed": true,
+      "only_sparse_paths_observed": true,
+      "verdict": "PASS"
+    },
+    "wayfinder": {
+      "path_counts_overall": {
+        "permute": 144,
+        "permute_dense_fallback": 9360
+      },
+      "phase_counts_overall": {
+        "prefill": 36,
+        "decode": 1152
+      },
+      "q_len_counts_overall": {
+        "4096": 288,
+        "1": 9216
+      },
+      "dense_fallback_reason_counts_overall": {}
+    }
+  },
+  "gate_verdicts": {
+    "G1_matrix_completeness_18_runs": "PASS",
+    "G2_retro_disabled_for_inference": "PASS",
+    "G3_sparse_truly_sparse_decode_prefill_active": "PASS",
+    "G4_wayfinder_fallback_reason_counts_reported": "PASS"
+  }
+}

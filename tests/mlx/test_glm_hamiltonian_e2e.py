@@ -258,6 +258,42 @@ class TestGLMChunkedPrefillDecode:
             assert out.shape == (1, 1, 256)
             assert not mx.any(mx.isnan(out)).item()
 
+    def test_sparse_chunked_prefill_decode_stays_sparse(self):
+        """Sparse mode should not fall back to dense when q_len < k_len."""
+        base_attn, cfg = _make_glm_attn_and_cfg(
+            path="sparse",
+            circular=False,
+            multi_cycle_mode="average",
+        )
+        attn = GLMWayfinderAttention(base_attn, cfg)
+        cache = _MockKVCache()
+
+        # First prefill chunk: q_len == k_len (regular sparse path)
+        x0 = mx.random.normal((1, 32, 256))
+        y0 = attn(x0, cache=cache)
+        mx.eval(y0)
+        assert y0.shape == (1, 32, 256)
+        assert attn.last_profile.path == "sparse"
+        assert not bool(attn.last_profile.notes.get("sparse_active_mode", False))
+
+        # Second prefill chunk: q_len < k_len (active sparse path)
+        x1 = mx.random.normal((1, 32, 256))
+        y1 = attn(x1, cache=cache)
+        mx.eval(y1)
+        assert y1.shape == (1, 32, 256)
+        assert attn.last_profile.path == "sparse"
+        assert bool(attn.last_profile.notes.get("sparse_active_mode", False))
+        assert bool(attn.last_profile.notes.get("active_query_mode", False))
+
+        # Decode: q_len=1, k_len>1 (active sparse path must remain sparse)
+        x_dec = mx.random.normal((1, 1, 256))
+        y_dec = attn(x_dec, cache=cache)
+        mx.eval(y_dec)
+        assert y_dec.shape == (1, 1, 256)
+        assert attn.last_profile.path == "sparse"
+        assert bool(attn.last_profile.notes.get("sparse_active_mode", False))
+        assert "dense_fallback" not in attn.last_profile.path
+
 
 class TestGLMConfigPropagation:
     """Verify config flags propagate correctly."""

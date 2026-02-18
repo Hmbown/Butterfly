@@ -1,0 +1,200 @@
+{
+  "run_id": "EXP-20260213T000725Z-QWEN-HAMILTONIAN-RESCUE",
+  "run_root": "benchmarks/mlx/qwen3_1_7b_wayfinder/rescue_EXP-20260213T000725Z-QWEN-HAMILTONIAN-RESCUE",
+  "baseline_dense_path_convention": "benchmarks/mlx/qwen3_1_7b_wayfinder/rescue_EXP-20260213T000725Z-QWEN-HAMILTONIAN-RESCUE/dense/s{seed}/{dataset}/results.json",
+  "diagnostic": {
+    "dense": {
+      "prefill_sec_mean": 5.952150750003057,
+      "decode_sec_mean": 1.1470900420099497,
+      "decode_tok_s_mean": 13.948338329190394,
+      "ttft_sec_mean": 0.16704695799853653,
+      "itl_p95_sec_mean": 0.08879499998874962,
+      "peak_memory_bytes_max": 3840100388
+    },
+    "wayfinder": {
+      "prefill_sec_mean": 6.766017792004277,
+      "decode_sec_mean": 0.4214001669897698,
+      "decode_tok_s_mean": 37.96866079644536,
+      "ttft_sec_mean": 0.08631833399704192,
+      "itl_p95_sec_mean": 0.023839624991524033,
+      "peak_memory_bytes_max": 3844819428,
+      "prefill_sec_mean_delta_vs_dense_abs": 0.8138670420012204,
+      "prefill_sec_mean_delta_vs_dense_pct": 13.673495114363535,
+      "decode_sec_mean_delta_vs_dense_abs": -0.7256898750201799,
+      "decode_sec_mean_delta_vs_dense_pct": -63.263549367808515,
+      "decode_tok_s_mean_delta_vs_dense_abs": 24.02032246725497,
+      "decode_tok_s_mean_delta_vs_dense_pct": 172.20920442535026,
+      "ttft_sec_mean_delta_vs_dense_abs": -0.08072862400149461,
+      "ttft_sec_mean_delta_vs_dense_pct": -48.32690458344165,
+      "itl_p95_sec_mean_delta_vs_dense_abs": -0.06495537499722559,
+      "itl_p95_sec_mean_delta_vs_dense_pct": -73.15206374847173,
+      "peak_memory_bytes_max_delta_vs_dense_abs": 4719040.0,
+      "peak_memory_bytes_max_delta_vs_dense_pct": 0.12288845402965544,
+      "memory_reduction_pct_convention": -0.12288845402965709
+    },
+    "wayfinder_path_counts": {
+      "permute": 136,
+      "permute_dense_fallback": 8
+    },
+    "wayfinder_dense_fallback_reason_counts": {
+      "active_large_q": 8
+    },
+    "fallback_rate": 0.05555555555555555,
+    "decode_ratio_vs_dense": 2.7220920442535026
+  },
+  "seed42": {
+    "main": {
+      "dense": {
+        "prefill_sec_mean": 3.5358216666645603,
+        "decode_sec_mean": 0.5146701389943095,
+        "decode_tok_s_mean": 124.40005047548736,
+        "ttft_sec_mean": 0.03346956966561265,
+        "itl_p95_sec_mean": 0.007967263663886115,
+        "peak_memory_bytes_max": 3840100388,
+        "quality_accuracy": 0.6666666666666666
+      },
+      "wayfinder": {
+        "prefill_sec_mean": 3.4658623750001425,
+        "decode_sec_mean": 1.4562490420018246,
+        "decode_tok_s_mean": 43.96145208085262,
+        "ttft_sec_mean": 0.05531061066722032,
+        "itl_p95_sec_mean": 0.0233723749940206,
+        "peak_memory_bytes_max": 3844819428,
+        "quality_accuracy": 0.16666666666666666,
+        "prefill_sec_mean_delta_vs_dense_abs": -0.06995929166441783,
+        "prefill_sec_mean_delta_vs_dense_pct": -1.978586542528102,
+        "decode_sec_mean_delta_vs_dense_abs": 0.9415789030075151,
+        "decode_sec_mean_delta_vs_dense_pct": 182.94803441431557,
+        "decode_tok_s_mean_delta_vs_dense_abs": -80.43859839463474,
+        "decode_tok_s_mean_delta_vs_dense_pct": -64.66122649241602,
+        "ttft_sec_mean_delta_vs_dense_abs": 0.021841041001607664,
+        "ttft_sec_mean_delta_vs_dense_pct": 65.25641416910004,
+        "itl_p95_sec_mean_delta_vs_dense_abs": 0.015405111330134485,
+        "itl_p95_sec_mean_delta_vs_dense_pct": 193.35510885578603,
+        "peak_memory_bytes_max_delta_vs_dense_abs": 4719040.0,
+        "peak_memory_bytes_max_delta_vs_dense_pct": 0.12288845402965544,
+        "quality_accuracy_delta_vs_dense_abs": -0.5,
+        "quality_accuracy_delta_vs_dense_pct": -75.0,
+        "memory_reduction_pct_convention": -0.12288845402965709
+      },
+      "wayfinder_path_counts": {
+        "permute": 1560,
+        "permute_dense_fallback": 24
+      },
+      "wayfinder_dense_fallback_reason_counts": {
+        "active_large_q": 24
+      },
+      "fallback_rate": 0.015151515151515152,
+      "decode_ratio_vs_dense": 0.3533877350758397
+    },
+    "heldout": {
+      "dense": {
+        "prefill_sec_mean": 3.5595664303352046,
+        "decode_sec_mean": 0.5112516386676967,
+        "decode_tok_s_mean": 125.19657655142117,
+        "ttft_sec_mean": 0.03608724999745997,
+        "itl_p95_sec_mean": 0.00785305566872315,
+        "peak_memory_bytes_max": 3840100388,
+        "quality_accuracy": 0.375
+      },
+      "wayfinder": {
+        "prefill_sec_mean": 3.4531956803402863,
+        "decode_sec_mean": 1.450711013666781,
+        "decode_tok_s_mean": 44.16279860298021,
+        "ttft_sec_mean": 0.055376291333232075,
+        "itl_p95_sec_mean": 0.022995319333858788,
+        "peak_memory_bytes_max": 3844819428,
+        "quality_accuracy": 0.0,
+        "prefill_sec_mean_delta_vs_dense_abs": -0.10637074999491825,
+        "prefill_sec_mean_delta_vs_dense_pct": -2.9883063591231056,
+        "decode_sec_mean_delta_vs_dense_abs": 0.9394593749990842,
+        "decode_sec_mean_delta_vs_dense_pct": 183.7567459827183,
+        "decode_tok_s_mean_delta_vs_dense_abs": -81.03377794844096,
+        "decode_tok_s_mean_delta_vs_dense_pct": -64.72523465141116,
+        "ttft_sec_mean_delta_vs_dense_abs": 0.019289041335772104,
+        "ttft_sec_mean_delta_vs_dense_pct": 53.451125638916174,
+        "itl_p95_sec_mean_delta_vs_dense_abs": 0.015142263665135639,
+        "itl_p95_sec_mean_delta_vs_dense_pct": 192.82002196219835,
+        "peak_memory_bytes_max_delta_vs_dense_abs": 4719040.0,
+        "peak_memory_bytes_max_delta_vs_dense_pct": 0.12288845402965544,
+        "quality_accuracy_delta_vs_dense_abs": -0.375,
+        "quality_accuracy_delta_vs_dense_pct": -100.0,
+        "memory_reduction_pct_convention": -0.12288845402965709
+      },
+      "wayfinder_path_counts": {
+        "permute": 1560,
+        "permute_dense_fallback": 24
+      },
+      "wayfinder_dense_fallback_reason_counts": {
+        "active_large_q": 24
+      },
+      "fallback_rate": 0.015151515151515152,
+      "decode_ratio_vs_dense": 0.3527476534858883
+    },
+    "overall": {
+      "dense_decode_tok_s_abs": 124.79831351345427,
+      "wayfinder_decode_tok_s_abs": 44.06212534191641,
+      "decode_ratio_vs_dense": 0.35306667294960004,
+      "dense_peak_memory_bytes_abs": 3840100388,
+      "wayfinder_peak_memory_bytes_abs": 3844819428,
+      "peak_memory_delta_vs_dense_abs": 4719040.0,
+      "peak_memory_delta_vs_dense_pct": 0.12288845402965544,
+      "memory_reduction_pct_convention": -0.12288845402965709,
+      "fallback_rate": 0.015151515151515152,
+      "wayfinder_path_counts": {
+        "permute": 3120,
+        "permute_dense_fallback": 48
+      },
+      "wayfinder_dense_fallback_reason_counts": {
+        "active_large_q": 48
+      },
+      "quality_main_delta_vs_dense_abs": -0.5,
+      "quality_heldout_delta_vs_dense_abs": -0.375
+    }
+  },
+  "sparse_smoke": {
+    "dense_main_baseline": {
+      "prefill_sec_mean": 3.5358216666645603,
+      "decode_sec_mean": 0.5146701389943095,
+      "decode_tok_s_mean": 124.40005047548736,
+      "ttft_sec_mean": 0.03346956966561265,
+      "itl_p95_sec_mean": 0.007967263663886115,
+      "peak_memory_bytes_max": 3840100388
+    },
+    "sparse": {
+      "prefill_sec_mean": 23.013506832998246,
+      "decode_sec_mean": 324.47269662500184,
+      "decode_tok_s_mean": 0.1972430983121079,
+      "ttft_sec_mean": 5.517426915990654,
+      "itl_p95_sec_mean": 5.485951708003995,
+      "peak_memory_bytes_max": 19687158980,
+      "prefill_sec_mean_delta_vs_dense_abs": 19.477685166333686,
+      "prefill_sec_mean_delta_vs_dense_pct": 550.8672948629655,
+      "decode_sec_mean_delta_vs_dense_abs": 323.95802648600755,
+      "decode_sec_mean_delta_vs_dense_pct": 62944.78772734656,
+      "decode_tok_s_mean_delta_vs_dense_abs": -124.20280737717525,
+      "decode_tok_s_mean_delta_vs_dense_pct": -99.84144451906715,
+      "ttft_sec_mean_delta_vs_dense_abs": 5.483957346325042,
+      "ttft_sec_mean_delta_vs_dense_pct": 16384.905456252032,
+      "itl_p95_sec_mean_delta_vs_dense_abs": 5.477984444340109,
+      "itl_p95_sec_mean_delta_vs_dense_pct": 68756.1586441607,
+      "peak_memory_bytes_max_delta_vs_dense_abs": 15847058592.0,
+      "peak_memory_bytes_max_delta_vs_dense_pct": 412.6730291093629,
+      "memory_reduction_pct_convention": -412.6730291093629
+    },
+    "sparse_path_counts": {
+      "sparse": 528
+    }
+  },
+  "gates": {
+    "diagnostic_fallback_le_10pct": true,
+    "diagnostic_reason_counts_present_when_fallback": true,
+    "diagnostic_decode_ratio_ge_0_85": true,
+    "seed42_fallback_le_10pct": true,
+    "seed42_decode_ratio_ge_0_90": false,
+    "seed42_peak_memory_le_dense": false,
+    "seed42_quality_main_noninferior": false,
+    "seed42_quality_heldout_noninferior": false
+  },
+  "seed42_acceptance_pass": false
+}

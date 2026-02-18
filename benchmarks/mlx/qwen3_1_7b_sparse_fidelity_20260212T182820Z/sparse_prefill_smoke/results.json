@@ -1,0 +1,67 @@
+{
+  "created_at": "2026-02-12T18:29:23.926668+00:00",
+  "command": "scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 1024 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 1 --seed 42 --out-dir benchmarks/mlx/qwen3_1_7b_sparse_fidelity_20260212T182820Z/sparse_prefill_smoke",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "tokenizer_name": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3-1.7B-4bit/snapshots/3b1b1768f8f8cf8351c712464f906e86c2b8269e",
+  "model_config": {
+    "model_type": "qwen3",
+    "num_attention_heads": 16,
+    "num_key_value_heads": 8,
+    "hidden_size": 2048,
+    "max_position_embeddings": 40960,
+    "rope_scaling": null
+  },
+  "wayfinder_config": {
+    "path": "sparse",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "landmark_stride_from_max_degree": false,
+    "max_degree": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "seed": 42,
+    "window_drop": 0.0,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true
+  },
+  "results": [
+    {
+      "seq_len": 1024,
+      "batch": 1,
+      "wayfinder_config": {
+        "path": "sparse",
+        "window": 64,
+        "landmark_stride": 64,
+        "num_cycles": 1,
+        "resolved_num_cycles": 1,
+        "edge_disjoint": true,
+        "enforce_hamiltonian": true
+      },
+      "level_a_real_qkv": {
+        "sanity_mae": 0.9006204009056091,
+        "baseline_attention": {
+          "tokens_per_sec": 185486.24464449883,
+          "latency_ms": 5.520625003555324,
+          "peak_memory_bytes": 34341416
+        },
+        "wayfinder_attention": {
+          "tokens_per_sec": 25935.02081894899,
+          "latency_ms": 39.483291999204084,
+          "peak_memory_bytes": 1778156724,
+          "graph_build_ms_first": 377.04787500202656,
+          "graph_build_ms_cached": 0.004583999514579773,
+          "cache_hit_rate": 1.0,
+          "cache_source": "runtime"
+        }
+      },
+      "block": {
+        "skipped": true,
+        "reason": "run_block_bench flag disabled"
+      }
+    }
+  ]
+}

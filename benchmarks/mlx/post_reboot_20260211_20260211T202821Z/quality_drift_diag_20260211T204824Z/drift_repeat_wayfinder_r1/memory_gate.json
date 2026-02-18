@@ -1,0 +1,8 @@
+{
+  "label": "drift_repeat_wayfinder_r1",
+  "delta_swap_mb": 0.0,
+  "swap_free_mb": 749.94,
+  "delta_compressor_pages": 7063,
+  "status": "pass",
+  "fails": []
+}

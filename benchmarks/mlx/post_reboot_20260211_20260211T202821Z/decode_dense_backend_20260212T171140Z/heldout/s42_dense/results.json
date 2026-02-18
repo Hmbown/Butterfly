@@ -1,0 +1,294 @@
+{
+  "created_at": "2026-02-12T17:13:41.534504+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --mode dense --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s42_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.75672466699325,
+      "ttft_sec": 0.24800383300316753,
+      "itl_p50_sec": 0.01934025000082329,
+      "itl_p95_sec": 0.019608291004260536,
+      "decode_sec": 1.4786511249985779,
+      "e2e_sec": 18.235375791991828,
+      "decode_tok_s": 43.282691175757606,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.08371724999597,
+      "ttft_sec": 0.15344595900387503,
+      "itl_p50_sec": 0.019530416997440625,
+      "itl_p95_sec": 0.019881416999851353,
+      "decode_sec": 1.398410709000018,
+      "e2e_sec": 17.48212795899599,
+      "decode_tok_s": 45.76623990942219,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.69334062499547,
+      "ttft_sec": 1.424279042003036,
+      "itl_p50_sec": 0.019638625002698973,
+      "itl_p95_sec": 0.020549249995383434,
+      "decode_sec": 2.7209710410024854,
+      "e2e_sec": 19.414311665997957,
+      "decode_tok_s": 23.52101475376986,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json",
+    "num_tasks": 24,
+    "correct": 3,
+    "accuracy": 0.125,
+    "rows": [
+      {
+        "id": "extract-h01",
+        "expected": "K7Q2",
+        "output": " 9101 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109",
+        "correct": false,
+        "ttft_sec": 0.01628799999889452,
+        "itl_p95_sec": 0.015076834002684336,
+        "peak_memory_bytes": 16972360829
+      },
+      {
+        "id": "extract-h02",
+        "expected": "T5N1",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014364624999871012,
+        "itl_p95_sec": 0.014561791002051905,
+        "peak_memory_bytes": 16977592086
+      },
+      {
+        "id": "extract-h03",
+        "expected": "W8C4",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014647457996034063,
+        "itl_p95_sec": 0.01443058300355915,
+        "peak_memory_bytes": 16977592086
+      },
+      {
+        "id": "extract-h04",
+        "expected": "B6V5",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.01466124999569729,
+        "itl_p95_sec": 0.014806500003032852,
+        "peak_memory_bytes": 16970747790
+      },
+      {
+        "id": "extract-h05",
+        "expected": "Q4R6",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014871375002257992,
+        "itl_p95_sec": 0.015025625005364418,
+        "peak_memory_bytes": 16976192493
+      },
+      {
+        "id": "extract-h06",
+        "expected": "N8T1",
+        "output": " { \"ticket\": \"C\\U0000007CLOUD-1357\", \"owner\": \"ADA\", \"checksum\": \"N8T1\" } { \"ticket\": \"RRIVER-2468\", \"owner\": \"EVE\", \"checksum\": \"P9D9\" } {",
+        "correct": true,
+        "ttft_sec": 0.014668333002191503,
+        "itl_p95_sec": 0.014446624998527113,
+        "peak_memory_bytes": 16966473734
+      },
+      {
+        "id": "extract-h07",
+        "expected": "C5H7",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.01473029200133169,
+        "itl_p95_sec": 0.014057749998755753,
+        "peak_memory_bytes": 16972360566
+      },
+      {
+        "id": "extract-h08",
+        "expected": "J9B8",
+        "output": " { \"ticket\": \"CYPER-6650\", \"owner\": \"NIA\", \"checksum\": \"J9B8\" } { \"ticket\": \"TERRA-7777\", \"owner\": \"TERRA\", \"checksum\": \"M9X9\" } { \"ticket\":",
+        "correct": true,
+        "ttft_sec": 0.014946333998523187,
+        "itl_p95_sec": 0.014179499994497746,
+        "peak_memory_bytes": 16976192318
+      },
+      {
+        "id": "extract-h09",
+        "expected": "U3Z7",
+        "output": " 5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5",
+        "correct": false,
+        "ttft_sec": 0.014772125003219116,
+        "itl_p95_sec": 0.014730000002600718,
+        "peak_memory_bytes": 16977592110
+      },
+      {
+        "id": "extract-h10",
+        "expected": "E6Q9",
+        "output": " { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { {",
+        "correct": false,
+        "ttft_sec": 0.014408208000531886,
+        "itl_p95_sec": 0.01448737499595154,
+        "peak_memory_bytes": 16977592234
+      },
+      {
+        "id": "extract-h11",
+        "expected": "G7N3",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014580625000235159,
+        "itl_p95_sec": 0.014660332999483217,
+        "peak_memory_bytes": 16977592110
+      },
+      {
+        "id": "extract-h12",
+        "expected": "R9F1",
+        "output": " 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9",
+        "correct": false,
+        "ttft_sec": 0.014310457998362835,
+        "itl_p95_sec": 0.015210500001558103,
+        "peak_memory_bytes": 16972360566
+      },
+      {
+        "id": "extract-h13",
+        "expected": "Z1H5",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014233291993150488,
+        "itl_p95_sec": 0.014492624999547843,
+        "peak_memory_bytes": 16979254062
+      },
+      {
+        "id": "extract-h14",
+        "expected": "B3M4",
+        "output": " { \"ticket\": \"IONIC-5801\", \"owner\": \"TAI\", \"checksum\": \"B9C9\" } { \"ticket\": \"IONIC-5801\", \"owner\": \"TAI\", \"checksum\": \"B9C9\" } { \"ticket\": \"ION",
+        "correct": false,
+        "ttft_sec": 0.014111249998677522,
+        "itl_p95_sec": 0.014263874996686354,
+        "peak_memory_bytes": 16979254062
+      },
+      {
+        "id": "extract-h15",
+        "expected": "P8T6",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.014391417003935203,
+        "itl_p95_sec": 0.014259333001973573,
+        "peak_memory_bytes": 16979254062
+      },
+      {
+        "id": "extract-h16",
+        "expected": "H7W3",
+        "output": " { \"ticket\": \"MORPH-9245\", \"owner\": \"NOVA\", \"checksum\": \"H7W3\" } { \"ticket\": \"NEXUS-9245\", \"owner\": \"ORI\", \"checksum\": \"F9K9\" } { \"ticket\":",
+        "correct": true,
+        "ttft_sec": 0.01459945800161222,
+        "itl_p95_sec": 0.014552958004060201,
+        "peak_memory_bytes": 16979254062
+      },
+      {
+        "id": "lookup-h01",
+        "expected": "33",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014672749995952472,
+        "itl_p95_sec": 0.014957958999730181,
+        "peak_memory_bytes": 16916873114
+      },
+      {
+        "id": "lookup-h02",
+        "expected": "29",
+        "output": " 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, ",
+        "correct": false,
+        "ttft_sec": 0.014644916998804547,
+        "itl_p95_sec": 0.015693583998654503,
+        "peak_memory_bytes": 16908335126
+      },
+      {
+        "id": "lookup-h03",
+        "expected": "teal",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014153665993944742,
+        "itl_p95_sec": 0.015223082999000326,
+        "peak_memory_bytes": 16913467714
+      },
+      {
+        "id": "lookup-h04",
+        "expected": "11",
+        "output": " 7 5 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01441045800311258,
+        "itl_p95_sec": 0.015260499996657018,
+        "peak_memory_bytes": 16918321918
+      },
+      {
+        "id": "math-h01",
+        "expected": "273",
+        "output": " 7 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014416208003240172,
+        "itl_p95_sec": 0.014318082998215687,
+        "peak_memory_bytes": 16901360126
+      },
+      {
+        "id": "math-h02",
+        "expected": "49",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014451415998337325,
+        "itl_p95_sec": 0.014909874997101724,
+        "peak_memory_bytes": 16899920898
+      },
+      {
+        "id": "math-h03",
+        "expected": "231",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014709374998346902,
+        "itl_p95_sec": 0.01526479099993594,
+        "peak_memory_bytes": 16901376446
+      },
+      {
+        "id": "math-h04",
+        "expected": "74",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014210041001206264,
+        "itl_p95_sec": 0.014983624998421874,
+        "peak_memory_bytes": 16899904497
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

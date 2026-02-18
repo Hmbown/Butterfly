@@ -1,0 +1,993 @@
+{
+  "created_at": "2026-02-14T18:44:34.671611+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode dense --seq-lens 2048 8192 32768 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260214_phase2_obs/dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": true,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 2.464332999981707,
+      "ttft_sec": 0.1395025830133818,
+      "itl_p50_sec": 0.01574500001152046,
+      "itl_p95_sec": 0.01772912501473911,
+      "decode_sec": 1.1444562080141623,
+      "e2e_sec": 3.608789207995869,
+      "decode_tok_s": 55.92175528590258,
+      "peak_memory_bytes": 18284344600,
+      "sample_output_text": "marize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 2048,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 9,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 10,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 11,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 12,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 13,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 14,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 15,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 17.264858499984257,
+      "ttft_sec": 0.28163766697980464,
+      "itl_p50_sec": 0.019841583998641,
+      "itl_p95_sec": 0.020862832985585555,
+      "decode_sec": 1.5589540420041885,
+      "e2e_sec": 18.823812541988445,
+      "decode_tok_s": 41.053166594777686,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 66,
+        "layer_observations": 66,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 66
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 2,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 2,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 66
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 4096,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 4096,
+          "chunk_end": 8192,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 9,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 10,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 11,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 12,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 13,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 14,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 767.966867790994,
+      "ttft_sec": 21.90901833298267,
+      "itl_p50_sec": 0.035118249972583726,
+      "itl_p95_sec": 0.03693937498610467,
+      "decode_sec": 24.278531084011775,
+      "e2e_sec": 792.2453988750058,
+      "decode_tok_s": 2.6360738126428966,
+      "peak_memory_bytes": 26017775484,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 72,
+        "layer_observations": 72,
+        "phase_counts": {
+          "prefill": 8,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 72
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 8,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 8,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 72
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 4096,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 4096,
+          "chunk_end": 8192,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 3,
+          "chunk_start": 8192,
+          "chunk_end": 12288,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 4,
+          "chunk_start": 12288,
+          "chunk_end": 16384,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 5,
+          "chunk_start": 16384,
+          "chunk_end": 20480,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 6,
+          "chunk_start": 20480,
+          "chunk_end": 24576,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 7,
+          "chunk_start": 24576,
+          "chunk_end": 28672,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 8,
+          "chunk_start": 28672,
+          "chunk_end": 32768,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": -1,
+              "path": "dense",
+              "graph_build_ms": null,
+              "attention_ms": null,
+              "total_ms": null,
+              "notes": {
+                "dense_fallback_reason": "none"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -1,0 +1,101 @@
+{
+  "created_at": "2026-02-12T13:06:23.211234+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --skip-quality --seed 42 --swap-last-n-layers 2 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_gate_retry2_20260212T130331Z/s42_last2_t16384",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 2,
+    "replaced_layer_indices": [
+      45,
+      46
+    ],
+    "requested_layer_indices": [
+      45,
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 2,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.20926791599777,
+      "ttft_sec": 0.18046462500205962,
+      "itl_p50_sec": 0.01953704199695494,
+      "itl_p95_sec": 0.019867625000188127,
+      "decode_sec": 1.4257955420034705,
+      "e2e_sec": 17.63506345800124,
+      "decode_tok_s": 44.88722128424513,
+      "peak_memory_bytes": 20662499020,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.01238624999678,
+      "ttft_sec": 0.14346362500509713,
+      "itl_p50_sec": 0.019598708997364156,
+      "itl_p95_sec": 0.01990745800139848,
+      "decode_sec": 1.389843083001324,
+      "e2e_sec": 17.402229332998104,
+      "decode_tok_s": 46.04836386406582,
+      "peak_memory_bytes": 20662499020,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.054008708000765,
+      "ttft_sec": 0.15228566699806834,
+      "itl_p50_sec": 0.01955449999513803,
+      "itl_p95_sec": 0.0198222090039053,
+      "decode_sec": 1.396103333994688,
+      "e2e_sec": 17.450112041995453,
+      "decode_tok_s": 45.84187892229725,
+      "peak_memory_bytes": 20662499020,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

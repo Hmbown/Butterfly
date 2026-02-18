@@ -1,6 +1,7 @@
 # First Public Release (2026-02-18)
 
 This release ships one safe default path and separates validated behavior from experimental and known-regression slices. The public scope is primarily a GLM-4.7-Flash-4bit stable-path release.
+Referenced by README support matrix: `README.md`.
 
 ## Public Default
 

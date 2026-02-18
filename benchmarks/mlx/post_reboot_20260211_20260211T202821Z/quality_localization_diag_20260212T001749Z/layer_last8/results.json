@@ -1,0 +1,135 @@
+{
+  "created_at": "2026-02-12T00:18:26.504412+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --active-dense-threshold 0 --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --skip-multi-turn --swap-last-n-layers 8 --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/quality_localization_diag_20260212T001749Z/layer_last8",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": null,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 8,
+    "replaced_layer_indices": [
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "requested_layer_indices": [
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 8,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JAE, checksum=9X9X9. Record B: ticket\n\nQuestion: return only;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n",
+        "correct": true,
+        "ttft_sec": 1.5779661249835044,
+        "itl_p95_sec": 0.021071708004456013,
+        "peak_memory_bytes": 16944471055
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": " 2026-01-03 amount=17;\n  2026-01-04 amount=23;\n  2026-01-05 amount=11;\n  Question: return only the amount on 2026-01-04.\n  23;\n  2026-01-03 amount",
+        "correct": true,
+        "ttft_sec": 0.019917375000659376,
+        "itl_p95_sec": 0.0201547920005396,
+        "peak_memory_bytes": 16990979437
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": " 9 8 7 6 5 9 8 7 6 5 9 8 7 6 5 9 8 7 6 5 9 8 7 6 5 9 8 7 6 5 9 9",
+        "correct": false,
+        "ttft_sec": 0.02096429100492969,
+        "itl_p95_sec": 0.019706874998519197,
+        "peak_memory_bytes": 16914550468
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.019243375019868836,
+        "itl_p95_sec": 0.019609291979577392,
+        "peak_memory_bytes": 16912805414
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.019325750006828457,
+        "itl_p95_sec": 0.01977362498291768,
+        "peak_memory_bytes": 16937697010
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.018991124990861863,
+        "itl_p95_sec": 0.01983316699624993,
+        "peak_memory_bytes": 16931248751
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

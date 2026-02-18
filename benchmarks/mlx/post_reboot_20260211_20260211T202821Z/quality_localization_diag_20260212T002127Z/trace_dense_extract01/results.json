@@ -1,0 +1,669 @@
+{
+  "created_at": "2026-02-12T00:22:39.777413+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --active-dense-threshold 0 --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --quality-task-id-filter extract-01 --trace-quality-task-id extract-01 --trace-topk 8 --trace-max-steps 16 --skip-single-turn --skip-multi-turn --no-swap --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/quality_localization_diag_20260212T002127Z/trace_dense_extract01",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 1,
+    "correct": 1,
+    "accuracy": 1.0,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9.",
+        "correct": true,
+        "ttft_sec": 1.3195002499851398,
+        "itl_p95_sec": 0.014616916014347225,
+        "peak_memory_bytes": 16929423866,
+        "decode_trace": [
+          {
+            "step": 1,
+            "chosen_token_id": 9255,
+            "chosen_token_logit": 127.0,
+            "topk": [
+              {
+                "token_id": 9255,
+                "logit": 127.0
+              },
+              {
+                "token_id": 220,
+                "logit": 126.0
+              },
+              {
+                "token_id": 314,
+                "logit": 125.5
+              },
+              {
+                "token_id": 280,
+                "logit": 125.5
+              },
+              {
+                "token_id": 21754,
+                "logit": 125.0
+              },
+              {
+                "token_id": 320,
+                "logit": 124.5
+              },
+              {
+                "token_id": 576,
+                "logit": 124.0
+              },
+              {
+                "token_id": 50659,
+                "logit": 123.5
+              }
+            ]
+          },
+          {
+            "step": 2,
+            "chosen_token_id": 25,
+            "chosen_token_logit": 119.5,
+            "topk": [
+              {
+                "token_id": 25,
+                "logit": 119.5
+              },
+              {
+                "token_id": 279,
+                "logit": 118.5
+              },
+              {
+                "token_id": 3561,
+                "logit": 118.5
+              },
+              {
+                "token_id": 1172,
+                "logit": 118.0
+              },
+              {
+                "token_id": 510,
+                "logit": 118.0
+              },
+              {
+                "token_id": 15030,
+                "logit": 117.0
+              },
+              {
+                "token_id": 1101,
+                "logit": 116.5
+              },
+              {
+                "token_id": 1447,
+                "logit": 116.0
+              }
+            ]
+          },
+          {
+            "step": 3,
+            "chosen_token_id": 1207,
+            "chosen_token_logit": 125.0,
+            "topk": [
+              {
+                "token_id": 1207,
+                "logit": 125.0
+              },
+              {
+                "token_id": 9255,
+                "logit": 122.0
+              },
+              {
+                "token_id": 48,
+                "logit": 122.0
+              },
+              {
+                "token_id": 1565,
+                "logit": 121.5
+              },
+              {
+                "token_id": 576,
+                "logit": 121.5
+              },
+              {
+                "token_id": 314,
+                "logit": 121.5
+              },
+              {
+                "token_id": 53913,
+                "logit": 121.0
+              },
+              {
+                "token_id": 220,
+                "logit": 121.0
+              }
+            ]
+          },
+          {
+            "step": 4,
+            "chosen_token_id": 24,
+            "chosen_token_logit": 120.5,
+            "topk": [
+              {
+                "token_id": 24,
+                "logit": 120.5
+              },
+              {
+                "token_id": 22,
+                "logit": 107.5
+              },
+              {
+                "token_id": 271,
+                "logit": 106.0
+              },
+              {
+                "token_id": 23,
+                "logit": 105.5
+              },
+              {
+                "token_id": 9335,
+                "logit": 105.0
+              },
+              {
+                "token_id": 103946,
+                "logit": 105.0
+              },
+              {
+                "token_id": 103992,
+                "logit": 105.0
+              },
+              {
+                "token_id": 198,
+                "logit": 104.5
+              }
+            ]
+          },
+          {
+            "step": 5,
+            "chosen_token_id": 55,
+            "chosen_token_logit": 134.0,
+            "topk": [
+              {
+                "token_id": 55,
+                "logit": 134.0
+              },
+              {
+                "token_id": 271,
+                "logit": 124.5
+              },
+              {
+                "token_id": 9335,
+                "logit": 123.5
+              },
+              {
+                "token_id": 6148,
+                "logit": 123.0
+              },
+              {
+                "token_id": 1599,
+                "logit": 123.0
+              },
+              {
+                "token_id": 87,
+                "logit": 123.0
+              },
+              {
+                "token_id": 2146,
+                "logit": 123.0
+              },
+              {
+                "token_id": 1112,
+                "logit": 122.5
+              }
+            ]
+          },
+          {
+            "step": 6,
+            "chosen_token_id": 19,
+            "chosen_token_logit": 90.0,
+            "topk": [
+              {
+                "token_id": 19,
+                "logit": 90.0
+              },
+              {
+                "token_id": 102340,
+                "logit": 88.0
+              },
+              {
+                "token_id": 24,
+                "logit": 87.5
+              },
+              {
+                "token_id": 101723,
+                "logit": 87.0
+              },
+              {
+                "token_id": 271,
+                "logit": 86.5
+              },
+              {
+                "token_id": 99698,
+                "logit": 86.0
+              },
+              {
+                "token_id": 102259,
+                "logit": 86.0
+              },
+              {
+                "token_id": 9335,
+                "logit": 86.0
+              }
+            ]
+          },
+          {
+            "step": 7,
+            "chosen_token_id": 271,
+            "chosen_token_logit": 127.5,
+            "topk": [
+              {
+                "token_id": 624,
+                "logit": 127.5
+              },
+              {
+                "token_id": 271,
+                "logit": 127.5
+              },
+              {
+                "token_id": 13,
+                "logit": 127.0
+              },
+              {
+                "token_id": 280,
+                "logit": 126.0
+              },
+              {
+                "token_id": 198,
+                "logit": 126.0
+              },
+              {
+                "token_id": 382,
+                "logit": 125.5
+              },
+              {
+                "token_id": 320,
+                "logit": 125.5
+              },
+              {
+                "token_id": 1406,
+                "logit": 125.5
+              }
+            ]
+          },
+          {
+            "step": 8,
+            "chosen_token_id": 6471,
+            "chosen_token_logit": 124.5,
+            "topk": [
+              {
+                "token_id": 6471,
+                "logit": 124.5
+              },
+              {
+                "token_id": 13865,
+                "logit": 123.0
+              },
+              {
+                "token_id": 7039,
+                "logit": 122.0
+              },
+              {
+                "token_id": 40,
+                "logit": 121.5
+              },
+              {
+                "token_id": 14181,
+                "logit": 121.5
+              },
+              {
+                "token_id": 14572,
+                "logit": 121.5
+              },
+              {
+                "token_id": 10056,
+                "logit": 121.5
+              },
+              {
+                "token_id": 334,
+                "logit": 121.0
+              }
+            ]
+          },
+          {
+            "step": 9,
+            "chosen_token_id": 362,
+            "chosen_token_logit": 135.0,
+            "topk": [
+              {
+                "token_id": 362,
+                "logit": 135.0
+              },
+              {
+                "token_id": 356,
+                "logit": 133.0
+              },
+              {
+                "token_id": 220,
+                "logit": 130.0
+              },
+              {
+                "token_id": 25,
+                "logit": 129.0
+              },
+              {
+                "token_id": 425,
+                "logit": 129.0
+              },
+              {
+                "token_id": 1599,
+                "logit": 126.5
+              },
+              {
+                "token_id": 13574,
+                "logit": 126.5
+              },
+              {
+                "token_id": 3255,
+                "logit": 126.5
+              }
+            ]
+          },
+          {
+            "step": 10,
+            "chosen_token_id": 25,
+            "chosen_token_logit": 115.0,
+            "topk": [
+              {
+                "token_id": 25,
+                "logit": 115.0
+              },
+              {
+                "token_id": 11,
+                "logit": 109.5
+              },
+              {
+                "token_id": 510,
+                "logit": 109.0
+              },
+              {
+                "token_id": 702,
+                "logit": 108.0
+              },
+              {
+                "token_id": 320,
+                "logit": 108.0
+              },
+              {
+                "token_id": 32382,
+                "logit": 108.0
+              },
+              {
+                "token_id": 5610,
+                "logit": 107.5
+              },
+              {
+                "token_id": 374,
+                "logit": 107.5
+              }
+            ]
+          },
+          {
+            "step": 11,
+            "chosen_token_id": 11721,
+            "chosen_token_logit": 125.0,
+            "topk": [
+              {
+                "token_id": 11721,
+                "logit": 125.0
+              },
+              {
+                "token_id": 32382,
+                "logit": 122.5
+              },
+              {
+                "token_id": 6372,
+                "logit": 120.5
+              },
+              {
+                "token_id": 6002,
+                "logit": 119.0
+              },
+              {
+                "token_id": 1196,
+                "logit": 118.5
+              },
+              {
+                "token_id": 3950,
+                "logit": 118.5
+              },
+              {
+                "token_id": 2503,
+                "logit": 118.5
+              },
+              {
+                "token_id": 220,
+                "logit": 118.5
+              }
+            ]
+          },
+          {
+            "step": 12,
+            "chosen_token_id": 28,
+            "chosen_token_logit": 107.0,
+            "topk": [
+              {
+                "token_id": 28,
+                "logit": 107.0
+              },
+              {
+                "token_id": 54163,
+                "logit": 104.0
+              },
+              {
+                "token_id": 91238,
+                "logit": 103.5
+              },
+              {
+                "token_id": 40689,
+                "logit": 103.0
+              },
+              {
+                "token_id": 72117,
+                "logit": 103.0
+              },
+              {
+                "token_id": 60040,
+                "logit": 102.5
+              },
+              {
+                "token_id": 68350,
+                "logit": 102.0
+              },
+              {
+                "token_id": 49364,
+                "logit": 102.0
+              }
+            ]
+          },
+          {
+            "step": 13,
+            "chosen_token_id": 969,
+            "chosen_token_logit": 117.0,
+            "topk": [
+              {
+                "token_id": 969,
+                "logit": 117.0
+              },
+              {
+                "token_id": 38126,
+                "logit": 115.5
+              },
+              {
+                "token_id": 1898,
+                "logit": 114.0
+              },
+              {
+                "token_id": 57,
+                "logit": 113.5
+              },
+              {
+                "token_id": 3617,
+                "logit": 112.5
+              },
+              {
+                "token_id": 53,
+                "logit": 112.0
+              },
+              {
+                "token_id": 17464,
+                "logit": 112.0
+              },
+              {
+                "token_id": 15225,
+                "logit": 111.5
+              }
+            ]
+          },
+          {
+            "step": 14,
+            "chosen_token_id": 28125,
+            "chosen_token_logit": 98.5,
+            "topk": [
+              {
+                "token_id": 28125,
+                "logit": 98.5
+              },
+              {
+                "token_id": 10837,
+                "logit": 93.0
+              },
+              {
+                "token_id": 3627,
+                "logit": 91.5
+              },
+              {
+                "token_id": 38,
+                "logit": 91.0
+              },
+              {
+                "token_id": 47,
+                "logit": 91.0
+              },
+              {
+                "token_id": 5487,
+                "logit": 90.5
+              },
+              {
+                "token_id": 6537,
+                "logit": 90.5
+              },
+              {
+                "token_id": 2794,
+                "logit": 90.5
+              }
+            ]
+          },
+          {
+            "step": 15,
+            "chosen_token_id": 12,
+            "chosen_token_logit": 122.5,
+            "topk": [
+              {
+                "token_id": 12,
+                "logit": 122.5
+              },
+              {
+                "token_id": 11,
+                "logit": 115.0
+              },
+              {
+                "token_id": 102114,
+                "logit": 114.5
+              },
+              {
+                "token_id": 22,
+                "logit": 114.0
+              },
+              {
+                "token_id": 7671,
+                "logit": 113.0
+              },
+              {
+                "token_id": 1112,
+                "logit": 112.5
+              },
+              {
+                "token_id": 9335,
+                "logit": 112.5
+              },
+              {
+                "token_id": 19588,
+                "logit": 112.5
+              }
+            ]
+          },
+          {
+            "step": 16,
+            "chosen_token_id": 102114,
+            "chosen_token_logit": 146.0,
+            "topk": [
+              {
+                "token_id": 102114,
+                "logit": 146.0
+              },
+              {
+                "token_id": 22,
+                "logit": 144.0
+              },
+              {
+                "token_id": 24,
+                "logit": 143.0
+              },
+              {
+                "token_id": 23,
+                "logit": 143.0
+              },
+              {
+                "token_id": 20,
+                "logit": 142.0
+              },
+              {
+                "token_id": 111659,
+                "logit": 141.0
+              },
+              {
+                "token_id": 101130,
+                "logit": 141.0
+              },
+              {
+                "token_id": 100096,
+                "logit": 140.0
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "task_id_filter": [
+      "extract-01"
+    ],
+    "trace_task_id": "extract-01",
+    "trace_topk": 8,
+    "trace_max_steps": 16
+  }
+}

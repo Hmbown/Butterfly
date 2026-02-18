@@ -1,0 +1,488 @@
+{
+  "created_at": "2026-02-16T16:47:34.447435+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --mode dense --no-swap --seq-lens 2048 8192 32768 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/8w_fix_dense32",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 2.4599613749887794,
+      "ttft_sec": 0.26781287498306483,
+      "itl_p50_sec": 0.015593042015098035,
+      "itl_p95_sec": 0.016289041959680617,
+      "decode_sec": 0.7555824160226621,
+      "e2e_sec": 3.2155437910114415,
+      "decode_tok_s": 42.35143555675365,
+      "peak_memory_bytes": 18284344600,
+      "sample_output_text": "marize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 33,
+        "layer_observations": 33,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 33
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "timing_ms_by_phase": {
+          "overall": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 33
+          },
+          "prefill": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 1
+          },
+          "decode": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 32
+          }
+        },
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 33
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "timing_ms_by_phase": {
+        "overall": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 33
+        },
+        "prefill": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 1
+        },
+        "decode": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 32
+        }
+      },
+      "observability_fallback_share_known": true
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 16.16858720901655,
+      "ttft_sec": 0.1716283339774236,
+      "itl_p50_sec": 0.019154499983415008,
+      "itl_p95_sec": 0.019293749995995313,
+      "decode_sec": 0.7675528330146335,
+      "e2e_sec": 16.936140042031184,
+      "decode_tok_s": 41.69094116207883,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 34,
+        "layer_observations": 34,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 34
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 2,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 2,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "timing_ms_by_phase": {
+          "overall": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 34
+          },
+          "prefill": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 2
+          },
+          "decode": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 32
+          }
+        },
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 34
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "timing_ms_by_phase": {
+        "overall": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 34
+        },
+        "prefill": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 2
+        },
+        "decode": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 32
+        }
+      },
+      "observability_fallback_share_known": true
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 272.03112374997,
+      "ttft_sec": 9.785133750003297,
+      "itl_p50_sec": 0.03416074998676777,
+      "itl_p95_sec": 0.03509370901156217,
+      "decode_sec": 10.922992416017223,
+      "e2e_sec": 282.9541161659872,
+      "decode_tok_s": 2.929600129821196,
+      "peak_memory_bytes": 26017775484,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 40,
+        "layer_observations": 40,
+        "phase_counts": {
+          "prefill": 8,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 40
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 8,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 8,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "timing_ms_by_phase": {
+          "overall": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 40
+          },
+          "prefill": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 8
+          },
+          "decode": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 32
+          }
+        },
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 40
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "timing_ms_by_phase": {
+        "overall": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 40
+        },
+        "prefill": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 8
+        },
+        "decode": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 32
+        }
+      },
+      "observability_fallback_share_known": true
+    },
+    {
+      "seq_len": 65536,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 1123.4069614579785,
+      "ttft_sec": 31.375431624997873,
+      "itl_p50_sec": 0.05364454200025648,
+      "itl_p95_sec": 0.05458262504544109,
+      "decode_sec": 33.1230921659735,
+      "e2e_sec": 1156.530053623952,
+      "decode_tok_s": 0.9660933779869977,
+      "peak_memory_bytes": 33160809276,
+      "sample_output_text": " policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser:",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 48,
+        "layer_observations": 48,
+        "phase_counts": {
+          "prefill": 16,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 48
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 16,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 16,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "timing_ms_by_phase": {
+          "overall": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 48
+          },
+          "prefill": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 16
+          },
+          "decode": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 32
+          }
+        },
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 48
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "timing_ms_by_phase": {
+        "overall": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 48
+        },
+        "prefill": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 16
+        },
+        "decode": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 32
+        }
+      },
+      "observability_fallback_share_known": true
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -1,0 +1,8 @@
+{
+  "label": "drift_seed_wayfinder_s99",
+  "delta_swap_mb": 0.0,
+  "swap_free_mb": 749.94,
+  "delta_compressor_pages": 2626,
+  "status": "pass",
+  "fails": []
+}

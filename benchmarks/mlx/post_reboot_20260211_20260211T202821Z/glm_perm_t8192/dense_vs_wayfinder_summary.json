@@ -1,0 +1,16 @@
+{
+  "seq_len": 8192,
+  "tokens_per_sec": {
+    "dense_absolute": 21746.6254017649,
+    "wayfinder_absolute": 102936.88015078002,
+    "delta_vs_baseline": 81190.25474901512,
+    "delta_pct_vs_baseline": 373.34645375565225
+  },
+  "peak_memory_bytes": {
+    "dense_absolute": 3719072300.0,
+    "wayfinder_absolute": 1186794032.0,
+    "delta_vs_baseline": -2532278268.0,
+    "delta_pct_vs_baseline": -68.08897659773918
+  },
+  "memory_reduction_pct": 68.08897659773918
+}

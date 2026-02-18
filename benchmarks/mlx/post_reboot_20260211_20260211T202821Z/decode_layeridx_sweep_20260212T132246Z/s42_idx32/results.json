@@ -1,0 +1,99 @@
+{
+  "created_at": "2026-02-12T13:29:59.368081+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --skip-quality --seed 42 --active-dense-threshold 16384 --swap-layer-indices 32 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_layeridx_sweep_20260212T132246Z/s42_idx32",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      32
+    ],
+    "requested_layer_indices": [
+      32
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "32",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.28765545799979,
+      "ttft_sec": 0.15471445900038816,
+      "itl_p50_sec": 0.019514457999321166,
+      "itl_p95_sec": 0.019816457999695558,
+      "decode_sec": 1.3971513340002275,
+      "e2e_sec": 17.684806792000018,
+      "decode_tok_s": 45.807493034243905,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.107072250000783,
+      "ttft_sec": 0.13624162500491366,
+      "itl_p50_sec": 0.01949508400139166,
+      "itl_p95_sec": 0.02030945799924666,
+      "decode_sec": 1.3794898749983986,
+      "e2e_sec": 17.486562124999182,
+      "decode_tok_s": 46.39396139103543,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.10759508299816,
+      "ttft_sec": 0.14226775000133784,
+      "itl_p50_sec": 0.019520875001035165,
+      "itl_p95_sec": 0.01989879200118594,
+      "decode_sec": 1.386023415994714,
+      "e2e_sec": 17.493618498992873,
+      "decode_tok_s": 46.175266060760464,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

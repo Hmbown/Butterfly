@@ -1,0 +1,8 @@
+{
+  "swap_line": "total = 2048.00M  used = 1298.06M  free = 749.94M  (encrypted)",
+  "swap_used_mb": 1298.06,
+  "swap_free_mb": 749.94,
+  "compressor_pages": 229199,
+  "page_size_bytes": 16384,
+  "compressor_bytes": 3755196416
+}

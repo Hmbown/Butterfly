@@ -1,0 +1,96 @@
+{
+  "created_at": "2026-02-14T22:21:09.610675+00:00",
+  "command": "/Volumes/VIXinSSD/wayfinder/scripts/bench_glm_consumer_mlx.py --no-swap --skip-single-turn --skip-multi-turn --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/scale_fix_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9. Record B: ticket ticket=ALPHA-7707, owner=JON, checksum=9Z9Z9. Question: return only;\n;\n",
+        "correct": true,
+        "ttft_sec": 1.0820512080099434,
+        "itl_p95_sec": 0.01403616601601243,
+        "peak_memory_bytes": 16929391161
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-04 amount=23;\nI need to return only the amount on 2026-01-04.\nThe input data is:\n2026-01-03 amount=17;\n2026-01-04 amount=23;\n2026-01-05 amount=11;\nThe",
+        "correct": true,
+        "ttft_sec": 0.014783916005399078,
+        "itl_p95_sec": 0.014430457988055423,
+        "peak_memory_bytes": 16958396014
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9T9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": false,
+        "ttft_sec": 0.014909125020494685,
+        "itl_p95_sec": 0.01401283300947398,
+        "peak_memory_bytes": 16901657226
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9;\nWe are asked: \"144 / 12 + 39.9;\". The instruction: \"return only a number\". So we need to compute exactly: 144 / 12 + 39.9;? Wait, the expression includes a semicolon? Possibly it's 144 / 12 +",
+        "correct": false,
+        "ttft_sec": 0.014413875003810972,
+        "itl_p95_sec": 0.014069541997741908,
+        "peak_memory_bytes": 16900234418
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.014134750002995133,
+        "itl_p95_sec": 0.014001540985191241,
+        "peak_memory_bytes": 16918651846
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.014298666996182874,
+        "itl_p95_sec": 0.014164291991619393,
+        "peak_memory_bytes": 16913764890
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

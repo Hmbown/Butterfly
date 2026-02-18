@@ -1,0 +1,47 @@
+{
+  "run_root": "benchmarks/mlx/qwen3_1_7b_sparse_fidelity_20260212T182820Z",
+  "baseline_run_path": "benchmarks/mlx/qwen3_1_7b_sparse_fidelity_20260212T182820Z/permute_prefill_smoke/results.json",
+  "baseline": {
+    "mode": "dense_baseline_attention",
+    "latency_ms": 4.5483330031856894,
+    "tokens_per_sec": 225137.42931372483,
+    "peak_memory_bytes": 34341416
+  },
+  "wayfinder": {
+    "mode": "permute",
+    "latency_ms_abs": 4.4060000000172295,
+    "latency_ms_delta_vs_baseline_abs": -0.14233300316845998,
+    "latency_ms_delta_vs_baseline_pct": -3.1293443788915365,
+    "tokens_per_sec_abs": 232410.34952246837,
+    "tokens_per_sec_delta_vs_baseline_abs": 7272.920208743541,
+    "tokens_per_sec_delta_vs_baseline_pct": 3.2304358413051175,
+    "peak_memory_bytes_abs": 76097620.0,
+    "peak_memory_bytes_delta_vs_baseline_abs": 41756204.0,
+    "peak_memory_bytes_delta_vs_baseline_pct": 121.59138691310807,
+    "memory_reduction_pct_convention": -121.59138691310804,
+    "graph_build_ms_first": 1.9451670050621033,
+    "graph_build_ms_cached": 0.002375006675720215
+  },
+  "sparse": {
+    "mode": "sparse",
+    "latency_ms_abs": 39.483291999204084,
+    "latency_ms_delta_vs_baseline_abs": 34.934958996018395,
+    "latency_ms_delta_vs_baseline_pct": 768.0827013226531,
+    "tokens_per_sec_abs": 25935.02081894899,
+    "tokens_per_sec_delta_vs_baseline_abs": -199202.40849477585,
+    "tokens_per_sec_delta_vs_baseline_pct": -88.48036024129554,
+    "peak_memory_bytes_abs": 1778156724.0,
+    "peak_memory_bytes_delta_vs_baseline_abs": 1743815308.0,
+    "peak_memory_bytes_delta_vs_baseline_pct": 5077.878291331959,
+    "memory_reduction_pct_convention": -5077.878291331959,
+    "graph_build_ms_first": 377.04787500202656,
+    "graph_build_ms_cached": 0.004583999514579773
+  },
+  "sparse_decode_probe": {
+    "path": "sparse",
+    "sparse_active_mode": true,
+    "active_query_mode": true,
+    "q_len": 1,
+    "source": "python3 profile probe output"
+  }
+}

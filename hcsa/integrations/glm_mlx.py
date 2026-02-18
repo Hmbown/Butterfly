@@ -13,6 +13,7 @@ from mlx_lm.models.base import scaled_dot_product_attention
 from hcsa.graph.abi import WayfinderGraphABI, graph_metrics
 from hcsa.mlx.attention import (
     AttentionProfile,
+    sparse_gather_attention_active,
     sparse_gather_attention,
     wayfinder_permute_window_attention_active_batched,
     wayfinder_permute_window_attention_batched,
@@ -50,12 +51,13 @@ def _pad_value_dim(values: mx.array, target_dim: int) -> mx.array:
 
 @dataclass
 class GLMWayfinderConfig:
-    path: Literal["sparse", "permute"] = "permute"
+    path: Literal["sparse", "permute", "wayfinder", "dense"] = "wayfinder"
     strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
     num_cycles: int | str = 1
     edge_disjoint: bool = True
+    enforce_hamiltonian: bool = True
     regular_num_clusters: int = 8
     seed: int = 0
     edge_bias: bool = True
@@ -72,13 +74,30 @@ class GLMWayfinderConfig:
     retro_backfill_training_only: bool = True
     retro_backfill_causal_only: bool = True
     permute_memory_budget_bytes: Optional[int] = None
-    active_dense_threshold: Optional[int] = None
+    active_dense_threshold: Optional[int | str] = None
     use_discovered_active_row_kernel: bool = True
     circular: bool = False
     multi_cycle_mode: str = "average"
     verify_spectral_gap: bool = False
     spectral_gap_threshold: float = 4.0
     use_fused_dispatch: bool = True
+    enable_decode_local_tail_fastpath: bool = True
+    wayfinder_decode_backend: Literal["active_permute", "dense"] = "dense"
+
+    def __post_init__(self) -> None:
+        raw_path = str(self.path).strip().lower()
+        if raw_path == "wayfinder":
+            self.path = "permute"  # type: ignore[assignment]
+            return
+        if raw_path == "permute" or raw_path == "sparse":
+            self.path = raw_path  # type: ignore[assignment]
+            return
+        if raw_path == "dense":
+            raise ValueError(
+                "GLMWayfinderConfig(path='dense') is unsupported. "
+                "Use stock GLM attention (no swap) for dense mode."
+            )
+        raise ValueError(f"Unknown GLM Wayfinder path: {self.path!r}")
 
 
 def extract_qkv_from_glm_attention(
@@ -157,7 +176,13 @@ class GLMWayfinderAttention(nn.Module):
         self.o_proj = base_attn.o_proj
         self.rope = base_attn.rope
 
-        self.path = cfg.path
+        self.path = str(cfg.path)
+        if self.path == "permute":
+            self.mode_label = "wayfinder"
+        elif self.path == "sparse":
+            self.mode_label = "sparse"
+        else:
+            raise ValueError(f"Unknown internal GLM path after config normalization: {self.path!r}")
         self.permute_head_chunk_size = int(max(1, cfg.permute_head_chunk_size))
         self.query_chunk_size = int(max(1, cfg.query_chunk_size))
         self.permute_prepermute_mode = str(cfg.permute_prepermute_mode).lower()
@@ -167,11 +192,12 @@ class GLMWayfinderAttention(nn.Module):
             if cfg.permute_memory_budget_bytes is None
             else int(max(0, cfg.permute_memory_budget_bytes))
         )
-        self.active_dense_threshold = (
-            None
-            if cfg.active_dense_threshold is None
-            else int(max(0, cfg.active_dense_threshold))
-        )
+        if cfg.active_dense_threshold == "auto":
+            self.active_dense_threshold = (2 * cfg.window + 1) ** 2
+        elif cfg.active_dense_threshold is None:
+            self.active_dense_threshold = None
+        else:
+            self.active_dense_threshold = int(max(0, cfg.active_dense_threshold))
         self.use_discovered_active_row_kernel = bool(cfg.use_discovered_active_row_kernel)
         self.retro_backfill_enabled = bool(cfg.retro_backfill_enabled)
         self.retro_backfill_alpha = float(cfg.retro_backfill_alpha)
@@ -180,6 +206,8 @@ class GLMWayfinderAttention(nn.Module):
         self.circular = bool(cfg.circular)
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
+        self.enable_decode_local_tail_fastpath = bool(cfg.enable_decode_local_tail_fastpath)
+        self.wayfinder_decode_backend = str(cfg.wayfinder_decode_backend)
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -189,15 +217,16 @@ class GLMWayfinderAttention(nn.Module):
             strategy=cfg.strategy,
             num_cycles=cfg.num_cycles,
             edge_disjoint=cfg.edge_disjoint,
+            enforce_hamiltonian=cfg.enforce_hamiltonian,
             regular_num_clusters=cfg.regular_num_clusters,
             seed=cfg.seed,
-            path=cfg.path,
+            path=self.path,
             compiled_graph_dir=cfg.compiled_graph_dir,
             verify_spectral_gap=cfg.verify_spectral_gap,
             spectral_gap_threshold=cfg.spectral_gap_threshold,
             store_numpy_abi=bool(cfg.compute_graph_metrics),
             store_graph_tensors=bool(
-                cfg.path == "sparse"
+                self.path == "sparse"
                 or cfg.compute_edge_utilization_proxy
                 or cfg.compute_graph_metrics
             ),
@@ -211,14 +240,14 @@ class GLMWayfinderAttention(nn.Module):
         # When available, the adaptive horizon uses exact k_len so Tg == Tk,
         # enabling the contiguous-window active-row attention path.
         self._fast_graph_build = bool(
-            cfg.path == "permute"
+            self.path == "permute"
             and not cfg.compute_graph_metrics
             and not cfg.compute_edge_utilization_proxy
-            and cfg.path != "sparse"
+            and self.path != "sparse"
             and not cfg.verify_spectral_gap
         )
 
-        self.last_profile: AttentionProfile = AttentionProfile(path=cfg.path)
+        self.last_profile: AttentionProfile = AttentionProfile(path=self.mode_label)
         self.last_graph_abi: Optional[WayfinderGraphABI] = None
         self.last_graph_metrics: Dict[str, Any] = {}
         self.last_edge_utilization_proxy: Dict[str, float] = {
@@ -257,6 +286,11 @@ class GLMWayfinderAttention(nn.Module):
             # aggressive adaptive horizon.  Match the actual data size
             # so Tg == Tk, enabling the contiguous-window active-row path.
             return int(target)
+        elif q_len <= 2:
+            # Decode horizon bucketing: avoid rebuilding a fresh graph cache
+            # for every incremental token when cache.max_size is unavailable.
+            step = 256
+            target = ((target + step - 1) // step) * step
         else:
             # Slow full-ABI build: amortize graph rebuilds.
             step = max(4096, int(max(1, q_len)) * 8)
@@ -320,6 +354,8 @@ class GLMWayfinderAttention(nn.Module):
         queries, keys, values = extract_qkv_from_glm_attention(self, x, cache=cache)
         q_len = int(queries.shape[2])
         k_len = int(keys.shape[2])
+        sparse_active_mode = self.path == "sparse" and cache is not None and q_len < k_len
+        sparse_active_positions: Optional[mx.array] = None
         active_mode = self.path == "permute" and cache is not None and q_len < k_len
         discovered_permute_available = (
             self.path == "permute" and has_discovered_permute_window_kernel()
@@ -334,12 +370,32 @@ class GLMWayfinderAttention(nn.Module):
             active_mode
             and self.active_dense_threshold is not None
             and k_len <= self.active_dense_threshold
-            and (not discovered_active_available)
+            and q_len > 2
         )
-        use_active_permute = active_mode and not force_dense_active
+        # Large active blocks (chunked prefill) were historically routed to dense
+        # to avoid high-memory active execution. Keep that safety for slow full-ABI
+        # graph builds, but allow fast perms-only builds to stay on active permute.
+        force_dense_large_active = (
+            active_mode
+            and q_len > int(max(1, self.query_chunk_size))
+            and not self._fast_graph_build
+        )
+        # Wayfinder decode policy: route active decode to dense SDPA for higher
+        # fidelity.  The permute-active path has quality degradation at q_len=1.
+        force_dense_wayfinder_decode = (
+            active_mode
+            and q_len <= 2
+            and self.wayfinder_decode_backend == "dense"
+            and self.mode_label == "wayfinder"
+        )
+        use_active_permute = active_mode and not (
+            force_dense_active or force_dense_large_active or force_dense_wayfinder_decode
+        )
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
-        if force_dense_active or (q_len != k_len and not use_active_permute):
+        if force_dense_active or force_dense_wayfinder_decode or (
+            q_len != k_len and not (use_active_permute or sparse_active_mode)
+        ):
             t_attn0 = _now_ms()
             out = self._dense_fallback(queries, keys, values, mask, cache)
             attn_ms = _now_ms() - t_attn0
@@ -348,14 +404,85 @@ class GLMWayfinderAttention(nn.Module):
                 permute_ms=0.0,
                 attention_ms=float(attn_ms),
                 total_ms=_now_ms() - t_total0,
-                path=f"{self.path}_dense_fallback",
+                path=f"{self.mode_label}_dense_fallback",
                 notes={
+                    "mode": self.mode_label,
+                    "path_internal": self.path,
                     "cache_hit": True,
                     "cache_source": "dense_fallback",
                     "k_len": int(k_len),
+                    "q_len": int(q_len),
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
+                    "active_large_q_dense_triggered": bool(force_dense_large_active),
+                    "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                    "wayfinder_decode_backend": self.wayfinder_decode_backend,
+                    "sparse_active_mode": bool(sparse_active_mode),
+                    "active_query_chunk_limit": int(self.query_chunk_size),
                     "discovered_permute_available": bool(discovered_permute_available),
+                },
+            )
+            return out
+
+        if (
+            self.enable_decode_local_tail_fastpath
+            and use_active_permute
+            and q_len == 1
+            and self.path == "permute"
+        ):
+            # Decode-specialized local-tail fast path: avoid graph/cache work for
+            # single-token incremental decode and run SDPA on a contiguous suffix.
+            window_tokens = max(1, 2 * int(self.graph_runtime.window) + 1)
+            tail = int(min(k_len, window_tokens))
+            values_wf = _pad_value_dim(values, target_dim=int(queries.shape[-1]))
+            t_attn0 = _now_ms()
+            y_h = scaled_dot_product_attention(
+                queries,
+                keys[:, :, k_len - tail : k_len, :],
+                values_wf[:, :, k_len - tail : k_len, :],
+                cache=None,
+                scale=self.scale,
+                mask=None,
+            )
+            attn_ms = _now_ms() - t_attn0
+            y_latent = y_h[..., : self.value_dim]
+            y_proj = self.unembed_out(y_latent)
+            out = self.o_proj(
+                y_proj.transpose(0, 2, 1, 3).reshape(y_proj.shape[0], y_proj.shape[2], -1)
+            )
+            self.last_profile = AttentionProfile(
+                graph_build_ms=0.0,
+                permute_ms=0.0,
+                attention_ms=float(attn_ms),
+                total_ms=float(_now_ms() - t_total0),
+                path="wayfinder_decode_local_tail",
+                notes={
+                    "mode": self.mode_label,
+                    "path_internal": self.path,
+                    "seq_len": int(k_len),
+                    "graph_seq_len": int(k_len),
+                    "q_len": int(q_len),
+                    "cache_hit": True,
+                    "cache_mode": self.graph_runtime.cache_mode,
+                    "cache_source": "decode_local_tail",
+                    "cache_persistent_bytes": 0,
+                    "window_drop_effective": 0.0,
+                    "permute_head_chunk_effective": None,
+                    "permute_query_chunk_effective": None,
+                    "active_query_mode": True,
+                    "active_dense_threshold": self.active_dense_threshold,
+                    "active_dense_triggered": bool(force_dense_active),
+                    "active_large_q_dense_triggered": bool(force_dense_large_active),
+                    "active_query_chunk_limit": int(self.query_chunk_size),
+                    "discovered_active_available": bool(discovered_active_available),
+                    "discovered_fused_attention_available": bool(
+                        discovered_fused_attention_available
+                    ),
+                    "discovered_permute_available": bool(discovered_permute_available),
+                    "adaptive_graph_reuse": False,
+                    "mla_qk_dim": int(self.qk_dim),
+                    "mla_value_dim": int(self.value_dim),
+                    "decode_local_tail_tokens": int(tail),
                 },
             )
             return out
@@ -424,19 +551,45 @@ class GLMWayfinderAttention(nn.Module):
         if self.path == "sparse":
             keys_q = _repeat_kv_to_q_heads(keys, self.n_heads)
             values_q = _repeat_kv_to_q_heads(values_wf, self.n_heads)
-            y_h, _w = sparse_gather_attention(
-                queries,
-                keys_q,
-                values_q,
-                graph_cache.mlx_graph,
-                return_weights=False,
-                precomputed_safe_idx=graph_cache.safe_idx,
-                precomputed_causal_mask=graph_cache.causal_mask,
-                edge_type_bias=self.edge_type_bias,
-                edge_type_bias_offset=scheduled_edge_bias,
-                window_drop_mask=wd_mask,
-            )
-            keep_mask = graph_cache.causal_mask if wd_mask is None else (graph_cache.causal_mask & wd_mask)
+            if sparse_active_mode:
+                sparse_active_positions = mx.arange(k_len - q_len, k_len, dtype=mx.int32)
+                y_h, _w = sparse_gather_attention_active(
+                    queries,
+                    keys_q,
+                    values_q,
+                    graph_cache.mlx_graph,
+                    query_positions=sparse_active_positions,
+                    return_weights=False,
+                    precomputed_safe_idx=graph_cache.safe_idx,
+                    precomputed_causal_mask=graph_cache.causal_mask,
+                    edge_type_bias=self.edge_type_bias,
+                    edge_type_bias_offset=scheduled_edge_bias,
+                    window_drop_mask=wd_mask,
+                )
+                keep_mask_full = (
+                    graph_cache.causal_mask
+                    if wd_mask is None
+                    else (graph_cache.causal_mask & wd_mask)
+                )
+                keep_mask = mx.take(keep_mask_full, sparse_active_positions, axis=1)
+            else:
+                y_h, _w = sparse_gather_attention(
+                    queries,
+                    keys_q,
+                    values_q,
+                    graph_cache.mlx_graph,
+                    return_weights=False,
+                    precomputed_safe_idx=graph_cache.safe_idx,
+                    precomputed_causal_mask=graph_cache.causal_mask,
+                    edge_type_bias=self.edge_type_bias,
+                    edge_type_bias_offset=scheduled_edge_bias,
+                    window_drop_mask=wd_mask,
+                )
+                keep_mask = (
+                    graph_cache.causal_mask
+                    if wd_mask is None
+                    else (graph_cache.causal_mask & wd_mask)
+                )
             h_chunk_eff = None
             q_chunk_eff = None
         elif self.path == "permute":
@@ -449,6 +602,7 @@ class GLMWayfinderAttention(nn.Module):
             if use_active_permute:
                 active_start = T - q_len
                 active_positions = mx.arange(active_start, T, dtype=mx.int32)
+                prefer_small_tq_gather = bool(q_len == 1)
                 try:
                     y_h, _w = wayfinder_permute_window_attention_active_batched(
                         queries,
@@ -469,6 +623,8 @@ class GLMWayfinderAttention(nn.Module):
                         multi_cycle_mode=self.multi_cycle_mode,
                         log_progress=self.permute_log_chunks,
                         use_fused_dispatch=self.use_fused_dispatch,
+                        prefer_gather_for_small_tq=prefer_small_tq_gather,
+                        scale=self.scale,
                     )
                 except Exception as exc:
                     out = self._dense_fallback(queries, keys, values, mask, cache)
@@ -478,8 +634,10 @@ class GLMWayfinderAttention(nn.Module):
                         permute_ms=0.0,
                         attention_ms=float(attn_ms),
                         total_ms=float(_now_ms() - t_total0),
-                        path="permute_active_error_dense_fallback",
+                        path=f"{self.mode_label}_active_error_dense_fallback",
                         notes={
+                            "mode": self.mode_label,
+                            "path_internal": self.path,
                             "seq_len": int(T),
                             "q_len": int(q_len),
                             "graph_seq_len": int(graph_T),
@@ -487,6 +645,8 @@ class GLMWayfinderAttention(nn.Module):
                             "active_query_mode": True,
                             "active_dense_threshold": self.active_dense_threshold,
                             "active_dense_triggered": bool(force_dense_active),
+                            "active_large_q_dense_triggered": bool(force_dense_large_active),
+                            "active_query_chunk_limit": int(self.query_chunk_size),
                             "discovered_active_available": bool(discovered_active_available),
                             "discovered_fused_attention_available": bool(
                                 discovered_fused_attention_available
@@ -519,6 +679,7 @@ class GLMWayfinderAttention(nn.Module):
                     retro_backfill_causal_only=self.retro_backfill_causal_only,
                     log_progress=self.permute_log_chunks,
                     use_fused_dispatch=self.use_fused_dispatch,
+                    scale=self.scale,
                 )
             keep_mask = graph_cache.causal_mask
             if int(keep_mask.shape[1]) != T:
@@ -529,7 +690,9 @@ class GLMWayfinderAttention(nn.Module):
 
         if self.compute_edge_utilization_proxy:
             edge_type = graph_cache.mlx_graph.edge_type
-            if int(edge_type.shape[1]) != int(keep_mask.shape[1]):
+            if sparse_active_positions is not None:
+                edge_type = mx.take(edge_type, sparse_active_positions, axis=1)
+            elif int(edge_type.shape[1]) != int(keep_mask.shape[1]):
                 edge_type = edge_type[:, : int(keep_mask.shape[1]), :]
             self.last_edge_utilization_proxy = _edge_utilization_proxy(
                 edge_type,
@@ -550,8 +713,10 @@ class GLMWayfinderAttention(nn.Module):
             permute_ms=0.0,
             attention_ms=float(attn_ms),
             total_ms=float(total_ms),
-            path=self.path,
+            path=self.mode_label,
             notes={
+                "mode": self.mode_label,
+                "path_internal": self.path,
                 "seq_len": int(T),
                 "graph_seq_len": int(graph_T),
                 "q_len": int(q_len),
@@ -563,9 +728,12 @@ class GLMWayfinderAttention(nn.Module):
                 "window_drop_effective": float(effective_window_drop),
                 "permute_head_chunk_effective": int(h_chunk_eff) if self.path == "permute" else None,
                 "permute_query_chunk_effective": int(q_chunk_eff) if self.path == "permute" else None,
-                "active_query_mode": bool(use_active_permute),
+                "active_query_mode": bool(use_active_permute or sparse_active_mode),
+                "sparse_active_mode": bool(sparse_active_mode),
                 "active_dense_threshold": self.active_dense_threshold,
                 "active_dense_triggered": bool(force_dense_active),
+                "active_large_q_dense_triggered": bool(force_dense_large_active),
+                "active_query_chunk_limit": int(self.query_chunk_size),
                 "discovered_active_available": bool(discovered_active_available),
                 "discovered_fused_attention_available": bool(
                     discovered_fused_attention_available

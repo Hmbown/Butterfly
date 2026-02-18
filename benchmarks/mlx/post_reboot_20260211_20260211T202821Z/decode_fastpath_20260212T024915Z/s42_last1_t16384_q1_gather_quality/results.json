@@ -1,0 +1,164 @@
+{
+  "created_at": "2026-02-12T03:09:03.755758+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --seed 42 --swap-last-n-layers 1 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_fastpath_20260212T024915Z/s42_last1_t16384_q1_gather_quality",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      46
+    ],
+    "requested_layer_indices": [
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 1,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 15.871318874999815,
+      "ttft_sec": 0.13253400000030524,
+      "itl_p50_sec": 0.025932583000212617,
+      "itl_p95_sec": 0.026432624999870313,
+      "decode_sec": 1.7738042080000014,
+      "e2e_sec": 17.645123082999817,
+      "decode_tok_s": 36.08064504039103,
+      "peak_memory_bytes": 20828778796,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 15.895857415999672,
+      "ttft_sec": 0.13359970900000917,
+      "itl_p50_sec": 0.019812707999335544,
+      "itl_p95_sec": 0.019987374999800522,
+      "decode_sec": 1.3900304170001618,
+      "e2e_sec": 17.285887832999833,
+      "decode_tok_s": 46.04215793933418,
+      "peak_memory_bytes": 21040591148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 15.876495583999713,
+      "ttft_sec": 0.13110099999994418,
+      "itl_p50_sec": 0.01983045800079708,
+      "itl_p95_sec": 0.02013508300024114,
+      "decode_sec": 1.3883497090000674,
+      "e2e_sec": 17.26484529299978,
+      "decode_tok_s": 46.09789564193793,
+      "peak_memory_bytes": 21040591148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=7T9U. Record B: ticket=BETA-9, owner=JON, checksum= }7T9U. Question: return only only the checksum for ticket ALPHA-",
+        "correct": true,
+        "ttft_sec": 0.016465500000776956,
+        "itl_p95_sec": 0.015069625000251108,
+        "peak_memory_bytes": 17215721604
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": " 2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05 amount=11. Question: return only the amount on 2026-01-04. 2026-01-03 amount=17; 2026-01",
+        "correct": true,
+        "ttft_sec": 0.015750249999655352,
+        "itl_p95_sec": 0.014811584000199218,
+        "peak_memory_bytes": 17195360165
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9V9V9V9.png)\n\nWait, the image is a placeholder, but the problem is clear: (48 * 7) - 19. The user wants the exact result, and only the number.\n\nFirst, calculate 48 * 7.\n48 * ",
+        "correct": false,
+        "ttft_sec": 0.01653154199993878,
+        "itl_p95_sec": 0.014832834000117145,
+        "peak_memory_bytes": 17134903696
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.015280999999959022,
+        "itl_p95_sec": 0.014471124999545282,
+        "peak_memory_bytes": 17133730164
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.015236375000313274,
+        "itl_p95_sec": 0.014316292000330577,
+        "peak_memory_bytes": 17153455156
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.015053790999445482,
+        "itl_p95_sec": 0.014271541999733017,
+        "peak_memory_bytes": 17148252797
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

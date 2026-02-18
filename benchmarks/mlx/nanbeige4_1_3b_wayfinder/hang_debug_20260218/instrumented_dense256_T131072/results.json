@@ -1,0 +1,43 @@
+{
+  "created_at": "2026-02-18T05:21:15.306722+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path Nanbeige/Nanbeige4.1-3B --mode dense --seq-lens 131072 --decode-len 256 --repeats 1 --skip-multi-turn --skip-quality --stage-timeout-sec 900 --heartbeat-sec 30 --out-dir benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218/instrumented_dense256_T131072",
+  "model_path": "Nanbeige/Nanbeige4.1-3B",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "interrupted",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 0,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": null,
+    "last_seq_len": null,
+    "last_repeat": null
+  },
+  "timing": {
+    "writeout_sec_last": 0.0,
+    "writeout_sec_total": 0.0,
+    "script_start_unix_sec": 1771392075.306751
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": null
+}

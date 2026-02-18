@@ -1,0 +1,251 @@
+{
+  "created_at": "2026-02-12T15:34:37.428462+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode dense --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 192 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json --seed 7 --skip-single-turn --skip-multi-turn --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z/heldout/s7_dense",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json",
+    "num_tasks": 24,
+    "correct": 3,
+    "accuracy": 0.125,
+    "rows": [
+      {
+        "id": "extract-h01",
+        "expected": "K7Q2",
+        "output": " 9101 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109",
+        "correct": false,
+        "ttft_sec": 0.6525526250043185,
+        "itl_p95_sec": 0.013885708001907915,
+        "peak_memory_bytes": 16927097002
+      },
+      {
+        "id": "extract-h02",
+        "expected": "T5N1",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01431787500041537,
+        "itl_p95_sec": 0.013694416004000232,
+        "peak_memory_bytes": 16979360134
+      },
+      {
+        "id": "extract-h03",
+        "expected": "W8C4",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014372541998454835,
+        "itl_p95_sec": 0.013697875001525972,
+        "peak_memory_bytes": 16979360134
+      },
+      {
+        "id": "extract-h04",
+        "expected": "B6V5",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.01447766600176692,
+        "itl_p95_sec": 0.013708708000194747,
+        "peak_memory_bytes": 16972515838
+      },
+      {
+        "id": "extract-h05",
+        "expected": "Q4R6",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.0144265409981017,
+        "itl_p95_sec": 0.013930166001955513,
+        "peak_memory_bytes": 16977960358
+      },
+      {
+        "id": "extract-h06",
+        "expected": "N8T1",
+        "output": " { \"ticket\": \"C\\U0000007CLOUD-1357\", \"owner\": \"ADA\", \"checksum\": \"N8T1\" } { \"ticket\": \"RRIVER-2468\", \"owner\": \"EVE\", \"checksum\": \"P9D9\" } {",
+        "correct": true,
+        "ttft_sec": 0.01448379200155614,
+        "itl_p95_sec": 0.013907749998907093,
+        "peak_memory_bytes": 16968241782
+      },
+      {
+        "id": "extract-h07",
+        "expected": "C5H7",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.014212082998710684,
+        "itl_p95_sec": 0.013801875000353903,
+        "peak_memory_bytes": 16974128614
+      },
+      {
+        "id": "extract-h08",
+        "expected": "J9B8",
+        "output": " { \"ticket\": \"CYPER-6650\", \"owner\": \"NIA\", \"checksum\": \"J9B8\" } { \"ticket\": \"TERRA-7777\", \"owner\": \"TERRA\", \"checksum\": \"M9X9\" } { \"ticket\":",
+        "correct": true,
+        "ttft_sec": 0.013782499998342246,
+        "itl_p95_sec": 0.013889958994695917,
+        "peak_memory_bytes": 16977960366
+      },
+      {
+        "id": "extract-h09",
+        "expected": "U3Z7",
+        "output": " 5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5.5",
+        "correct": false,
+        "ttft_sec": 0.013865667002392001,
+        "itl_p95_sec": 0.014160250000713859,
+        "peak_memory_bytes": 16979360158
+      },
+      {
+        "id": "extract-h10",
+        "expected": "E6Q9",
+        "output": " { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { {",
+        "correct": false,
+        "ttft_sec": 0.014403875000425614,
+        "itl_p95_sec": 0.013798042004054878,
+        "peak_memory_bytes": 16979360158
+      },
+      {
+        "id": "extract-h11",
+        "expected": "G7N3",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01443683300021803,
+        "itl_p95_sec": 0.01391616600449197,
+        "peak_memory_bytes": 16979360158
+      },
+      {
+        "id": "extract-h12",
+        "expected": "R9F1",
+        "output": " 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9 9F9",
+        "correct": false,
+        "ttft_sec": 0.01399962499999674,
+        "itl_p95_sec": 0.013729874997807201,
+        "peak_memory_bytes": 16974128614
+      },
+      {
+        "id": "extract-h13",
+        "expected": "Z1H5",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014019374997587875,
+        "itl_p95_sec": 0.013702167001611087,
+        "peak_memory_bytes": 16981022110
+      },
+      {
+        "id": "extract-h14",
+        "expected": "B3M4",
+        "output": " { \"ticket\": \"IONIC-5801\", \"owner\": \"TAI\", \"checksum\": \"B9C9\" } { \"ticket\": \"IONIC-5801\", \"owner\": \"TAI\", \"checksum\": \"B9C9\" } { \"ticket\": \"ION",
+        "correct": false,
+        "ttft_sec": 0.01407945800019661,
+        "itl_p95_sec": 0.013697666006919462,
+        "peak_memory_bytes": 16981022110
+      },
+      {
+        "id": "extract-h15",
+        "expected": "P8T6",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.013722541996685322,
+        "itl_p95_sec": 0.013739000001805834,
+        "peak_memory_bytes": 16981022110
+      },
+      {
+        "id": "extract-h16",
+        "expected": "H7W3",
+        "output": " { \"ticket\": \"MORPH-9245\", \"owner\": \"NOVA\", \"checksum\": \"H7W3\" } { \"ticket\": \"NEXUS-9245\", \"owner\": \"ORI\", \"checksum\": \"F9K9\" } { \"ticket\":",
+        "correct": true,
+        "ttft_sec": 0.013802582994685508,
+        "itl_p95_sec": 0.013782290996459778,
+        "peak_memory_bytes": 16981022110
+      },
+      {
+        "id": "lookup-h01",
+        "expected": "33",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014802750003582332,
+        "itl_p95_sec": 0.013788791999104433,
+        "peak_memory_bytes": 16918657546
+      },
+      {
+        "id": "lookup-h02",
+        "expected": "29",
+        "output": " 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, 9, 7, ",
+        "correct": false,
+        "ttft_sec": 0.014335749998281244,
+        "itl_p95_sec": 0.013761583002633415,
+        "peak_memory_bytes": 16910086790
+      },
+      {
+        "id": "lookup-h03",
+        "expected": "teal",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.013779333006823435,
+        "itl_p95_sec": 0.013986458005092572,
+        "peak_memory_bytes": 16915251921
+      },
+      {
+        "id": "lookup-h04",
+        "expected": "11",
+        "output": " 7 5 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014219582997611724,
+        "itl_p95_sec": 0.013695959001779556,
+        "peak_memory_bytes": 16920106350
+      },
+      {
+        "id": "math-h01",
+        "expected": "273",
+        "output": " 7 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01372691599681275,
+        "itl_p95_sec": 0.013711291998333763,
+        "peak_memory_bytes": 16903128138
+      },
+      {
+        "id": "math-h02",
+        "expected": "49",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014144708999083377,
+        "itl_p95_sec": 0.013836624995747115,
+        "peak_memory_bytes": 16901721714
+      },
+      {
+        "id": "math-h03",
+        "expected": "231",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.01411095799994655,
+        "itl_p95_sec": 0.013768832999630831,
+        "peak_memory_bytes": 16903177298
+      },
+      {
+        "id": "math-h04",
+        "expected": "74",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014242459001252428,
+        "itl_p95_sec": 0.013780291999864858,
+        "peak_memory_bytes": 16901721697
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

@@ -1,0 +1,702 @@
+{
+  "created_at": "2026-02-12T18:37:15.214085+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --mode wayfinder --seq-lens 512 --decode-len 16 --repeats 1 --chunk-size 256 --kv-step 256 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --quality-task-id-filter extract-01 --hsa-trace --hsa-trace-max-layers 4 --hsa-trace-max-steps 8 --skip-multi-turn --out-dir benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_smoke_20260212T183630Z/wayfinder",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "mode": "wayfinder",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 28,
+    "replaced_layer_indices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 512,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 0.19514333299594,
+      "ttft_sec": 0.006218874994374346,
+      "itl_p50_sec": 0.004939083999488503,
+      "itl_p95_sec": 0.005090416998427827,
+      "decode_sec": 0.08110441700409865,
+      "e2e_sec": 0.27624775000003865,
+      "decode_tok_s": 197.2765552237609,
+      "peak_memory_bytes": 1480512208,
+      "sample_output_text": " \nAssistant:\nUser: Summarize the policy and list three key constraints with",
+      "hsa_trace_summary": {
+        "sample_count": 10,
+        "layer_observations": 40,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 8
+        },
+        "path_counts": {
+          "permute": 4,
+          "permute_dense_fallback": 36
+        },
+        "cache_source_counts": {
+          "runtime": 4,
+          "dense_fallback": 36
+        },
+        "graph_seq_len_counts": {},
+        "q_len_counts": {
+          "256": 8,
+          "1": 32
+        },
+        "dense_fallback_reason_counts": {},
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0
+      },
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 256,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute",
+              "graph_build_ms": 0.0033749938011169434,
+              "attention_ms": 0.10054100304841995,
+              "total_ms": 0.9201669991016388,
+              "notes": {
+                "seq_len": 256,
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 32768,
+                "active_query_mode": false
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute",
+              "graph_build_ms": 0.0013749971985816956,
+              "attention_ms": 0.023958005011081696,
+              "total_ms": 0.16762499511241913,
+              "notes": {
+                "seq_len": 256,
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 32768,
+                "active_query_mode": false
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute",
+              "graph_build_ms": 0.0007079988718032837,
+              "attention_ms": 0.02112499624490738,
+              "total_ms": 0.1514579951763153,
+              "notes": {
+                "seq_len": 256,
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 32768,
+                "active_query_mode": false
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute",
+              "graph_build_ms": 0.0007910057902336121,
+              "attention_ms": 0.020415998995304108,
+              "total_ms": 0.15299999713897705,
+              "notes": {
+                "seq_len": 256,
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "runtime",
+                "cache_mode": "static",
+                "cache_persistent_bytes": 32768,
+                "active_query_mode": false
+              }
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 256,
+          "chunk_end": 512,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03908299654722214,
+              "notes": {
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.017041996121406555,
+              "notes": {
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.01545800268650055,
+              "notes": {
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.014707997441291809,
+              "notes": {
+                "q_len": 256,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03770899772644043,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.017333008348941803,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.01600000262260437,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.015000000596046448,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03170899301767349,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.014833003282546997,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.014916002750396729,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.012583009898662567,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03029099851846695,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.012917004525661469,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.023125000298023224,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.011124998331069946,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03766699880361557,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.013749994337558746,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.012457996606826782,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010917000472545624,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.022874996066093445,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.012917004525661469,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.011166997253894806,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.01120901107788086,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.03037499636411667,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010999999940395355,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010375000536441803,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010124996304512024,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.01650000363588333,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.011583991348743439,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010375000536441803,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010416999459266663,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": 0,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.022958993911743164,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 1,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010916002094745636,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 2,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010082997381687164,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            },
+            {
+              "layer_idx": 3,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0,
+              "total_ms": 0.010083995759487152,
+              "notes": {
+                "q_len": 1,
+                "cache_hit": true,
+                "cache_source": "dense_fallback"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 1,
+    "correct": 0,
+    "accuracy": 0.0,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " /literal/\nThe relevant information for the question is in the records provided. Let",
+        "correct": false,
+        "ttft_sec": 0.0048529170016990975,
+        "itl_p95_sec": 0.004786249999597203,
+        "peak_memory_bytes": 1108842308
+      }
+    ],
+    "task_id_filter": [
+      "extract-01"
+    ],
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

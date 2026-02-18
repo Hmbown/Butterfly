@@ -1,0 +1,164 @@
+{
+  "created_at": "2026-02-12T03:14:07.273774+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --seed 7 --swap-last-n-layers 1 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_fastpath_20260212T024915Z/s7_last1_t16384_q1_gather",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 7,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      46
+    ],
+    "requested_layer_indices": [
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 1,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 15.880244791999758,
+      "ttft_sec": 0.13444299999991927,
+      "itl_p50_sec": 0.026018707999355684,
+      "itl_p95_sec": 0.026394832999358186,
+      "decode_sec": 1.7841457500007891,
+      "e2e_sec": 17.664390542000547,
+      "decode_tok_s": 35.871508815897855,
+      "peak_memory_bytes": 20828764700,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 15.89249666700016,
+      "ttft_sec": 0.1349183329994048,
+      "itl_p50_sec": 0.019783292000283836,
+      "itl_p95_sec": 0.0199683750006443,
+      "decode_sec": 1.389975625000261,
+      "e2e_sec": 17.28247229200042,
+      "decode_tok_s": 46.043972893400905,
+      "peak_memory_bytes": 21040577052,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 15.872359334000066,
+      "ttft_sec": 0.12941845800014562,
+      "itl_p50_sec": 0.01975841599960404,
+      "itl_p95_sec": 0.019941083999583498,
+      "decode_sec": 1.3830052079993038,
+      "e2e_sec": 17.25536454199937,
+      "decode_tok_s": 46.276036872329854,
+      "peak_memory_bytes": 21040577052,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9. Record B: ticket ticket=ALPHA-7777, owner=JON, checksum=\\9Z9Z9. Question: return only only",
+        "correct": true,
+        "ttft_sec": 0.01645841699973971,
+        "itl_p95_sec": 0.015139707999878738,
+        "peak_memory_bytes": 17215707508
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": " 2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05 amount=11. Question: return only the amount on 2026-01-04. 2026-01-03 amount=17; 2026-01",
+        "correct": true,
+        "ttft_sec": 0.01570520800032682,
+        "itl_p95_sec": 0.014787167000577028,
+        "peak_memory_bytes": 17195353705
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9V9V9V9.png)\n\nWait, the image is a placeholder, but the problem is clear: (48 * 7) - 19. The user wants the exact result, and only the number.\n\nLet's calculate:\n48 * 7 = 336",
+        "correct": false,
+        "ttft_sec": 0.016692832999979146,
+        "itl_p95_sec": 0.014809457999945153,
+        "peak_memory_bytes": 17134896084
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.015088791000380297,
+        "itl_p95_sec": 0.014316541999505716,
+        "peak_memory_bytes": 17133722224
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9l9",
+        "correct": true,
+        "ttft_sec": 0.015168791000178317,
+        "itl_p95_sec": 0.014293207999799051,
+        "peak_memory_bytes": 17153447216
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.01515845799985982,
+        "itl_p95_sec": 0.014336125000227185,
+        "peak_memory_bytes": 17148244857
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

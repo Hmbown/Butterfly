@@ -1,0 +1,164 @@
+{
+  "created_at": "2026-02-12T14:08:04.934397+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --seed 99 --swap-layer-indices 16 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_final_idx16_20260212T140034Z/s99_idx16",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 99,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      16
+    ],
+    "requested_layer_indices": [
+      16
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "16",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 16.55905637500109,
+      "ttft_sec": 0.22037016600370407,
+      "itl_p50_sec": 0.0193597499965108,
+      "itl_p95_sec": 0.019638749996374827,
+      "decode_sec": 1.4525231669977074,
+      "e2e_sec": 18.0115795419988,
+      "decode_tok_s": 44.06125936860945,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 16.07962029099872,
+      "ttft_sec": 0.15172933299618308,
+      "itl_p50_sec": 0.019455665998975746,
+      "itl_p95_sec": 0.01974566699936986,
+      "decode_sec": 1.389993124998,
+      "e2e_sec": 17.46961341599672,
+      "decode_tok_s": 46.043393200302404,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 16.171602000002167,
+      "ttft_sec": 0.15524404200550634,
+      "itl_p50_sec": 0.019481833995087072,
+      "itl_p95_sec": 0.021060958002635743,
+      "decode_sec": 1.4160844169964548,
+      "e2e_sec": 17.587686416998622,
+      "decode_tok_s": 45.19504574151403,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4.\nRecord A: ticket=ALPHA-7777, owner=JAE, checksum=9X9X. Record B: ticket ticket=ALPHA-9909, owner=JAE, checksum= }9{9. Question: return only the checksum for ticket",
+        "correct": true,
+        "ttft_sec": 0.01456187500298256,
+        "itl_p95_sec": 0.014562917000148445,
+        "peak_memory_bytes": 16981439190
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-04 amount=23;\nI need to return only the amount on 2026-01-04.\nThe input data is:\n2026-01-03 amount=17;\n2026-01-04 amount=23;\n2026-01-05 amount=11.\n\nI",
+        "correct": true,
+        "ttft_sec": 0.014984333000029437,
+        "itl_p95_sec": 0.015321999999287073,
+        "peak_memory_bytes": 16960316686
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "[](https://i.imgur.com/9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9C9",
+        "correct": false,
+        "ttft_sec": 0.01522379100060789,
+        "itl_p95_sec": 0.015071333000378218,
+        "peak_memory_bytes": 16903567274
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.014273417000367772,
+        "itl_p95_sec": 0.015402167002321221,
+        "peak_memory_bytes": 16902133505
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/9T9C9C9.png)\n\n```\nimport pandas as pd\n\ndata = {\n    \"NYC\": [8, 5, 9, 5, 9, 9, 9, 9, 9, 9, 9,",
+        "correct": true,
+        "ttft_sec": 0.015288875001715496,
+        "itl_p95_sec": 0.015535250000539236,
+        "peak_memory_bytes": 16920592678
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.015051457994559314,
+        "itl_p95_sec": 0.015410959000291768,
+        "peak_memory_bytes": 16915697338
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "qwen3_consumer_quality_v1",
+  "version": "2026-02-12",
+  "tasks": [
+    {
+      "id": "extract-01",
+      "prompt": "You are given notes. Record A: ticket=ALPHA-7721, owner=RUI, checksum=Q9X4. Record B: ticket=BETA-1988, owner=JAE, checksum=M1P2. Question: return only the checksum for ticket ALPHA-7721.",
+      "expected": "Q9X4"
+    },
+    {
+      "id": "extract-02",
+      "prompt": "Log entries: 2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05 amount=11. Question: return only the amount on 2026-01-04.",
+      "expected": "23"
+    },
+    {
+      "id": "math-01",
+      "prompt": "Compute exactly and return only a number: (48 * 7) - 19.",
+      "expected": "317"
+    },
+    {
+      "id": "math-02",
+      "prompt": "Compute exactly and return only a number: 144 / 12 + 39.",
+      "expected": "51"
+    },
+    {
+      "id": "lookup-01",
+      "prompt": "Table: NYC=8, SF=5, SEA=9, BOS=4. Question: return only the value for SEA.",
+      "expected": "9"
+    },
+    {
+      "id": "lookup-02",
+      "prompt": "IDs: AX41->red, BM77->green, CZ03->blue. Return only the color for BM77.",
+      "expected": "green"
+    }
+  ]
+}

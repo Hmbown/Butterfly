@@ -1,0 +1,321 @@
+{
+  "created_at": "2026-02-12T14:44:43.018432+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-quality --skip-multi-turn --seed 42 --swap-layer-indices 16 --active-dense-threshold 16384 --hsa-trace --hsa-trace-max-layers 1 --hsa-trace-max-steps 16 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/hsa_trace_diag_20260212T144401Z/s42_idx16_trace",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      16
+    ],
+    "requested_layer_indices": [
+      16
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 0,
+    "swap_layer_indices_arg": "16",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 16.737825541000348,
+      "ttft_sec": 0.18946804200095357,
+      "itl_p50_sec": 0.018975292005052324,
+      "itl_p95_sec": 0.019391041998460423,
+      "decode_sec": 0.476802958000917,
+      "e2e_sec": 17.214628499001265,
+      "decode_tok_s": 33.55683879790282,
+      "peak_memory_bytes": 20662665148,
+      "sample_output_text": "  } } } } } } } } } } } } } } }",
+      "hsa_trace_summary": {
+        "sample_count": 18,
+        "layer_observations": 18,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 16
+        },
+        "path_counts": {
+          "permute": 1,
+          "permute_dense_fallback": 1,
+          "permute_decode_local_tail": 16
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "hsa_trace_samples_head": [
+        {
+          "phase": "prefill",
+          "chunk": 1,
+          "chunk_start": 0,
+          "chunk_end": 4096,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute",
+              "graph_build_ms": 7.034000001847744,
+              "attention_ms": 0.3858340084552765,
+              "total_ms": 8.017791993916035,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "prefill",
+          "chunk": 2,
+          "chunk_start": 4096,
+          "chunk_end": 8192,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_dense_fallback",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.010832995176315308,
+              "total_ms": 0.07170800864696503,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 1,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.006709001958370209,
+              "total_ms": 0.07179099321365356,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 2,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.007707998156547546,
+              "total_ms": 0.07237500697374344,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 3,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004959002137184143,
+              "total_ms": 0.056084007024765015,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 4,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005500011146068573,
+              "total_ms": 0.05854199826717377,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 5,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0053329989314079285,
+              "total_ms": 0.06270799040794373,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 6,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0047919899225234985,
+              "total_ms": 0.04962499439716339,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 7,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.00641699880361557,
+              "total_ms": 0.07004199922084808,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 8,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.00700000673532486,
+              "total_ms": 0.07370799779891968,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 9,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0054580047726631165,
+              "total_ms": 0.05858299881219864,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 10,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.00645899772644043,
+              "total_ms": 0.06383299082517624,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 11,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.005499996244907379,
+              "total_ms": 0.06133400648832321,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 12,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004791006445884705,
+              "total_ms": 0.054082997143268585,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 13,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.004999995231628418,
+              "total_ms": 0.05049999803304672,
+              "notes": {}
+            }
+          ]
+        },
+        {
+          "phase": "decode",
+          "step": 14,
+          "layers": [
+            {
+              "layer_idx": 16,
+              "path": "permute_decode_local_tail",
+              "graph_build_ms": 0.0,
+              "attention_ms": 0.0047919973731040955,
+              "total_ms": 0.049417003989219666,
+              "notes": {}
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

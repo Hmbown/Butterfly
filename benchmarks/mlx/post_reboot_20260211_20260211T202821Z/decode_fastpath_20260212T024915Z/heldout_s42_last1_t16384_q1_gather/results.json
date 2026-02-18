@@ -1,0 +1,283 @@
+{
+  "created_at": "2026-02-12T03:19:45.013980+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --seed 42 --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json --skip-single-turn --skip-multi-turn --swap-last-n-layers 1 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_fastpath_20260212T024915Z/heldout_s42_last1_t16384_q1_gather",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 1,
+    "replaced_layer_indices": [
+      46
+    ],
+    "requested_layer_indices": [
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 1,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json",
+    "num_tasks": 24,
+    "correct": 2,
+    "accuracy": 0.08333333333333333,
+    "rows": [
+      {
+        "id": "extract-h01",
+        "expected": "K7Q2",
+        "output": " 9101 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109 9109",
+        "correct": false,
+        "ttft_sec": 0.9166944999997213,
+        "itl_p95_sec": 0.01500091700017947,
+        "peak_memory_bytes": 16934066756
+      },
+      {
+        "id": "extract-h02",
+        "expected": "T5N1",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015180541000518133,
+        "itl_p95_sec": 0.014238665999982913,
+        "peak_memory_bytes": 16988871912
+      },
+      {
+        "id": "extract-h03",
+        "expected": "W8C4",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015047791999677429,
+        "itl_p95_sec": 0.014218209000318893,
+        "peak_memory_bytes": 16988993352
+      },
+      {
+        "id": "extract-h04",
+        "expected": "B6V5",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.015030125000521366,
+        "itl_p95_sec": 0.014182625000103144,
+        "peak_memory_bytes": 16981674080
+      },
+      {
+        "id": "extract-h05",
+        "expected": "Q4R6",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015178415999798744,
+        "itl_p95_sec": 0.01417729100012366,
+        "peak_memory_bytes": 16987447789
+      },
+      {
+        "id": "extract-h06",
+        "expected": "N8T1",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015905041999758396,
+        "itl_p95_sec": 0.01425558299979457,
+        "peak_memory_bytes": 16977138420
+      },
+      {
+        "id": "extract-h07",
+        "expected": "C5H7",
+        "output": "  5  5  5  5  \\n 5  5  5  5  5  5  5  5  5  5  5  5  5  5  5  5 ",
+        "correct": false,
+        "ttft_sec": 0.015045040999211778,
+        "itl_p95_sec": 0.01416170799984684,
+        "peak_memory_bytes": 16983405437
+      },
+      {
+        "id": "extract-h08",
+        "expected": "J9B8",
+        "output": "[](https://i.imgur.com/7i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9i9",
+        "correct": false,
+        "ttft_sec": 0.015269374999661522,
+        "itl_p95_sec": 0.014212583000698942,
+        "peak_memory_bytes": 16987483957
+      },
+      {
+        "id": "extract-h09",
+        "expected": "U3Z7",
+        "output": " 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5",
+        "correct": false,
+        "ttft_sec": 0.014532709000377508,
+        "itl_p95_sec": 0.014162999999825843,
+        "peak_memory_bytes": 16989048096
+      },
+      {
+        "id": "extract-h10",
+        "expected": "E6Q9",
+        "output": " { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { { {",
+        "correct": false,
+        "ttft_sec": 0.015056624999488122,
+        "itl_p95_sec": 0.014204582999809645,
+        "peak_memory_bytes": 16989048096
+      },
+      {
+        "id": "extract-h11",
+        "expected": "G7N3",
+        "output": "[](https://i.imgur.com/7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7i7",
+        "correct": false,
+        "ttft_sec": 0.014815667000220856,
+        "itl_p95_sec": 0.014129207999758364,
+        "peak_memory_bytes": 16989048096
+      },
+      {
+        "id": "extract-h12",
+        "expected": "R9F1",
+        "output": " 9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9F9",
+        "correct": false,
+        "ttft_sec": 0.015270458000486542,
+        "itl_p95_sec": 0.014221499999621301,
+        "peak_memory_bytes": 16983405437
+      },
+      {
+        "id": "extract-h13",
+        "expected": "Z1H5",
+        "output": " { \"ticket\": \"GLINT-3689\", \"owner\": \"MEI\", \"checksum\": \"Z1H5\" } { \"ticket\": \"HALO-4790\", \"owner\": \"ZEN\", \"checksum\": \"C8V2\" } { \"ticket\": \"GL",
+        "correct": true,
+        "ttft_sec": 0.01485316700018302,
+        "itl_p95_sec": 0.014242000000194821,
+        "peak_memory_bytes": 16990792540
+      },
+      {
+        "id": "extract-h14",
+        "expected": "B3M4",
+        "output": " { \"ticket\": \"IONIC-5801\", \"owner\": \"TAI\", \"checksum\": \"B3A9\" } { \"ticket\": \"JETTY-691\", \"owner\": \"SOL\", \"checksum\": \"N6R7\" } { \"ticket\": \"ION",
+        "correct": false,
+        "ttft_sec": 0.015000041000348574,
+        "itl_p95_sec": 0.01429929100049776,
+        "peak_memory_bytes": 16990833840
+      },
+      {
+        "id": "extract-h15",
+        "expected": "P8T6",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.015102542000022368,
+        "itl_p95_sec": 0.014141792000373243,
+        "peak_memory_bytes": 16990833840
+      },
+      {
+        "id": "extract-h16",
+        "expected": "H7W3",
+        "output": " { \"ticket\": \"MORPH-9245\", \"owner\": \"NOVA\", \"checksum\": \"H7W3\" } { \"ticket\": \"NEXUS-9245\", \"owner\": \"ORI\", \"checksum\": \"F9K9\" } { \"ticket\":",
+        "correct": true,
+        "ttft_sec": 0.015188250000392145,
+        "itl_p95_sec": 0.014183459000378207,
+        "peak_memory_bytes": 16990833840
+      },
+      {
+        "id": "lookup-h01",
+        "expected": "33",
+        "output": " 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9 7 9",
+        "correct": false,
+        "ttft_sec": 0.016470540999762306,
+        "itl_p95_sec": 0.014711583999996947,
+        "peak_memory_bytes": 16924031849
+      },
+      {
+        "id": "lookup-h02",
+        "expected": "29",
+        "output": "  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7  7 ",
+        "correct": false,
+        "ttft_sec": 0.016032958999858238,
+        "itl_p95_sec": 0.014327541000056954,
+        "peak_memory_bytes": 16915410284
+      },
+      {
+        "id": "lookup-h03",
+        "expected": "teal",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.015128791999813984,
+        "itl_p95_sec": 0.0142282079996221,
+        "peak_memory_bytes": 16920975965
+      },
+      {
+        "id": "lookup-h04",
+        "expected": "11",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.014888208999764174,
+        "itl_p95_sec": 0.014205000000401924,
+        "peak_memory_bytes": 16926145572
+      },
+      {
+        "id": "math-h01",
+        "expected": "273",
+        "output": "  7  9  9  9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015293708999706723,
+        "itl_p95_sec": 0.01431162500011851,
+        "peak_memory_bytes": 16908046824
+      },
+      {
+        "id": "math-h02",
+        "expected": "49",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015039541999612993,
+        "itl_p95_sec": 0.014215707999937877,
+        "peak_memory_bytes": 16906472504
+      },
+      {
+        "id": "math-h03",
+        "expected": "231",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.014940541999749257,
+        "itl_p95_sec": 0.014212041999599023,
+        "peak_memory_bytes": 16908109356
+      },
+      {
+        "id": "math-h04",
+        "expected": "74",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.015041958999972849,
+        "itl_p95_sec": 0.014235459000701667,
+        "peak_memory_bytes": 16906505272
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

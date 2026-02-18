@@ -1,0 +1,89 @@
+{
+  "task_id": "extract-01",
+  "dense_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/quality_localization_diag_20260212T002127Z/trace_dense_extract01/results.json",
+  "wayfinder_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/quality_localization_diag_20260212T002127Z/trace_wayfinder_extract01/results.json",
+  "dense_output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9Z9Z9.",
+  "wayfinder_output": " (Record A)\n7f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+  "dense_correct": true,
+  "wayfinder_correct": false,
+  "trace_steps_compared": 16,
+  "first_divergence_step": 1,
+  "dense_trace_at_divergence": {
+    "step": 1,
+    "chosen_token_id": 9255,
+    "chosen_token_logit": 127.0,
+    "topk": [
+      {
+        "token_id": 9255,
+        "logit": 127.0
+      },
+      {
+        "token_id": 220,
+        "logit": 126.0
+      },
+      {
+        "token_id": 314,
+        "logit": 125.5
+      },
+      {
+        "token_id": 280,
+        "logit": 125.5
+      },
+      {
+        "token_id": 21754,
+        "logit": 125.0
+      },
+      {
+        "token_id": 320,
+        "logit": 124.5
+      },
+      {
+        "token_id": 576,
+        "logit": 124.0
+      },
+      {
+        "token_id": 50659,
+        "logit": 123.5
+      }
+    ]
+  },
+  "wayfinder_trace_at_divergence": {
+    "step": 1,
+    "chosen_token_id": 320,
+    "chosen_token_logit": 120.0,
+    "topk": [
+      {
+        "token_id": 320,
+        "logit": 120.0
+      },
+      {
+        "token_id": 280,
+        "logit": 119.5
+      },
+      {
+        "token_id": 9255,
+        "logit": 119.5
+      },
+      {
+        "token_id": 314,
+        "logit": 119.0
+      },
+      {
+        "token_id": 576,
+        "logit": 118.5
+      },
+      {
+        "token_id": 21754,
+        "logit": 118.0
+      },
+      {
+        "token_id": 1939,
+        "logit": 118.0
+      },
+      {
+        "token_id": 220,
+        "logit": 118.0
+      }
+    ]
+  }
+}

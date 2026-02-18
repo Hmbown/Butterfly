@@ -1,0 +1,101 @@
+{
+  "profile_file": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_fastpath_20260212T024915Z/profile_candidate_last4_t16384_q1_gather.prof",
+  "top_hcsa": [
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/glm_mlx.py",
+      "line": 315,
+      "func": "__call__",
+      "tt": 0.030352950000000004,
+      "ct": 10.889433497,
+      "ncalls": 140
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/attention.py",
+      "line": 1098,
+      "func": "wayfinder_permute_window_attention_active_batched",
+      "tt": 0.000566436,
+      "ct": 8.280825742000001,
+      "ncalls": 132
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 191,
+      "func": "wayfinder_fused_permute_window_attention_active",
+      "tt": 0.0008474110000000001,
+      "ct": 8.279564085,
+      "ncalls": 132
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 279,
+      "func": "_active_via_full_prefill",
+      "tt": 7.161815130000001,
+      "ct": 7.161845208000001,
+      "ncalls": 4
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/mlx/fused_attention.py",
+      "line": 377,
+      "func": "_active_via_gather",
+      "tt": 1.116769575,
+      "ct": 1.116867759,
+      "ncalls": 128
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+      "line": 467,
+      "func": "get_or_build_cache",
+      "tt": 0.00029498800000000004,
+      "ct": 0.16872726600000001,
+      "ncalls": 140
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+      "line": 304,
+      "func": "_build_cache",
+      "tt": 0.0045189950000000005,
+      "ct": 0.127569795,
+      "ncalls": 35
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+      "line": 90,
+      "func": "_mx_nbytes",
+      "tt": 0.068702702,
+      "ct": 0.06876345,
+      "ncalls": 210
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/integrations/qwen_mlx.py",
+      "line": 239,
+      "func": "_build_graph_abi",
+      "tt": 7.2668e-05,
+      "ct": 0.040670751000000005,
+      "ncalls": 35
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/topology/core.py",
+      "line": 134,
+      "func": "construct_perms_only",
+      "tt": 0.0010168150000000001,
+      "ct": 0.040356501,
+      "ncalls": 35
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/graph_strategies.py",
+      "line": 112,
+      "func": "_sample_perms",
+      "tt": 0.000530278,
+      "ct": 0.010161841000000001,
+      "ncalls": 700
+    },
+    {
+      "file": "/Volumes/VIXinSSD/wayfinder/hcsa/cycles.py",
+      "line": 68,
+      "func": "random_cycle",
+      "tt": 0.00027519100000000004,
+      "ct": 0.009631563000000001,
+      "ncalls": 700
+    }
+  ]
+}

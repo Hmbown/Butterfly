@@ -1,0 +1,50 @@
+{
+  "dense": {
+    "extract": {
+      "correct": 3,
+      "num_tasks": 16,
+      "accuracy": 0.1875
+    },
+    "lookup": {
+      "correct": 0,
+      "num_tasks": 4,
+      "accuracy": 0.0
+    },
+    "math": {
+      "correct": 0,
+      "num_tasks": 4,
+      "accuracy": 0.0
+    }
+  },
+  "candidate": {
+    "extract": {
+      "correct": 4,
+      "num_tasks": 16,
+      "accuracy": 0.25
+    },
+    "lookup": {
+      "correct": 0,
+      "num_tasks": 4,
+      "accuracy": 0.0
+    },
+    "math": {
+      "correct": 0,
+      "num_tasks": 4,
+      "accuracy": 0.0
+    }
+  },
+  "delta_vs_dense": {
+    "extract": {
+      "delta_abs": 0.0625,
+      "delta_pct_vs_dense": 33.33333333333333
+    },
+    "lookup": {
+      "delta_abs": 0.0,
+      "delta_pct_vs_dense": null
+    },
+    "math": {
+      "delta_abs": 0.0,
+      "delta_pct_vs_dense": null
+    }
+  }
+}

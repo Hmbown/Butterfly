@@ -1,0 +1,106 @@
+{
+  "created_at": "2026-02-11T20:32:09.879430+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --active-dense-threshold 0 --seed 42 --quality-dataset /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --skip-single-turn --skip-multi-turn --out-dir /Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/consumer_wayfinder_quality",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": null,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 47
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 2,
+    "accuracy": 0.3333333333333333,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " (Record A)\n7f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f",
+        "correct": false,
+        "ttft_sec": 1.778666666999925,
+        "itl_p95_sec": 0.06397849999484606,
+        "peak_memory_bytes": 16944905036
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": " 2026-01-03 17; 2026-01-04 23; 2026-01-05 11;\n2026-01-03 17;\n2026-01-03 17;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n;\n",
+        "correct": true,
+        "ttft_sec": 0.042131166002945974,
+        "itl_p95_sec": 0.05002204200718552,
+        "peak_memory_bytes": 16991551710
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.040156374976504594,
+        "itl_p95_sec": 0.04527008399600163,
+        "peak_memory_bytes": 16915107525
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.03875970799708739,
+        "itl_p95_sec": 0.053019832994323224,
+        "peak_memory_bytes": 16913332731
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": " 8 9 5 7 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": true,
+        "ttft_sec": 0.039206165994983166,
+        "itl_p95_sec": 0.047681417025160044,
+        "peak_memory_bytes": 16938204987
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9",
+        "correct": false,
+        "ttft_sec": 0.039649250014917925,
+        "itl_p95_sec": 0.04740929199033417,
+        "peak_memory_bytes": 16931769573
+      }
+    ]
+  }
+}

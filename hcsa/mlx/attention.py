@@ -405,6 +405,123 @@ def sparse_gather_attention(
     return y, None
 
 
+def sparse_gather_attention_active(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    graph: MLXGraphABI,
+    *,
+    query_positions: mx.array,
+    return_weights: bool = False,
+    precomputed_safe_idx: Optional[mx.array] = None,
+    precomputed_causal_mask: Optional[mx.array] = None,
+    edge_type_bias: Optional[mx.array] = None,
+    edge_type_bias_offset: Optional[mx.array] = None,
+    window_drop_mask: Optional[mx.array] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    """Sparse gather for active query rows where Tq <= Tk.
+
+    q: [B, H, Tq, dh] contains only active query rows.
+    k/v: [B, H, Tk, dh] contains full currently available KV prefix.
+    query_positions: [Tq] original token positions for each query row in q.
+    """
+    B, H, Tq, dh = q.shape
+    Bk, Hk, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B:
+        raise ValueError("q, k, v batch size mismatch")
+    if Hk != H or Hv != H:
+        raise ValueError("q, k, v must share head count for sparse active gather")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+    if Tv != Tk:
+        raise ValueError("k and v sequence length mismatch")
+    if tuple(query_positions.shape) != (Tq,):
+        raise ValueError(f"query_positions must be shape ({Tq},), got {query_positions.shape}")
+
+    Tg = int(graph.neigh_idx.shape[1])
+    D = int(graph.neigh_idx.shape[-1])
+    if Tg < Tk:
+        raise ValueError(f"graph sequence length Tg={Tg} must be >= Tk={Tk}")
+
+    if D == 0:
+        out = mx.zeros((B, H, Tq, dh), dtype=q.dtype)
+        if return_weights:
+            return out, mx.zeros((B, H, Tq, 0), dtype=mx.float32)
+        return out, None
+
+    q_pos = query_positions.astype(mx.int32)
+    if Tq > 0:
+        q_min = int(mx.min(q_pos).item())
+        q_max = int(mx.max(q_pos).item())
+        if q_min < 0 or q_max >= Tg:
+            raise ValueError(
+                f"query_positions must be in [0, {Tg}), got min={q_min}, max={q_max}"
+            )
+
+    if precomputed_safe_idx is not None:
+        s_idx_full = precomputed_safe_idx
+    else:
+        s_idx_full = safe_neighbor_idx(graph.neigh_idx, Tg)
+    if precomputed_causal_mask is not None:
+        mask_full = precomputed_causal_mask
+    else:
+        mask_full = causal_neighbor_mask(graph.neigh_idx, Tg)
+
+    s_idx = mx.take(s_idx_full, q_pos, axis=1)  # [H, Tq, D]
+    mask = mx.take(mask_full, q_pos, axis=1)  # [H, Tq, D]
+
+    if window_drop_mask is not None:
+        mask = mask & mx.take(window_drop_mask, q_pos, axis=1)
+
+    available = s_idx < Tk
+    mask = mask & available
+    s_idx = mx.clip(s_idx, 0, max(Tk - 1, 0))
+
+    bias_htd: Optional[mx.array] = None
+    if edge_type_bias is not None or edge_type_bias_offset is not None:
+        bias_vec = mx.zeros((4,), dtype=mx.float32)
+        if edge_type_bias is not None:
+            bias_vec = bias_vec + edge_type_bias.astype(mx.float32)
+        if edge_type_bias_offset is not None:
+            bias_vec = bias_vec + edge_type_bias_offset.astype(mx.float32)
+        full_bias = mx.concatenate([mx.zeros((1,), dtype=mx.float32), bias_vec])  # [5]
+        et_rows = mx.take(graph.edge_type.astype(mx.int32), q_pos, axis=1)  # [H, Tq, D]
+        bias_htd = full_bias[et_rows]
+
+    ys: list[mx.array] = []
+    ws: list[mx.array] = []
+
+    for h in range(H):
+        q_h = q[:, h]  # [B, Tq, dh]
+        k_h = k[:, h]  # [B, Tk, dh]
+        v_h = v[:, h]  # [B, Tk, dh]
+        idx_h = s_idx[h]  # [Tq, D]
+        mask_h = mask[h]  # [Tq, D]
+
+        k_g = k_h[:, idx_h]  # [B, Tq, D, dh]
+        v_g = v_h[:, idx_h]
+
+        scores = mx.sum(
+            q_h[:, :, None, :].astype(mx.float32) * k_g.astype(mx.float32),
+            axis=-1,
+        ) / math.sqrt(dh)
+
+        if bias_htd is not None:
+            scores = scores + bias_htd[h][None, :, :]
+
+        w_h = stable_masked_softmax(scores, mask_h[None, :, :], axis=-1)
+        y_h = mx.sum(w_h[:, :, :, None] * v_g.astype(mx.float32), axis=2)
+        ys.append(y_h.astype(v.dtype))
+        if return_weights:
+            ws.append(w_h)
+
+    y = mx.stack(ys, axis=1)  # [B, H, Tq, dh]
+    if return_weights:
+        return y, mx.stack(ws, axis=1)
+    return y, None
+
+
 def permute_cycle_window_attention_single(
     q_h: mx.array,
     k_h: mx.array,
@@ -625,6 +742,7 @@ def wayfinder_permute_window_attention_batched(
     circular: bool = False,
     multi_cycle_mode: Literal["average", "union"] = "average",
     use_fused_dispatch: bool = True,
+    scale: Optional[float] = None,
 ) -> Tuple[mx.array, mx.array | None]:
     """Chunked permute-window attention across heads and query positions.
 
@@ -760,6 +878,7 @@ def wayfinder_permute_window_attention_batched(
             all_inv_perms=all_inv_perms,
             window=window,
             query_chunk_size=query_chunk_size,
+            scale=scale,
         )
         return y, None
 
@@ -778,7 +897,7 @@ def wayfinder_permute_window_attention_batched(
 
     kv_repeat = Hq // Hkv
     q_to_kv_head = np.arange(Hq, dtype=np.int32) // kv_repeat
-    scale = 1.0 / math.sqrt(dh)
+    scale = scale if scale is not None else 1.0 / math.sqrt(dh)
 
     y_chunks: list[mx.array] = []
     for chunk_idx, h0 in enumerate(range(0, Hq, h_chunk), start=1):
@@ -1115,6 +1234,8 @@ def wayfinder_permute_window_attention_active_batched(
     circular: bool = False,
     multi_cycle_mode: Literal["average", "union"] = "average",
     use_fused_dispatch: bool = False,
+    prefer_gather_for_small_tq: bool = False,
+    scale: Optional[float] = None,
 ) -> Tuple[mx.array, mx.array | None]:
     """Permute-window attention for active query rows (Q_len <= K_len).
 
@@ -1127,6 +1248,9 @@ def wayfinder_permute_window_attention_active_batched(
     use_fused_dispatch: attempt all-head fused path when eligible (default False;
         the active-row fused path currently adds graph compilation overhead that
         exceeds the eval barrier savings)
+    prefer_gather_for_small_tq: when True, fused active dispatch may skip
+        the Tg==Tk full-prefill route for tiny query blocks and directly use
+        flat-index gather (decode-oriented path).
     """
     B, Hq, Tq, dh = q.shape
     Bk, Hkv, Tk, dhk = k.shape
@@ -1211,6 +1335,8 @@ def wayfinder_permute_window_attention_active_batched(
                 circular=circular,
                 multi_cycle_mode=multi_cycle_mode,
                 use_fused_dispatch=use_fused_dispatch,
+                prefer_gather_for_small_tq=prefer_gather_for_small_tq,
+                scale=scale,
             )
             ys.append(y_c.astype(mx.float32))
         if len(ys) == 1:
@@ -1258,6 +1384,7 @@ def wayfinder_permute_window_attention_active_batched(
                 query_positions=query_positions,
                 window=int(max(0, window)),
                 query_chunk_size=query_chunk_size,
+                scale=scale,
             )
             return y, None
 
@@ -1273,6 +1400,8 @@ def wayfinder_permute_window_attention_active_batched(
             query_chunk_size=query_chunk_size,
             circular=circular,
             edge_type_bias_scalar=edge_type_bias_scalar,
+            prefer_gather_for_small_tq=prefer_gather_for_small_tq,
+            scale=scale,
         )
         return y, None
 
@@ -1297,7 +1426,7 @@ def wayfinder_permute_window_attention_active_batched(
     kv_repeat = Hq // Hkv
     q_to_kv_head = np.arange(Hq, dtype=np.int32) // kv_repeat
     offsets = mx.arange(-window, window + 1, dtype=mx.int32).reshape(1, 2 * window + 1)
-    scale = 1.0 / math.sqrt(dh)
+    scale = scale if scale is not None else 1.0 / math.sqrt(dh)
 
     y_head_chunks: list[mx.array] = []
     for chunk_idx, h0 in enumerate(range(0, Hq, h_chunk), start=1):
@@ -1422,7 +1551,10 @@ def wayfinder_permute_window_attention_active_batched(
         else:
             y_local = mx.stack(y_heads_local, axis=1)
         y_head_chunks.append(y_local)
-        mx.eval(y_local)
+        # Skip eval for small Tq (decode) to allow cross-layer graph fusion.
+        # The eval bounds memory during large-Tq multi-chunk active prefill.
+        if Tq > q_chunk:
+            mx.eval(y_local)
         if log_progress:
             print(
                 f"      permute_active: head_chunk {chunk_idx}/{num_h_chunks} heads[{h0}:{h1}] done",

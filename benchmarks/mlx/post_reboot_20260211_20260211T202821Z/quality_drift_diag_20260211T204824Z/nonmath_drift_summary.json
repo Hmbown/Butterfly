@@ -1,0 +1,15 @@
+{
+  "task_ids": [
+    "extract-01",
+    "extract-02",
+    "lookup-01"
+  ],
+  "dense_accuracy": 1.0,
+  "wayfinder_accuracy": 0.6666666666666666,
+  "dense_correct": 3,
+  "wayfinder_correct": 2,
+  "num_tasks": 3,
+  "drift": -0.33333333333333337,
+  "drift_delta_vs_fullset_baseline": -0.16666666666666669,
+  "drift_delta_pct_vs_fullset_baseline": -100.0
+}

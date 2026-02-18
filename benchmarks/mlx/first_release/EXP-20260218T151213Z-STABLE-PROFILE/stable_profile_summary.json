@@ -1,0 +1,62 @@
+{
+  "id": "EXP-20260218T151213Z-STABLE-PROFILE",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "seq_len": 8192,
+  "decode_len": 32,
+  "repeats": 1,
+  "artifacts": {
+    "dense_results": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/dense/results.json",
+    "wayfinder_results": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/wayfinder/results.json",
+    "summary_md": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.md"
+  },
+  "dense": {
+    "e2e_sec": 17.147269542001595,
+    "prefill_sec": 16.35862916699989,
+    "decode_sec": 0.7886403750017053,
+    "decode_tok_s": 40.576162487154946,
+    "peak_memory_bytes": 20660500140.0,
+    "ttft_sec": 0.16863245899730828,
+    "itl_p95_sec": 0.020285583996155765,
+    "path_counts": {
+      "dense": 34
+    },
+    "dense_fallback_reason_counts": {},
+    "dense_fallback_share_run": 0.0
+  },
+  "wayfinder": {
+    "e2e_sec": 10.556340832998103,
+    "prefill_sec": 9.753327874997922,
+    "decode_sec": 0.8030129580001812,
+    "decode_tok_s": 39.84991734092637,
+    "peak_memory_bytes": 20071482232.0,
+    "ttft_sec": 0.17882283400103915,
+    "itl_p95_sec": 0.020229874993674457,
+    "path_counts": {
+      "wayfinder": 16,
+      "wayfinder_dense_fallback": 256
+    },
+    "dense_fallback_reason_counts": {
+      "unspecified": 256
+    },
+    "dense_fallback_share_run": 0.9411764705882353
+  },
+  "delta_wayfinder_vs_dense_abs": {
+    "e2e_sec": -6.590928709003492,
+    "prefill_sec": -6.605301292001968,
+    "decode_sec": 0.014372582998475991,
+    "decode_tok_s": -0.7262451462285782,
+    "peak_memory_bytes": -589017908.0,
+    "ttft_sec": 0.010190375003730878,
+    "itl_p95_sec": -5.5709002481307834e-05
+  },
+  "delta_wayfinder_vs_dense_pct": {
+    "e2e_sec": -38.43719078923475,
+    "prefill_sec": -40.378085624232995,
+    "decode_sec": 1.8224508222071325,
+    "decode_tok_s": -1.7898320139527317,
+    "peak_memory_bytes": -2.8509373152086726,
+    "ttft_sec": 6.042949894891551,
+    "itl_p95_sec": -0.2746236070495432
+  },
+  "memory_reduction_pct_convention": 2.850937315208668
+}

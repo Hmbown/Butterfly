@@ -1,0 +1,560 @@
+{
+  "sweep_config": {
+    "model": "openai-community/gpt2",
+    "seq_lens": [
+      256,
+      512,
+      1024
+    ],
+    "window": 64,
+    "max_degree": 130,
+    "seed": 42,
+    "n_heads": 12,
+    "patterns": [
+      "dense",
+      "window_only",
+      "window+landmarks",
+      "window+random",
+      "window+cycle",
+      "window+cycle_pure",
+      "window+multicycle",
+      "window+expander"
+    ]
+  },
+  "seq_len_results": {
+    "256": {
+      "dense_baseline": {
+        "perplexity": 28.25
+      },
+      "num_multicycles": 16,
+      "results": [
+        {
+          "pattern": "dense",
+          "loss": 3.341,
+          "perplexity": 28.25,
+          "top1_agreement": 1.0,
+          "cosine_similarity": 1.0,
+          "wall_ms": 11.6,
+          "effective_degree": 0.0
+        },
+        {
+          "pattern": "window_only",
+          "loss": 6.0044,
+          "perplexity": 405.22,
+          "top1_agreement": 0.3164,
+          "cosine_similarity": 0.8839,
+          "wall_ms": 38.5,
+          "effective_degree": 56.9,
+          "spectral_gap": 0.1289,
+          "mixing_time": 58,
+          "diameter": 4,
+          "quality_score": 0.4631,
+          "graph_quality": {
+            "spectral_gap": 0.12887132813657753,
+            "mixing_time": 58,
+            "mixing_interp": "58 layers for global mixing (poor)",
+            "diameter": 4,
+            "mean_distance": 1.990326797385621,
+            "quality_score": 0.463097062509262,
+            "is_good_expander": true,
+            "degree_mean": 111.75
+          }
+        },
+        {
+          "pattern": "window+landmarks",
+          "loss": 3.3653,
+          "perplexity": 28.94,
+          "top1_agreement": 0.918,
+          "cosine_similarity": 0.9992,
+          "wall_ms": 53.6,
+          "effective_degree": 81.0,
+          "spectral_gap": 0.4002,
+          "mixing_time": 19,
+          "diameter": 2,
+          "quality_score": 0.6801,
+          "graph_quality": {
+            "spectral_gap": 0.4001847757652264,
+            "mixing_time": 19,
+            "mixing_interp": "19 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.3713725490196078,
+            "quality_score": 0.6801478206121812,
+            "is_good_expander": true,
+            "degree_mean": 160.0
+          }
+        },
+        {
+          "pattern": "window+random",
+          "loss": 4.1344,
+          "perplexity": 62.45,
+          "top1_agreement": 0.6445,
+          "cosine_similarity": 0.9862,
+          "wall_ms": 53.8,
+          "effective_degree": 97.2,
+          "spectral_gap": 0.6874,
+          "mixing_time": 11,
+          "diameter": 2,
+          "quality_score": 0.76,
+          "graph_quality": {
+            "spectral_gap": 0.687381839519553,
+            "mixing_time": 11,
+            "mixing_interp": "11 layers for global mixing (moderate)",
+            "diameter": 2,
+            "mean_distance": 1.2275816993464053,
+            "quality_score": 0.76,
+            "is_good_expander": true,
+            "degree_mean": 192.4921875
+          }
+        },
+        {
+          "pattern": "window+cycle",
+          "loss": 3.3748,
+          "perplexity": 29.22,
+          "top1_agreement": 0.9102,
+          "cosine_similarity": 0.9988,
+          "wall_ms": 49.5,
+          "effective_degree": 76.5,
+          "spectral_gap": 0.4539,
+          "mixing_time": 17,
+          "diameter": 2,
+          "quality_score": 0.7231,
+          "graph_quality": {
+            "spectral_gap": 0.45392298704715595,
+            "mixing_time": 17,
+            "mixing_interp": "17 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.3925490196078432,
+            "quality_score": 0.7231383896377248,
+            "is_good_expander": true,
+            "degree_mean": 157.78125
+          }
+        },
+        {
+          "pattern": "window+cycle_pure",
+          "loss": 6.0243,
+          "perplexity": 413.33,
+          "top1_agreement": 0.3242,
+          "cosine_similarity": 0.885,
+          "wall_ms": 34.9,
+          "effective_degree": 58.4,
+          "spectral_gap": 0.2975,
+          "mixing_time": 25,
+          "diameter": 2,
+          "quality_score": 0.598,
+          "graph_quality": {
+            "spectral_gap": 0.2974649811074841,
+            "mixing_time": 25,
+            "mixing_interp": "25 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.512549019607843,
+            "quality_score": 0.5979719848859872,
+            "is_good_expander": true,
+            "degree_mean": 124.4296875
+          }
+        },
+        {
+          "pattern": "window+multicycle",
+          "loss": 5.452,
+          "perplexity": 233.22,
+          "top1_agreement": 0.3633,
+          "cosine_similarity": 0.9214,
+          "wall_ms": 44.6,
+          "effective_degree": 80.4,
+          "spectral_gap": 0.902,
+          "mixing_time": 9,
+          "diameter": 2,
+          "quality_score": 0.76,
+          "graph_quality": {
+            "spectral_gap": 0.902049597939199,
+            "mixing_time": 9,
+            "mixing_interp": "9 layers for global mixing (moderate)",
+            "diameter": 2,
+            "mean_distance": 1.1224836601307189,
+            "quality_score": 0.76,
+            "is_good_expander": true,
+            "degree_mean": 223.21875
+          }
+        },
+        {
+          "pattern": "window+expander",
+          "loss": 5.9492,
+          "perplexity": 383.45,
+          "top1_agreement": 0.3242,
+          "cosine_similarity": 0.882,
+          "wall_ms": 34.5,
+          "effective_degree": 57.4,
+          "spectral_gap": 0.144,
+          "mixing_time": 52,
+          "diameter": 3,
+          "quality_score": 0.4752,
+          "graph_quality": {
+            "spectral_gap": 0.1439507552178535,
+            "mixing_time": 52,
+            "mixing_interp": "52 layers for global mixing (poor)",
+            "diameter": 3,
+            "mean_distance": 1.5966013071895424,
+            "quality_score": 0.4751606041742828,
+            "is_good_expander": true,
+            "degree_mean": 112.75
+          }
+        }
+      ]
+    },
+    "512": {
+      "dense_baseline": {
+        "perplexity": 21.61
+      },
+      "num_multicycles": 18,
+      "results": [
+        {
+          "pattern": "dense",
+          "loss": 3.073,
+          "perplexity": 21.61,
+          "top1_agreement": 1.0,
+          "cosine_similarity": 1.0,
+          "wall_ms": 15.9,
+          "effective_degree": 0.0
+        },
+        {
+          "pattern": "window_only",
+          "loss": 7.4129,
+          "perplexity": 1657.15,
+          "top1_agreement": 0.1934,
+          "cosine_similarity": 0.8672,
+          "wall_ms": 59.7,
+          "effective_degree": 60.9,
+          "spectral_gap": 0.0294,
+          "mixing_time": 263,
+          "diameter": 8,
+          "quality_score": 0.3835,
+          "graph_quality": {
+            "spectral_gap": 0.02941199628687996,
+            "mixing_time": 263,
+            "mixing_interp": "263 layers for global mixing (poor)",
+            "diameter": 8,
+            "mean_distance": 3.124853228962818,
+            "quality_score": 0.38352959702950395,
+            "is_good_expander": false,
+            "degree_mean": 119.875
+          }
+        },
+        {
+          "pattern": "window+landmarks",
+          "loss": 3.5973,
+          "perplexity": 36.5,
+          "top1_agreement": 0.7832,
+          "cosine_similarity": 0.92,
+          "wall_ms": 105.5,
+          "effective_degree": 89.2,
+          "spectral_gap": 0.1903,
+          "mixing_time": 41,
+          "diameter": 2,
+          "quality_score": 0.5123,
+          "graph_quality": {
+            "spectral_gap": 0.19033530966671408,
+            "mixing_time": 41,
+            "mixing_interp": "41 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.6864970645792563,
+            "quality_score": 0.5122682477333713,
+            "is_good_expander": true,
+            "degree_mean": 176.5
+          }
+        },
+        {
+          "pattern": "window+random",
+          "loss": 4.8061,
+          "perplexity": 122.25,
+          "top1_agreement": 0.4277,
+          "cosine_similarity": 0.8778,
+          "wall_ms": 105.9,
+          "effective_degree": 113.6,
+          "spectral_gap": 0.4685,
+          "mixing_time": 17,
+          "diameter": 2,
+          "quality_score": 0.7348,
+          "graph_quality": {
+            "spectral_gap": 0.46849133041418656,
+            "mixing_time": 17,
+            "mixing_interp": "17 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.554859752120026,
+            "quality_score": 0.7347930643313493,
+            "is_good_expander": true,
+            "degree_mean": 225.24609375
+          }
+        },
+        {
+          "pattern": "window+cycle",
+          "loss": 3.5859,
+          "perplexity": 36.09,
+          "top1_agreement": 0.7832,
+          "cosine_similarity": 0.9195,
+          "wall_ms": 101.2,
+          "effective_degree": 87.4,
+          "spectral_gap": 0.3041,
+          "mixing_time": 26,
+          "diameter": 2,
+          "quality_score": 0.6033,
+          "graph_quality": {
+            "spectral_gap": 0.3040633279210819,
+            "mixing_time": 26,
+            "mixing_interp": "26 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.656033920417482,
+            "quality_score": 0.6032506623368655,
+            "is_good_expander": true,
+            "degree_mean": 185.203125
+          }
+        },
+        {
+          "pattern": "window+cycle_pure",
+          "loss": 7.4572,
+          "perplexity": 1732.3,
+          "top1_agreement": 0.1738,
+          "cosine_similarity": 0.8346,
+          "wall_ms": 64.1,
+          "effective_degree": 62.7,
+          "spectral_gap": 0.2032,
+          "mixing_time": 39,
+          "diameter": 2,
+          "quality_score": 0.5225,
+          "graph_quality": {
+            "spectral_gap": 0.20317403042451576,
+            "mixing_time": 39,
+            "mixing_interp": "39 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.7243966079582518,
+            "quality_score": 0.5225392243396126,
+            "is_good_expander": true,
+            "degree_mean": 137.875
+          }
+        },
+        {
+          "pattern": "window+multicycle",
+          "loss": 6.5794,
+          "perplexity": 720.08,
+          "top1_agreement": 0.1973,
+          "cosine_similarity": 0.8124,
+          "wall_ms": 87.9,
+          "effective_degree": 91.7,
+          "spectral_gap": 0.8496,
+          "mixing_time": 10,
+          "diameter": 2,
+          "quality_score": 0.76,
+          "graph_quality": {
+            "spectral_gap": 0.8495814267599104,
+            "mixing_time": 10,
+            "mixing_interp": "10 layers for global mixing (moderate)",
+            "diameter": 2,
+            "mean_distance": 1.327658186562296,
+            "quality_score": 0.76,
+            "is_good_expander": true,
+            "degree_mean": 343.5390625
+          }
+        },
+        {
+          "pattern": "window+expander",
+          "loss": 7.2905,
+          "perplexity": 1466.25,
+          "top1_agreement": 0.1895,
+          "cosine_similarity": 0.8584,
+          "wall_ms": 61.7,
+          "effective_degree": 62.2,
+          "spectral_gap": 0.048,
+          "mixing_time": 161,
+          "diameter": 3,
+          "quality_score": 0.3984,
+          "graph_quality": {
+            "spectral_gap": 0.04800627020250481,
+            "mixing_time": 161,
+            "mixing_interp": "161 layers for global mixing (poor)",
+            "diameter": 3,
+            "mean_distance": 1.8643183300717547,
+            "quality_score": 0.39840501616200386,
+            "is_good_expander": false,
+            "degree_mean": 122.375
+          }
+        }
+      ]
+    },
+    "1024": {
+      "dense_baseline": {
+        "perplexity": 4.69
+      },
+      "num_multicycles": 20,
+      "results": [
+        {
+          "pattern": "dense",
+          "loss": 1.5462,
+          "perplexity": 4.69,
+          "top1_agreement": 1.0,
+          "cosine_similarity": 1.0,
+          "wall_ms": 33.7,
+          "effective_degree": 0.0
+        },
+        {
+          "pattern": "window_only",
+          "loss": 7.8586,
+          "perplexity": 2587.8,
+          "top1_agreement": 0.1211,
+          "cosine_similarity": 0.886,
+          "wall_ms": 116.6,
+          "effective_degree": 63.0,
+          "spectral_gap": 0.0069,
+          "mixing_time": 1163,
+          "diameter": 16,
+          "quality_score": 0.2531,
+          "graph_quality": {
+            "spectral_gap": 0.006941242679574633,
+            "mixing_time": 1163,
+            "mixing_interp": "1163 layers for global mixing (poor)",
+            "diameter": 16,
+            "mean_distance": 5.819420006516781,
+            "quality_score": 0.25305299414365967,
+            "is_good_expander": false,
+            "degree_mean": 123.9375
+          }
+        },
+        {
+          "pattern": "window+landmarks",
+          "loss": 3.7244,
+          "perplexity": 41.45,
+          "top1_agreement": 0.5225,
+          "cosine_similarity": 0.8907,
+          "wall_ms": 201.4,
+          "effective_degree": 93.4,
+          "spectral_gap": 0.1031,
+          "mixing_time": 79,
+          "diameter": 2,
+          "quality_score": 0.4424,
+          "graph_quality": {
+            "spectral_gap": 0.1030502838506272,
+            "mixing_time": 79,
+            "mixing_interp": "79 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.849723036819811,
+            "quality_score": 0.44244022708050174,
+            "is_good_expander": true,
+            "degree_mean": 184.75
+          }
+        },
+        {
+          "pattern": "window+random",
+          "loss": 5.5279,
+          "perplexity": 251.62,
+          "top1_agreement": 0.2705,
+          "cosine_similarity": 0.8151,
+          "wall_ms": 202.9,
+          "effective_degree": 121.8,
+          "spectral_gap": 0.3862,
+          "mixing_time": 21,
+          "diameter": 2,
+          "quality_score": 0.669,
+          "graph_quality": {
+            "spectral_gap": 0.3861908908226389,
+            "mixing_time": 21,
+            "mixing_interp": "21 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.7759856630824373,
+            "quality_score": 0.6689527126581112,
+            "is_good_expander": true,
+            "degree_mean": 241.623046875
+          }
+        },
+        {
+          "pattern": "window+cycle",
+          "loss": 3.7483,
+          "perplexity": 42.45,
+          "top1_agreement": 0.5205,
+          "cosine_similarity": 0.89,
+          "wall_ms": 199.7,
+          "effective_degree": 93.3,
+          "spectral_gap": 0.2362,
+          "mixing_time": 35,
+          "diameter": 2,
+          "quality_score": 0.5489,
+          "graph_quality": {
+            "spectral_gap": 0.23617897424880085,
+            "mixing_time": 35,
+            "mixing_interp": "35 layers for global mixing (poor)",
+            "diameter": 2,
+            "mean_distance": 1.811762789182144,
+            "quality_score": 0.5489431793990407,
+            "is_good_expander": true,
+            "degree_mean": 200.453125
+          }
+        },
+        {
+          "pattern": "window+cycle_pure",
+          "loss": 7.8501,
+          "perplexity": 2565.89,
+          "top1_agreement": 0.1064,
+          "cosine_similarity": 0.8748,
+          "wall_ms": 125.7,
+          "effective_degree": 64.8,
+          "spectral_gap": 0.1668,
+          "mixing_time": 49,
+          "diameter": 3,
+          "quality_score": 0.4935,
+          "graph_quality": {
+            "spectral_gap": 0.1668270886439912,
+            "mixing_time": 49,
+            "mixing_interp": "49 layers for global mixing (poor)",
+            "diameter": 3,
+            "mean_distance": 1.859465623981753,
+            "quality_score": 0.493461670915193,
+            "is_good_expander": true,
+            "degree_mean": 144.732421875
+          }
+        },
+        {
+          "pattern": "window+multicycle",
+          "loss": 7.2051,
+          "perplexity": 1346.32,
+          "top1_agreement": 0.1279,
+          "cosine_similarity": 0.8504,
+          "wall_ms": 176.8,
+          "effective_degree": 99.8,
+          "spectral_gap": 0.8255,
+          "mixing_time": 10,
+          "diameter": 2,
+          "quality_score": 0.76,
+          "graph_quality": {
+            "spectral_gap": 0.82551164096409,
+            "mixing_time": 10,
+            "mixing_interp": "10 layers for global mixing (moderate)",
+            "diameter": 2,
+            "mean_distance": 1.5489410231345715,
+            "quality_score": 0.76,
+            "is_good_expander": true,
+            "degree_mean": 460.6953125
+          }
+        },
+        {
+          "pattern": "window+expander",
+          "loss": 7.7698,
+          "perplexity": 2368.0,
+          "top1_agreement": 0.1191,
+          "cosine_similarity": 0.8786,
+          "wall_ms": 130.8,
+          "effective_degree": 65.1,
+          "spectral_gap": 0.0254,
+          "mixing_time": 318,
+          "diameter": 4,
+          "quality_score": 0.3803,
+          "graph_quality": {
+            "spectral_gap": 0.025387222955122635,
+            "mixing_time": 318,
+            "mixing_interp": "318 layers for global mixing (poor)",
+            "diameter": 4,
+            "mean_distance": 2.2592049527533398,
+            "quality_score": 0.3803097783640981,
+            "is_good_expander": false,
+            "degree_mean": 128.1875
+          }
+        }
+      ]
+    }
+  }
+}

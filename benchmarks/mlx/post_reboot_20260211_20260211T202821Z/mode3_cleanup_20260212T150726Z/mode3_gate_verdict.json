@@ -1,0 +1,28 @@
+{
+  "run_root": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/mode3_cleanup_20260212T150726Z",
+  "checks": {
+    "mode_surface_three_modes_only": {
+      "status": "pass",
+      "evidence": "scripts/bench_glm_consumer_mlx.py --help shows --mode {dense,wayfinder,sparse} as primary selector"
+    },
+    "matrix_artifacts_complete": {
+      "status": "pass",
+      "missing": []
+    },
+    "summary_table_three_modes": {
+      "status": "pass",
+      "modes_found": [
+        "dense",
+        "sparse",
+        "wayfinder"
+      ]
+    },
+    "wayfinder_true_hsa_trace_no_local_tail": {
+      "status": "pass",
+      "path_counts": {
+        "wayfinder": 17,
+        "wayfinder_dense_fallback": 1
+      }
+    }
+  }
+}

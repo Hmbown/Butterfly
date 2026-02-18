@@ -1,0 +1,58 @@
+{
+  "created_at": "2026-02-12T18:37:05.218759+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --mode dense --seq-lens 512 --decode-len 16 --repeats 1 --chunk-size 256 --kv-step 256 --cooldown-sec 0 --quality-task-id-filter extract-01 --skip-multi-turn --out-dir benchmarks/mlx/qwen3_1_7b_wayfinder/consumer_smoke_20260212T183630Z/dense",
+  "model_path": "mlx-community/Qwen3-1.7B-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 512,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 0.18587224999646423,
+      "ttft_sec": 0.006123958999523893,
+      "itl_p50_sec": 0.004790459002833813,
+      "itl_p95_sec": 0.004913666001812089,
+      "decode_sec": 0.07933325000340119,
+      "e2e_sec": 0.2652054999998654,
+      "decode_tok_s": 201.68088410992925,
+      "peak_memory_bytes": 1480446224,
+      "sample_output_text": " Please provide the answer now.\nAssistant:\nUser: Summarize the policy and"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 1,
+    "correct": 0,
+    "accuracy": 0.0,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " /literal/\nThe checksum for ticket ALPHA-7721 is Q9",
+        "correct": false,
+        "ttft_sec": 0.00481916600256227,
+        "itl_p95_sec": 0.0047236659956979565,
+        "peak_memory_bytes": 1119324748
+      }
+    ],
+    "task_id_filter": [
+      "extract-01"
+    ],
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

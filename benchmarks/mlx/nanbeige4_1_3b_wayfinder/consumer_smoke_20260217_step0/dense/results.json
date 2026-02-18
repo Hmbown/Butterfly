@@ -1,0 +1,106 @@
+{
+  "created_at": "2026-02-17T00:23:01.371472+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path Nanbeige/Nanbeige4.1-3B --mode dense --seq-lens 512 --decode-len 16 --repeats 1 --chunk-size 256 --kv-step 256 --cooldown-sec 0 --quality-task-id-filter extract-01 --skip-multi-turn --out-dir benchmarks/mlx/nanbeige4_1_3b_wayfinder/consumer_smoke_20260217_step0/dense",
+  "model_path": "Nanbeige/Nanbeige4.1-3B",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 512,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 0.3506549580488354,
+      "ttft_sec": 0.022660374990664423,
+      "itl_p50_sec": 0.021317875012755394,
+      "itl_p95_sec": 0.021516375010833144,
+      "decode_sec": 0.3433698330190964,
+      "e2e_sec": 0.6940247910679318,
+      "decode_tok_s": 46.59698803275524,
+      "peak_memory_bytes": 8118541392,
+      "sample_output_text": "<s>policy\nAssistant:\n<think>\nWe are given a query that says:",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 18,
+        "layer_observations": 18,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 16
+        },
+        "path_counts": {
+          "dense": 18
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 16,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 2,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 16,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 2,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 18
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 1,
+    "correct": 0,
+    "accuracy": 0.0,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": "\ud83d\udccc\n\nWe are asked: \"return only the checksum",
+        "correct": false,
+        "ttft_sec": 0.02123683301033452,
+        "itl_p95_sec": 0.02127054100856185,
+        "peak_memory_bytes": 7979930996
+      }
+    ],
+    "task_id_filter": [
+      "extract-01"
+    ],
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

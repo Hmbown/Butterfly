@@ -435,6 +435,90 @@ class TestFusedActiveRowGQA:
         _run_active_comparison(B=1, Hq=8, Hkv=1, Tq=16, Tk=64, dh=32, W=8)
 
 
+class TestFusedActiveRowGQAPermExpansion:
+    """Regression: perms may have fewer heads than queries (Hp < Hq).
+
+    In GLM-4.7-Flash, topology builds perms for n_kv_heads=2 but there
+    are Hq=40 query heads.  The fused path must expand [Hp, T] perms to
+    [Hq, T] before flat-index arithmetic to avoid OOB reads.
+    """
+
+    def _run_with_fewer_perm_heads(
+        self, B, Hq, Hkv, Hp, Tq, Tk, dh, W, seed=42,
+    ):
+        """Run fused active-row with perms shaped [Hp, T] where Hp < Hq."""
+        rng = np.random.default_rng(seed)
+        q_np = rng.standard_normal((B, Hq, Tq, dh)).astype(np.float32) * 0.1
+        k_np = rng.standard_normal((B, Hkv, Tk, dh)).astype(np.float32) * 0.1
+        v_np = rng.standard_normal((B, Hkv, Tk, dh)).astype(np.float32) * 0.1
+
+        q = mx.array(q_np)
+        k = mx.array(k_np)
+        v = mx.array(v_np)
+
+        # Build perms with Hp heads (fewer than Hq) — mirrors GLM topology
+        perms_hp, inv_hp = _random_perms(Hp, Tk, seed=seed + 1)
+
+        # Also build the "expanded" reference perms [Hq, T] by repeating
+        rep = Hq // Hp
+        perms_hq = mx.repeat(perms_hp, repeats=rep, axis=0)
+        inv_hq = mx.repeat(inv_hp, repeats=rep, axis=0)
+
+        q_positions = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
+
+        # Fused with Hp-shaped perms (exercises the GQA expansion fix)
+        y_hp = wayfinder_fused_permute_window_attention_active(
+            q, k, v,
+            all_perms=perms_hp,
+            all_inv_perms=inv_hp,
+            query_positions=q_positions,
+            window=W,
+        )
+        mx.eval(y_hp)
+
+        # Reference with pre-expanded Hq-shaped perms
+        y_hq = wayfinder_fused_permute_window_attention_active(
+            q, k, v,
+            all_perms=perms_hq,
+            all_inv_perms=inv_hq,
+            query_positions=q_positions,
+            window=W,
+        )
+        mx.eval(y_hq)
+
+        y_a = np.array(y_hp)
+        y_b = np.array(y_hq)
+        max_diff = float(np.max(np.abs(y_a - y_b)))
+        assert max_diff < 1e-5, (
+            f"Hp={Hp} vs Hq={Hq} expanded perms differ: max_diff={max_diff:.6f}"
+        )
+        assert not np.any(np.isnan(y_a)), "NaN in output with Hp-shaped perms"
+
+    def test_glm_like_hp2_hq8(self):
+        """GLM-like: Hp=2 perm heads, Hq=8 query heads, Hkv=2."""
+        self._run_with_fewer_perm_heads(
+            B=1, Hq=8, Hkv=2, Hp=2, Tq=1, Tk=64, dh=32, W=8,
+        )
+
+    def test_glm_like_hp2_hq8_prefill_chunk(self):
+        """GLM-like with larger Tq (chunked active prefill)."""
+        self._run_with_fewer_perm_heads(
+            B=1, Hq=8, Hkv=2, Hp=2, Tq=16, Tk=64, dh=32, W=8,
+        )
+
+    def test_hp1_hq4(self):
+        """Hp=1 perm head, Hq=4 query heads."""
+        self._run_with_fewer_perm_heads(
+            B=1, Hq=4, Hkv=1, Hp=1, Tq=1, Tk=32, dh=32, W=8,
+        )
+
+    def test_hp2_hq8_tq_equals_tk(self):
+        """Full-prefill active path: Tq == Tk with Hp < Hq."""
+        self._run_with_fewer_perm_heads(
+            B=1, Hq=8, Hkv=2, Hp=2, Tq=64, Tk=64, dh=32, W=8,
+        )
+
+
 # ---------------------------------------------------------------------------
 # Test: fused active-row causality
 # ---------------------------------------------------------------------------
@@ -547,3 +631,38 @@ class TestFusedActiveRowEdgeCases:
     def test_batch_2(self):
         """Batch size > 1."""
         _run_active_comparison(B=2, Hq=4, Hkv=1, Tq=16, Tk=64, dh=32, W=8)
+
+
+# ---------------------------------------------------------------------------
+# Test: 8W active contiguous path (2*Tq >= Tk gate)
+# ---------------------------------------------------------------------------
+
+class TestActiveContiguous8W:
+    """Verify the 8W contiguous active-row path fires and matches reference.
+
+    The gate ``2 * Tq >= Tk`` routes to ``_active_via_full_prefill`` with
+    chunk size ``8W``.  These tests exercise the critical second-chunk case
+    (Tq = Tk/2) that triggers at T=8192 with chunk_size=4096.
+    """
+
+    def test_half_sequence_active(self):
+        """Tq = Tk/2: exactly at the 2*Tq >= Tk boundary."""
+        _run_active_comparison(B=1, Hq=4, Hkv=1, Tq=32, Tk=64, dh=32, W=8)
+
+    def test_half_sequence_gqa_20_1(self):
+        """GLM-like GQA ratio (20:1) at the half-sequence boundary."""
+        _run_active_comparison(B=1, Hq=20, Hkv=1, Tq=64, Tk=128, dh=32, W=8)
+
+    def test_large_window_8w_chunking(self):
+        """Larger window to exercise 8W chunk formula (q_chunk = 8*16 = 128)."""
+        _run_active_comparison(B=1, Hq=4, Hkv=1, Tq=128, Tk=256, dh=32, W=16)
+
+    def test_below_gate_uses_gather(self):
+        """Tq < Tk/2: should fall to gather path but still be correct."""
+        _run_active_comparison(B=1, Hq=4, Hkv=1, Tq=16, Tk=64, dh=32, W=8)
+
+    def test_8k_sim(self):
+        """Simulated 8k regime: Tq=256, Tk=512, W=32, mimicking chunk1."""
+        _run_active_comparison(
+            B=1, Hq=4, Hkv=1, Tq=256, Tk=512, dh=64, W=32,
+        )

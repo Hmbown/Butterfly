@@ -1,0 +1,48 @@
+{
+  "id": "EXP-20260210T085850Z-GLM-POST-REBOOT-PREFLIGHT",
+  "started_at_utc": "2026-02-11T20:27:26Z",
+  "ended_at_utc": "2026-02-11T20:27:34Z",
+  "status": "pass",
+  "checks": {
+    "files": {
+      "scripts/bench.py": "ok",
+      "scripts/bench_mlx_wayfinder_scale.py": "ok",
+      "scripts/bench_qwen_wayfinder_mlx.py": "ok",
+      "scripts/bench_glm_wayfinder_mlx.py": "ok",
+      "scripts/wayc.py": "ok"
+    },
+    "help": {
+      "bench.py --help": "ok",
+      "bench_mlx_wayfinder_scale.py --help": "ok",
+      "bench_qwen_wayfinder_mlx.py --help": "ok",
+      "bench_glm_wayfinder_mlx.py --help": "ok",
+      "wayc.py --help": "ok",
+      "wayc.py bench --help": "ok"
+    }
+  },
+  "metrics": {
+    "pre_run": {
+      "swap_used_mb": 1340.00,
+      "swap_free_mb": 1732.00,
+      "pages_occupied_by_compressor": 42743,
+      "page_size_bytes": 16384,
+      "compressor_occupied_bytes": 700301312
+    },
+    "post_run": {
+      "swap_used_mb": 1340.00,
+      "swap_free_mb": 1732.00,
+      "pages_occupied_by_compressor": 42743,
+      "page_size_bytes": 16384,
+      "compressor_occupied_bytes": 700301312
+    },
+    "safety_deltas": {
+      "swap_used_mb": 0.00,
+      "swap_free_mb": 0.00,
+      "pages_occupied_by_compressor": 0,
+      "compressor_occupied_bytes": 0
+    }
+  },
+  "artifacts": {
+    "raw": "/Volumes/VIXinSSD/wayfinder/notes/preflight/EXP-20260210T085850Z-GLM-POST-REBOOT-PREFLIGHT_raw.txt"
+  }
+}

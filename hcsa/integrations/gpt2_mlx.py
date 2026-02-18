@@ -54,6 +54,7 @@ class GPT2WayfinderConfig:
     verify_spectral_gap: bool = False
     spectral_gap_threshold: float = 4.0
     use_fused_dispatch: bool = True
+    enforce_hamiltonian: bool = True
 
 
 def extract_qkv_from_gpt2_attention(
@@ -134,6 +135,7 @@ class GPT2WayfinderAttention(nn.Module):
                 or cfg.compute_edge_utilization_proxy
                 or cfg.compute_graph_metrics
             ),
+            enforce_hamiltonian=cfg.enforce_hamiltonian,
         )
 
         self._runtime_window_drop_override: Optional[float] = None
@@ -311,6 +313,7 @@ class GPT2WayfinderAttention(nn.Module):
                 retro_backfill_causal_only=self.retro_backfill_causal_only,
                 log_progress=self.permute_log_chunks,
                 use_fused_dispatch=self.use_fused_dispatch,
+                scale=self.scale,
             )
             if self.compute_edge_utilization_proxy:
                 keep_mask = causal_neighbor_mask(graph_cache.mlx_graph.neigh_idx, T)

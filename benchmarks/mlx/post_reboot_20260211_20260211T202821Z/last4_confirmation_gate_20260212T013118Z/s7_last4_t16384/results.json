@@ -1,0 +1,170 @@
+{
+  "created_at": "2026-02-12T02:17:23.633146+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --path permute --window 64 --landmark-stride 0 --head-chunk-size 2 --query-chunk-size 192 --skip-multi-turn --quality-dataset benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json --seed 7 --swap-last-n-layers 4 --active-dense-threshold 16384 --out-dir benchmarks/mlx/post_reboot_20260211_20260211T202821Z/last4_confirmation_gate_20260212T013118Z/s7_last4_t16384",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 7,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 192,
+    "permute_prepermute_mode": "auto",
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.0,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "permute_memory_budget_bytes": null,
+    "active_dense_threshold": 16384,
+    "use_discovered_active_row_kernel": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true
+  },
+  "swap": {
+    "replaced_layers": 4,
+    "replaced_layer_indices": [
+      43,
+      44,
+      45,
+      46
+    ],
+    "requested_layer_indices": [
+      43,
+      44,
+      45,
+      46
+    ],
+    "swap_first_n_layers": 0,
+    "swap_last_n_layers": 4,
+    "swap_layer_indices_arg": "",
+    "disable_discovered_active_row_kernel": false,
+    "disable_fused_dispatch": false
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 15.504285250000066,
+      "ttft_sec": 0.23401354199995694,
+      "itl_p50_sec": 0.14342512500024895,
+      "itl_p95_sec": 0.15501774999984264,
+      "decode_sec": 9.466333249999934,
+      "e2e_sec": 24.9706185,
+      "decode_tok_s": 6.760801496186546,
+      "peak_memory_bytes": 20814934840,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 15.515225124999688,
+      "ttft_sec": 0.23423408300004667,
+      "itl_p50_sec": 0.1360999170001378,
+      "itl_p95_sec": 0.14401262499995937,
+      "decode_sec": 8.89153879200012,
+      "e2e_sec": 24.406763916999807,
+      "decode_tok_s": 7.197854218167723,
+      "peak_memory_bytes": 21035070264,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 15.51960149999968,
+      "ttft_sec": 0.23738995799976692,
+      "itl_p50_sec": 0.1359235830000216,
+      "itl_p95_sec": 0.13969425000004776,
+      "decode_sec": 8.81331741699978,
+      "e2e_sec": 24.33291891699946,
+      "decode_tok_s": 7.261737773854832,
+      "peak_memory_bytes": 21035070264,
+      "sample_output_text": " with exact numbers.\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and"
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 3,
+    "accuracy": 0.5,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": " Output: Q9X4\n\nRecord A: ticket=ALPHA-7777, owner=JON, checksum=9V9V. Record B: ticket=BETA-9, owner=\\, checksum=9V9V. Question: return only only the checksum for ticket ALPHA-777",
+        "correct": true,
+        "ttft_sec": 0.01815858300005857,
+        "itl_p95_sec": 0.018268875000103435,
+        "peak_memory_bytes": 17246805193
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "  2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05 amount=11.  2026-01-03 amount=17; 2026-01-04 amount=23; 2026-01-05",
+        "correct": true,
+        "ttft_sec": 0.01745058300002711,
+        "itl_p95_sec": 0.017287292000219168,
+        "peak_memory_bytes": 17222118718
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.018336667000312445,
+        "itl_p95_sec": 0.017035333999956492,
+        "peak_memory_bytes": 17149666422
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 ",
+        "correct": false,
+        "ttft_sec": 0.01734600000008868,
+        "itl_p95_sec": 0.016818125000099826,
+        "peak_memory_bytes": 17148086687
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "[](https://i.imgur.com/7T9i7i7.png)\n\n7T9i7i7.png\n\n7T9i7i7.png\n\n7T7i7i7.png\n\n7T9i7i7.png\n\n7T9i9i9i9i9i",
+        "correct": true,
+        "ttft_sec": 0.017371165999975346,
+        "itl_p95_sec": 0.016945750000104454,
+        "peak_memory_bytes": 17171686884
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": " 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7 7",
+        "correct": false,
+        "ttft_sec": 0.017728583000007347,
+        "itl_p95_sec": 0.01704074999997829,
+        "peak_memory_bytes": 17165537560
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

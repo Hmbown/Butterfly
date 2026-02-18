@@ -1,0 +1,44 @@
+{
+  "baseline_dense_results": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/consumer_dense_quality/results.json",
+  "baseline_wayfinder_results": "/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/post_reboot_20260211_20260211T202821Z/consumer_wayfinder_quality/results.json",
+  "command_parity_all_required": true,
+  "command_parity_fields": {
+    "--model-path": true,
+    "--seq-lens": true,
+    "--decode-len": true,
+    "--repeats": true,
+    "--chunk-size": true,
+    "--kv-step": true,
+    "--cooldown-sec": true,
+    "--path": true,
+    "--window": true,
+    "--landmark-stride": true,
+    "--head-chunk-size": true,
+    "--query-chunk-size": true,
+    "--active-dense-threshold": true,
+    "--seed": true,
+    "--quality-dataset": true,
+    "--skip-single-turn": true,
+    "--skip-multi-turn": true
+  },
+  "dense_only_flags": [
+    "--no-swap"
+  ],
+  "wayfinder_only_flags": [],
+  "sampling_flags_in_dense_command": [],
+  "sampling_flags_in_wayfinder_command": [],
+  "decode_harness": {
+    "uses_argmax_greedy": true,
+    "cli_exposes_temperature": false,
+    "cli_exposes_top_p": false
+  },
+  "retro_backfill": {
+    "dense_results_flag": false,
+    "wayfinder_results_flag": false,
+    "both_off": true
+  },
+  "verdict": {
+    "decode_control_mismatch_detected": false,
+    "notes": "Dense intentionally includes --no-swap; otherwise controls match. Harness decode is greedy argmax with no temperature/top-p CLI."
+  }
+}

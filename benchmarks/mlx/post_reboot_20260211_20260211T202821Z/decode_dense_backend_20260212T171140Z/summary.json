@@ -1,0 +1,263 @@
+{
+  "run_root": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z",
+  "seeds": [
+    42,
+    7,
+    99
+  ],
+  "modes": [
+    "dense",
+    "wayfinder",
+    "sparse"
+  ],
+  "per_seed": {
+    "42": {
+      "dense": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s42_dense/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s42_dense/results.json",
+        "decode_tok_s_median": 45.81499279540963,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s42_wayfinder/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s42_wayfinder/results.json",
+        "decode_tok_s_median": 44.393988672401875,
+        "peak_memory_bytes_median": 20663941532.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s42_sparse/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s42_sparse/results.json",
+        "decode_tok_s_median": 45.41639204012709,
+        "peak_memory_bytes_median": 33502935308.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.08333333333333333,
+        "six_task_correct": 3,
+        "heldout_correct": 2,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    },
+    "7": {
+      "dense": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s7_dense/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s7_dense/results.json",
+        "decode_tok_s_median": 46.34644570538373,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s7_wayfinder/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s7_wayfinder/results.json",
+        "decode_tok_s_median": 41.478627763364884,
+        "peak_memory_bytes_median": 20664023452.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.08333333333333333,
+        "six_task_correct": 3,
+        "heldout_correct": 2,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s7_sparse/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s7_sparse/results.json",
+        "decode_tok_s_median": 45.460314103668395,
+        "peak_memory_bytes_median": 33502935304.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.041666666666666664,
+        "six_task_correct": 3,
+        "heldout_correct": 1,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    },
+    "99": {
+      "dense": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s99_dense/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s99_dense/results.json",
+        "decode_tok_s_median": 46.335618792592754,
+        "peak_memory_bytes_median": 20660500140.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.125,
+        "six_task_correct": 3,
+        "heldout_correct": 3,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "wayfinder": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s99_wayfinder/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s99_wayfinder/results.json",
+        "decode_tok_s_median": 45.14620536880053,
+        "peak_memory_bytes_median": 20663941532.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.16666666666666666,
+        "six_task_correct": 3,
+        "heldout_correct": 4,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      },
+      "sparse": {
+        "six_task_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/six_task/s99_sparse/results.json",
+        "heldout_results_path": "benchmarks/mlx/post_reboot_20260211_20260211T202821Z/decode_dense_backend_20260212T171140Z/heldout/s99_sparse/results.json",
+        "decode_tok_s_median": 45.317566832494634,
+        "peak_memory_bytes_median": 33502935296.0,
+        "six_task_accuracy": 0.5,
+        "heldout_accuracy": 0.041666666666666664,
+        "six_task_correct": 3,
+        "heldout_correct": 1,
+        "six_task_num_tasks": 6,
+        "heldout_num_tasks": 24
+      }
+    }
+  },
+  "summary": {
+    "dense": {
+      "decode_tok_s_median_of_seeds": 46.335618792592754,
+      "peak_memory_bytes_median_of_seeds": 20660500140.0,
+      "six_task_accuracy_mean": 0.5,
+      "heldout_accuracy_mean": 0.125,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          45.81499279540963,
+          46.34644570538373,
+          46.335618792592754
+        ],
+        "peak_memory_bytes_medians": [
+          20660500140.0,
+          20660500140.0,
+          20660500140.0
+        ],
+        "six_task_accuracies": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "heldout_accuracies": [
+          0.125,
+          0.125,
+          0.125
+        ]
+      },
+      "decode_delta_vs_dense_abs": 0.0,
+      "decode_delta_vs_dense_pct": 0.0,
+      "peak_memory_delta_vs_dense_abs_bytes": 0.0,
+      "peak_memory_delta_vs_dense_pct": 0.0,
+      "memory_reduction_pct_vs_dense": -0.0,
+      "six_task_drift_vs_dense_abs": 0.0,
+      "six_task_drift_vs_dense_pct": 0.0,
+      "heldout_drift_vs_dense_abs": 0.0,
+      "heldout_drift_vs_dense_pct": 0.0,
+      "e2e_sec_median_of_seeds": 17.52897766600654,
+      "prefill_sec_median_of_seeds": 16.143667041003937,
+      "e2e_delta_vs_dense_abs": 0.0,
+      "e2e_delta_vs_dense_pct": 0.0,
+      "prefill_delta_vs_dense_abs": 0.0,
+      "prefill_delta_vs_dense_pct": 0.0,
+      "prefill_speedup_vs_dense": 1.0
+    },
+    "wayfinder": {
+      "decode_tok_s_median_of_seeds": 44.393988672401875,
+      "peak_memory_bytes_median_of_seeds": 20663941532.0,
+      "six_task_accuracy_mean": 0.5,
+      "heldout_accuracy_mean": 0.125,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          44.393988672401875,
+          41.478627763364884,
+          45.14620536880053
+        ],
+        "peak_memory_bytes_medians": [
+          20663941532.0,
+          20664023452.0,
+          20663941532.0
+        ],
+        "six_task_accuracies": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "heldout_accuracies": [
+          0.125,
+          0.08333333333333333,
+          0.16666666666666666
+        ]
+      },
+      "decode_delta_vs_dense_abs": -1.9416301201908794,
+      "decode_delta_vs_dense_pct": -4.190361909014302,
+      "peak_memory_delta_vs_dense_abs_bytes": 3441392.0,
+      "peak_memory_delta_vs_dense_pct": 0.016656866855499074,
+      "memory_reduction_pct_vs_dense": -0.016656866855499074,
+      "six_task_drift_vs_dense_abs": 0.0,
+      "six_task_drift_vs_dense_pct": 0.0,
+      "heldout_drift_vs_dense_abs": 0.0,
+      "heldout_drift_vs_dense_pct": 0.0,
+      "e2e_sec_median_of_seeds": 14.950823457998922,
+      "prefill_sec_median_of_seeds": 13.53320708299725,
+      "e2e_delta_vs_dense_abs": -2.578154208007618,
+      "e2e_delta_vs_dense_pct": -14.707955347603418,
+      "prefill_delta_vs_dense_abs": -2.610459958006686,
+      "prefill_delta_vs_dense_pct": -16.17017962137274,
+      "prefill_speedup_vs_dense": 1.1928929293697423
+    },
+    "sparse": {
+      "decode_tok_s_median_of_seeds": 45.41639204012709,
+      "peak_memory_bytes_median_of_seeds": 33502935304.0,
+      "six_task_accuracy_mean": 0.5,
+      "heldout_accuracy_mean": 0.05555555555555555,
+      "seed_values": {
+        "decode_tok_s_medians": [
+          45.41639204012709,
+          45.460314103668395,
+          45.317566832494634
+        ],
+        "peak_memory_bytes_medians": [
+          33502935308.0,
+          33502935304.0,
+          33502935296.0
+        ],
+        "six_task_accuracies": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "heldout_accuracies": [
+          0.08333333333333333,
+          0.041666666666666664,
+          0.041666666666666664
+        ]
+      },
+      "decode_delta_vs_dense_abs": -0.9192267524656614,
+      "decode_delta_vs_dense_pct": -1.9838447751832111,
+      "peak_memory_delta_vs_dense_abs_bytes": 12842435164.0,
+      "peak_memory_delta_vs_dense_pct": 62.15936244029376,
+      "memory_reduction_pct_vs_dense": -62.15936244029376,
+      "six_task_drift_vs_dense_abs": 0.0,
+      "six_task_drift_vs_dense_pct": 0.0,
+      "heldout_drift_vs_dense_abs": -0.06944444444444445,
+      "heldout_drift_vs_dense_pct": -55.55555555555556,
+      "e2e_sec_median_of_seeds": 98.97059199999785,
+      "prefill_sec_median_of_seeds": 97.55833612499555,
+      "e2e_delta_vs_dense_abs": 81.44161433399131,
+      "e2e_delta_vs_dense_pct": 464.6113189585995,
+      "prefill_delta_vs_dense_abs": 81.41466908399161,
+      "prefill_delta_vs_dense_pct": 504.3133562975703,
+      "prefill_speedup_vs_dense": 0.16547706410572685
+    }
+  }
+}

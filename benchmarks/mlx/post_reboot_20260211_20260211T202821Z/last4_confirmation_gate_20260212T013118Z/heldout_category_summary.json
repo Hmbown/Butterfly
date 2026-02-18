@@ -1,0 +1,74 @@
+{
+  "dataset": "benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/quality_eval_glm47_consumer_extract_holdout_v1.json",
+  "seed": 42,
+  "category_accuracy": {
+    "dense": {
+      "extract": {
+        "correct": 3,
+        "num_tasks": 16,
+        "accuracy": 0.1875
+      },
+      "lookup": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      },
+      "math": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      }
+    },
+    "full_wayfinder": {
+      "extract": {
+        "correct": 0,
+        "num_tasks": 16,
+        "accuracy": 0.0
+      },
+      "lookup": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      },
+      "math": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      }
+    },
+    "last4": {
+      "extract": {
+        "correct": 4,
+        "num_tasks": 16,
+        "accuracy": 0.25
+      },
+      "lookup": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      },
+      "math": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      }
+    },
+    "last4_t16384": {
+      "extract": {
+        "correct": 4,
+        "num_tasks": 16,
+        "accuracy": 0.25
+      },
+      "lookup": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      },
+      "math": {
+        "correct": 0,
+        "num_tasks": 4,
+        "accuracy": 0.0
+      }
+    }
+  }
+}
