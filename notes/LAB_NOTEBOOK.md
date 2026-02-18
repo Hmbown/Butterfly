@@ -8066,3 +8066,46 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Decision: keep
 - Next action:
   - Keep this command in README as the first successful run sanity step.
+
+## 2026-02-18 — GLM-4.7 Full Token-Length Sweep (MLX)
+
+### EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP
+- Question: Across the full GLM consumer token-length set (`T=2048, 8192, 32768, 65536`), how does Wayfinder compare to dense on single-turn latency, decode throughput, and peak memory?
+- Hypothesis: Wayfinder will remain prefill-faster than dense at larger `T`, decode throughput will stay near-dense due to dense decode routing, and memory reduction should remain modest but positive.
+- Change set: measurement only.
+- Baseline path(s):
+  - Paired dense companion run in this experiment: `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense/results.json`
+  - Prior public stable profile reference at `T=8192`: `benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json`
+- Command:
+  - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode dense --seq-lens 2048 8192 32768 65536 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense`
+  - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 2048 8192 32768 65536 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 384 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/wayfinder`
+- Controls:
+  - model=`mlx-community/GLM-4.7-Flash-4bit`
+  - decode_len=`32`, repeats=`1`, skip_multi_turn=`true`, skip_quality=`true`
+  - retro/backfill inference defaults remain off
+  - one benchmark process at a time
+- Stop gates:
+  - nonzero exit
+  - missing `results.json`
+  - missing usable `single_turn` row for any target `T`
+- Decision: pending.
+- Next action: run dense + wayfinder sweep, compute per-`T` absolute and percentage deltas vs paired dense baseline, then update README with measured table.
+
+### EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP (RESULT)
+- Status: completed.
+- Artifacts:
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/wayfinder/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense_t65536/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/wayfinder_t65536/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/token_length_summary.json`
+- Per-T results (Wayfinder vs paired dense baseline):
+  - `T=2048`: e2e `3.1354s -> 2.5831s` (abs `-0.5524s`, `-17.62%`), prefill `2.4644s -> 2.0189s` (`-18.08%`), decode `0.6710s -> 0.5642s` (`-15.93%`), decode tok/s `47.6869 -> 56.7206` (`+18.94%`), peak memory `18.28GB -> 18.32GB` (reduction convention `-0.19%`).
+  - `T=8192`: e2e `16.8978s -> 9.3819s` (abs `-7.5159s`, `-44.48%`), prefill `16.0745s -> 8.6491s` (`-46.19%`), decode `0.8234s -> 0.7328s` (`-11.00%`), decode tok/s `38.8649 -> 43.6663` (`+12.35%`), peak memory `20.66GB -> 20.07GB` (reduction convention `+2.85%`).
+  - `T=32768`: e2e `203.3019s -> 112.0960s` (abs `-91.2059s`, `-44.86%`), prefill `193.3550s -> 110.7578s` (`-42.72%`), decode `9.9469s -> 1.3382s` (`-86.55%`), decode tok/s `3.2171 -> 23.9132` (`+643.32%`), peak memory `26.02GB -> 21.98GB` (reduction convention `+15.52%`).
+  - `T=65536`: e2e `990.0789s -> 268.3590s` (abs `-721.7199s`, `-72.90%`), prefill `961.6474s -> 264.4541s` (`-72.50%`), decode `28.4316s -> 3.9049s` (`-86.27%`), decode tok/s `1.1255 -> 8.1948` (`+628.10%`), peak memory `33.16GB -> 23.80GB` (reduction convention `+28.24%`).
+- Boundary interpretation:
+  - Dense `T=65536` completed (`990.079s` e2e), confirming this row is high-cost but not a hard failure.
+  - Matching wayfinder `T=65536` completed under the same controls (`268.359s` e2e), indicating the long-tail runtime issue is not a wayfinder-only malfunction.
+- Decision: keep; publish follow-up token-length chart as measured evidence.
+- Next action: maintain `T=8192` stable profile as release default, and treat this sweep as follow-up scaling evidence in README.

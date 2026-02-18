@@ -1,0 +1,113 @@
+{
+  "id": "EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP",
+  "dense_paths": [
+    "benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense/results.json",
+    "benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/dense_t65536/results.json"
+  ],
+  "wayfinder_paths": [
+    "benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/wayfinder/results.json",
+    "benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/wayfinder_t65536/results.json"
+  ],
+  "results": [
+    {
+      "seq_len": 2048,
+      "dense": {
+        "e2e_sec": 3.1354243330060854,
+        "prefill_sec": 2.4643810000052326,
+        "decode_sec": 0.6710433330008527,
+        "decode_tok_s": 47.68693529358012,
+        "peak_memory_bytes": 18284344600
+      },
+      "wayfinder": {
+        "e2e_sec": 2.583073667003191,
+        "prefill_sec": 2.0189045000006445,
+        "decode_sec": 0.5641691670025466,
+        "decode_tok_s": 56.720575798243786,
+        "peak_memory_bytes": 18318769672
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -17.616456572987317,
+        "prefill_sec": -18.07660828433762,
+        "decode_sec": -15.926566995364265,
+        "decode_tok_s": 18.94363822931566,
+        "peak_memory_bytes": 0.18827621527106855
+      },
+      "memory_reduction_pct_convention": -0.18827621527106597
+    },
+    {
+      "seq_len": 8192,
+      "dense": {
+        "e2e_sec": 16.897831957998278,
+        "prefill_sec": 16.07446741599415,
+        "decode_sec": 0.8233645420041285,
+        "decode_tok_s": 38.864923575782974,
+        "peak_memory_bytes": 20660500140
+      },
+      "wayfinder": {
+        "e2e_sec": 9.381945791996259,
+        "prefill_sec": 8.649115166997944,
+        "decode_sec": 0.7328306249983143,
+        "decode_tok_s": 43.6662973795256,
+        "peak_memory_bytes": 20071482232
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -44.4784051864388,
+        "prefill_sec": -46.19345734346355,
+        "decode_sec": -10.995605517022641,
+        "decode_tok_s": 12.354002946591152,
+        "peak_memory_bytes": -2.8509373152086726
+      },
+      "memory_reduction_pct_convention": 2.850937315208668
+    },
+    {
+      "seq_len": 32768,
+      "dense": {
+        "e2e_sec": 203.30192520900164,
+        "prefill_sec": 193.35504437499912,
+        "decode_sec": 9.946880834002513,
+        "decode_tok_s": 3.21708890797313,
+        "peak_memory_bytes": 26017775484
+      },
+      "wayfinder": {
+        "e2e_sec": 112.09598312499293,
+        "prefill_sec": 110.7578111249968,
+        "decode_sec": 1.3381719999961206,
+        "decode_tok_s": 23.91321892857777,
+        "peak_memory_bytes": 21978678158
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -44.862311062842004,
+        "prefill_sec": -42.71790969663586,
+        "decode_sec": -86.54681781828832,
+        "decode_tok_s": 643.3185594999261,
+        "peak_memory_bytes": -15.524376126944059
+      },
+      "memory_reduction_pct_convention": 15.524376126944063
+    },
+    {
+      "seq_len": 65536,
+      "dense": {
+        "e2e_sec": 990.078937626,
+        "prefill_sec": 961.647368209,
+        "decode_sec": 28.43156941699999,
+        "decode_tok_s": 1.1255094479894012,
+        "peak_memory_bytes": 33160809276
+      },
+      "wayfinder": {
+        "e2e_sec": 268.35899558400706,
+        "prefill_sec": 264.45407662500656,
+        "decode_sec": 3.904918959000497,
+        "decode_tok_s": 8.194792346776568,
+        "peak_memory_bytes": 23795994534
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -72.89519195030294,
+        "prefill_sec": -72.49989077414796,
+        "decode_sec": -86.26555255628752,
+        "decode_tok_s": 628.0962733289945,
+        "peak_memory_bytes": -28.240609763338153
+      },
+      "memory_reduction_pct_convention": 28.240609763338153
+    }
+  ]
+}

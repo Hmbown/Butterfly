@@ -66,6 +66,18 @@ Takeaway: speedup comes from prefill. Decode behavior is intentionally dense-fir
 
 Full evidence and artifacts: `docs/FIRST_RELEASE.md`.
 
+Follow-up token-length sweep (`EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP`, single-turn, `decode_len=32`, `repeats=1`):
+
+| Seq Len (T) | Dense E2E (s) | Wayfinder E2E (s) | E2E Delta | Dense Prefill (s) | Wayfinder Prefill (s) | Prefill Delta | Dense Decode (s) | Wayfinder Decode (s) | Decode Delta | Dense Decode tok/s | Wayfinder Decode tok/s | Decode tok/s Delta | Dense Peak (GB) | Wayfinder Peak (GB) | Peak Memory Reduction |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2048 | 3.1354 | 2.5831 | -17.62% | 2.4644 | 2.0189 | -18.08% | 0.6710 | 0.5642 | -15.93% | 47.6869 | 56.7206 | +18.94% | 18.28 | 18.32 | -0.19% |
+| 8192 | 16.8978 | 9.3819 | -44.48% | 16.0745 | 8.6491 | -46.19% | 0.8234 | 0.7328 | -11.00% | 38.8649 | 43.6663 | +12.35% | 20.66 | 20.07 | +2.85% |
+| 32768 | 203.3019 | 112.0960 | -44.86% | 193.3550 | 110.7578 | -42.72% | 9.9469 | 1.3382 | -86.55% | 3.2171 | 23.9132 | +643.32% | 26.02 | 21.98 | +15.52% |
+| 65536 | 990.0789 | 268.3590 | -72.90% | 961.6474 | 264.4541 | -72.50% | 28.4316 | 3.9049 | -86.27% | 1.1255 | 8.1948 | +628.10% | 33.16 | 23.80 | +28.24% |
+
+Sweep artifacts:
+- `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/token_length_summary.json`
+
 ## Research context
 
 Sparse structured attention references:
