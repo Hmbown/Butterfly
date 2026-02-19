@@ -12,6 +12,7 @@ In this repo, "Hamiltonian cycle" means a permutation-induced cycle over token i
 Status for this release:
 - Validated path: MLX backend (`hcsa/integrations/glm_mlx.py`) on Apple Silicon, model `mlx-community/GLM-4.7-Flash-4bit`, `T=8192`, `decode_len=32`, single-turn benchmark.
 - Decode policy: dense by default (`wayfinder_decode_backend="dense"`), and decode steps (`q_len <= 2`) route to standard dense SDPA. Wayfinder is intentionally a prefill optimization path.
+- Strict path-audit follow-up (`EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN`) passed with explicit decode fallback reasons (`wayfinder_decode_dense`, no `unspecified`) and no OOM (`20.07 GB` at `T=8192`, `21.98 GB` at `T=32768`, both below a `28 GB` safety cap).
 - Experimental/non-default: Qwen and Nanbeige integrations.
 - PyTorch backend exists (`hcsa/torch/`) but is not the validated focus of this release.
 
@@ -77,6 +78,7 @@ Follow-up token-length sweep (`EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP`, singl
 
 Sweep artifacts:
 - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/token_length_summary.json`
+- `benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/strict_obs_gate_report.json`
 
 ## Research context
 
