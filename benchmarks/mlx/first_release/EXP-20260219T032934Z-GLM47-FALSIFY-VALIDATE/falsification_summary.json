@@ -1,0 +1,236 @@
+{
+  "id": "EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE",
+  "run_root": "benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE",
+  "t8192_variance_by_seed": [
+    {
+      "seed": 42,
+      "dense": {
+        "e2e_sec": 17.946655416017165,
+        "prefill_sec": 17.06359383300878,
+        "decode_sec": 0.8830615830083843,
+        "decode_tok_s": 36.23756328633784,
+        "peak_memory_bytes": 20660500140,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "dense": 34
+        },
+        "dense_fallback_reason_counts": {}
+      },
+      "wayfinder": {
+        "e2e_sec": 10.799091501001385,
+        "prefill_sec": 10.048013916995842,
+        "decode_sec": 0.751077584005543,
+        "decode_tok_s": 42.60545206174578,
+        "peak_memory_bytes": 20071482232,
+        "dense_fallback_share_run": 0.9411764705882353,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "wayfinder": 16,
+          "wayfinder_dense_fallback": 256
+        },
+        "dense_fallback_reason_counts": {
+          "unspecified": 256
+        }
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -39.82671840145027,
+        "prefill_sec": -41.11431615561315,
+        "decode_sec": -14.946182864529412,
+        "decode_tok_s": 17.57261857010331,
+        "peak_memory_bytes": -2.8509373152086726
+      },
+      "memory_reduction_pct_convention": 2.850937315208668
+    },
+    {
+      "seed": 7,
+      "dense": {
+        "e2e_sec": 17.784740457995213,
+        "prefill_sec": 16.99100991699379,
+        "decode_sec": 0.7937305410014233,
+        "decode_tok_s": 40.315948986449065,
+        "peak_memory_bytes": 20660500140,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "dense": 34
+        },
+        "dense_fallback_reason_counts": {}
+      },
+      "wayfinder": {
+        "e2e_sec": 12.321787792010582,
+        "prefill_sec": 10.691952250010218,
+        "decode_sec": 1.6298355420003645,
+        "decode_tok_s": 19.633882790852063,
+        "peak_memory_bytes": 20071482232,
+        "dense_fallback_share_run": 0.9411764705882353,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "wayfinder": 16,
+          "wayfinder_dense_fallback": 256
+        },
+        "dense_fallback_reason_counts": {
+          "unspecified": 256
+        }
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -30.71707837900291,
+        "prefill_sec": -37.07288558924025,
+        "decode_sec": 105.33864552371332,
+        "decode_tok_s": -51.29996122018268,
+        "peak_memory_bytes": -2.8509373152086726
+      },
+      "memory_reduction_pct_convention": 2.850937315208668
+    },
+    {
+      "seed": 99,
+      "dense": {
+        "e2e_sec": 17.30063116599922,
+        "prefill_sec": 16.509963750009774,
+        "decode_sec": 0.7906674159894465,
+        "decode_tok_s": 40.47213702357392,
+        "peak_memory_bytes": 20660500140,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "dense": 34
+        },
+        "dense_fallback_reason_counts": {}
+      },
+      "wayfinder": {
+        "e2e_sec": 10.703120207996108,
+        "prefill_sec": 9.889592583000194,
+        "decode_sec": 0.8135276249959134,
+        "decode_tok_s": 39.334865856781136,
+        "peak_memory_bytes": 20071482232,
+        "dense_fallback_share_run": 0.9411764705882353,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true,
+        "path_counts": {
+          "wayfinder": 16,
+          "wayfinder_dense_fallback": 256
+        },
+        "dense_fallback_reason_counts": {
+          "unspecified": 256
+        }
+      },
+      "delta_wayfinder_vs_dense_pct": {
+        "e2e_sec": -38.134510207749784,
+        "prefill_sec": -40.099247141022104,
+        "decode_sec": 2.89125472280396,
+        "decode_tok_s": -2.810010171022984,
+        "peak_memory_bytes": -2.8509373152086726
+      },
+      "memory_reduction_pct_convention": 2.850937315208668
+    }
+  ],
+  "t8192_aggregate": {
+    "e2e_sec": {
+      "dense_mean": 17.67734234667053,
+      "dense_stdev": 0.27445412323360857,
+      "wayfinder_mean": 11.274666500336025,
+      "wayfinder_stdev": 0.7414624611216767,
+      "delta_pct_mean": -36.22610232940099,
+      "delta_pct_stdev": 3.9562525035064438
+    },
+    "prefill_sec": {
+      "dense_mean": 16.85485583333745,
+      "dense_stdev": 0.245669178737851,
+      "wayfinder_mean": 10.209852916668751,
+      "wayfinder_stdev": 0.3469766132104149,
+      "delta_pct_mean": -39.42881629529184,
+      "delta_pct_stdev": 1.7166631187438905
+    },
+    "decode_sec": {
+      "dense_mean": 0.8224865133330846,
+      "dense_stdev": 0.042851293121953,
+      "wayfinder_mean": 1.0648135836672736,
+      "wayfinder_stdev": 0.4003434874819751,
+      "delta_pct_mean": 31.094572460662626,
+      "delta_pct_stdev": 53.00113416185363
+    },
+    "decode_tok_s": {
+      "dense_mean": 39.00854976545361,
+      "dense_stdev": 1.9604205715980159,
+      "wayfinder_mean": 33.85806690312633,
+      "wayfinder_stdev": 10.146255262441507,
+      "delta_pct_mean": -12.179117607034119,
+      "delta_pct_stdev": 28.887058144354388
+    },
+    "peak_memory_bytes": {
+      "dense_mean": 20660500140,
+      "dense_stdev": 0.0,
+      "wayfinder_mean": 20071482232,
+      "wayfinder_stdev": 0.0,
+      "delta_pct_mean": -2.8509373152086726,
+      "delta_pct_stdev": 0.0
+    }
+  },
+  "t32768_pair": {
+    "dense": {
+      "e2e_sec": 423.3839241670212,
+      "prefill_sec": 386.60573095901054,
+      "decode_sec": 36.778193208010634,
+      "decode_tok_s": 0.8700808062814271,
+      "peak_memory_bytes": 26017775484,
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "path_counts": {
+        "dense": 40
+      },
+      "dense_fallback_reason_counts": {}
+    },
+    "wayfinder": {
+      "e2e_sec": 152.08725270899595,
+      "prefill_sec": 147.25442670899793,
+      "decode_sec": 4.832825999998022,
+      "decode_tok_s": 6.6213846722421,
+      "peak_memory_bytes": 21978678158,
+      "dense_fallback_share_run": 0.8,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "path_counts": {
+        "wayfinder": 64,
+        "wayfinder_dense_fallback": 256
+      },
+      "dense_fallback_reason_counts": {
+        "unspecified": 256
+      }
+    },
+    "delta_wayfinder_vs_dense_pct": {
+      "e2e_sec": -64.07817018366552,
+      "prefill_sec": -61.910956067898944,
+      "decode_sec": -86.85953392907462,
+      "decode_tok_s": 661.0080149383754,
+      "peak_memory_bytes": -15.524376126944059
+    },
+    "memory_reduction_pct_convention": 15.524376126944063
+  },
+  "quality_gate": {
+    "dense": {
+      "num_tasks": 6,
+      "correct": 3,
+      "accuracy": 0.5
+    },
+    "wayfinder": {
+      "num_tasks": 6,
+      "correct": 3,
+      "accuracy": 0.5
+    },
+    "delta": {
+      "accuracy_abs": 0.0,
+      "accuracy_pct_of_dense": 0.0,
+      "task_count_delta": 0
+    }
+  },
+  "gate_violations": [
+    "T32768_seed42: strict fallback reasons non-informative"
+  ],
+  "gate_passed": false
+}

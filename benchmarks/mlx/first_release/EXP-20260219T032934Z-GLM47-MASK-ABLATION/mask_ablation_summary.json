@@ -1,0 +1,76 @@
+{
+  "id": "EXP-20260219T032934Z-GLM47-MASK-ABLATION",
+  "variants": {
+    "window_only": {
+      "seq_len": 8192,
+      "level_a_baseline_tokens_per_sec": 22167.683431748752,
+      "level_a_wayfinder_tokens_per_sec": 105182.01025798949,
+      "level_a_baseline_peak_memory_bytes": 3719072300,
+      "level_a_wayfinder_peak_memory_bytes": 1186138668,
+      "level_a_graph_build_ms_first": 1.0969590097665787,
+      "level_a_graph_build_ms_cached": 0.0040000081062316895,
+      "level_b_smoke_tokens_per_sec": 11.9819240973913,
+      "level_b_smoke_peak_memory_bytes": 17356661108,
+      "delta_vs_window_only_pct": {
+        "level_a_wayfinder_tokens_per_sec": 0.0,
+        "level_a_wayfinder_peak_memory_bytes": 0.0,
+        "level_b_smoke_tokens_per_sec": 0.0,
+        "level_b_smoke_peak_memory_bytes": 0.0
+      },
+      "delta_vs_full_hcsa_pct": {
+        "level_a_wayfinder_tokens_per_sec": 77.11565965996492,
+        "level_a_wayfinder_peak_memory_bytes": 10.41359074478125,
+        "level_b_smoke_tokens_per_sec": 0.8051899797617103,
+        "level_b_smoke_peak_memory_bytes": -0.0038937078992530927
+      }
+    },
+    "cycle_only": {
+      "seq_len": 8192,
+      "level_a_baseline_tokens_per_sec": 22405.130477257724,
+      "level_a_wayfinder_tokens_per_sec": 121369.3299084437,
+      "level_a_baseline_peak_memory_bytes": 3719072300,
+      "level_a_wayfinder_peak_memory_bytes": 1175489072,
+      "level_a_graph_build_ms_first": 7.318041995167732,
+      "level_a_graph_build_ms_cached": 0.0035409927368164062,
+      "level_b_smoke_tokens_per_sec": 10.050425951087455,
+      "level_b_smoke_peak_memory_bytes": 17355396984,
+      "delta_vs_window_only_pct": {
+        "level_a_wayfinder_tokens_per_sec": 15.389817717640215,
+        "level_a_wayfinder_peak_memory_bytes": -0.8978373513407794,
+        "level_b_smoke_tokens_per_sec": -16.120099999000747,
+        "level_b_smoke_peak_memory_bytes": -0.00728322107653149
+      },
+      "delta_vs_full_hcsa_pct": {
+        "level_a_wayfinder_tokens_per_sec": 104.37343683102954,
+        "level_a_wayfinder_peak_memory_bytes": 9.422256286118058,
+        "level_b_smoke_tokens_per_sec": -15.444707449158555,
+        "level_b_smoke_peak_memory_bytes": -0.011176645388430205
+      }
+    },
+    "full_hcsa": {
+      "seq_len": 8192,
+      "level_a_baseline_tokens_per_sec": 21421.224057641935,
+      "level_a_wayfinder_tokens_per_sec": 59386.05906441188,
+      "level_a_baseline_peak_memory_bytes": 3719072300,
+      "level_a_wayfinder_peak_memory_bytes": 1074268720,
+      "level_a_graph_build_ms_first": 14.514790996909142,
+      "level_a_graph_build_ms_cached": 0.004583999514579773,
+      "level_b_smoke_tokens_per_sec": 11.886217465387315,
+      "level_b_smoke_peak_memory_bytes": 17357336952,
+      "delta_vs_window_only_pct": {
+        "level_a_wayfinder_tokens_per_sec": -43.539718513888175,
+        "level_a_wayfinder_peak_memory_bytes": -9.43143925900576,
+        "level_b_smoke_tokens_per_sec": -0.7987584567058158,
+        "level_b_smoke_peak_memory_bytes": 0.0038938595147686053
+      },
+      "delta_vs_full_hcsa_pct": {
+        "level_a_wayfinder_tokens_per_sec": 0.0,
+        "level_a_wayfinder_peak_memory_bytes": 0.0,
+        "level_b_smoke_tokens_per_sec": 0.0,
+        "level_b_smoke_peak_memory_bytes": 0.0
+      }
+    }
+  },
+  "gate_violations": [],
+  "gate_passed": true
+}

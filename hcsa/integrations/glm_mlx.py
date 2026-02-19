@@ -391,10 +391,25 @@ class GLMWayfinderAttention(nn.Module):
         use_active_permute = active_mode and not (
             force_dense_active or force_dense_large_active or force_dense_wayfinder_decode
         )
+        fallback_due_to_q_mismatch = q_len != k_len and not (
+            use_active_permute or sparse_active_mode
+        )
+        dense_fallback_reason: Optional[str] = None
+        if force_dense_active:
+            dense_fallback_reason = "active_dense_threshold"
+        elif force_dense_large_active:
+            dense_fallback_reason = "active_large_q"
+        elif force_dense_wayfinder_decode:
+            dense_fallback_reason = "wayfinder_decode_dense"
+        elif fallback_due_to_q_mismatch:
+            dense_fallback_reason = "q_len_mismatch"
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
-        if force_dense_active or force_dense_wayfinder_decode or (
-            q_len != k_len and not (use_active_permute or sparse_active_mode)
+        if (
+            force_dense_active
+            or force_dense_large_active
+            or force_dense_wayfinder_decode
+            or fallback_due_to_q_mismatch
         ):
             t_attn0 = _now_ms()
             out = self._dense_fallback(queries, keys, values, mask, cache)
@@ -416,6 +431,7 @@ class GLMWayfinderAttention(nn.Module):
                     "active_dense_triggered": bool(force_dense_active),
                     "active_large_q_dense_triggered": bool(force_dense_large_active),
                     "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                    "dense_fallback_reason": dense_fallback_reason,
                     "wayfinder_decode_backend": self.wayfinder_decode_backend,
                     "sparse_active_mode": bool(sparse_active_mode),
                     "active_query_chunk_limit": int(self.query_chunk_size),

@@ -8109,3 +8109,150 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - Matching wayfinder `T=65536` completed under the same controls (`268.359s` e2e), indicating the long-tail runtime issue is not a wayfinder-only malfunction.
 - Decision: keep; publish follow-up token-length chart as measured evidence.
 - Next action: maintain `T=8192` stable profile as release default, and treat this sweep as follow-up scaling evidence in README.
+
+## 2026-02-19 — GLM-4.7 Falsification + Validation Pass (OOM-Safe)
+
+### EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE
+- Question: Under strict paired controls and OOM-safe limits, do Wayfinder gains hold with low variance, acceptable quality, and auditable fallback behavior?
+- Hypothesis: At `T=8192` and `T=32768`, Wayfinder will retain >=10% prefill gain vs dense, keep peak memory <= +5% vs dense (and below absolute safety cap), and quality drift on the 6-task set will be <= 1 task.
+- Change set: measurement only.
+- Baselines:
+  - `benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json`
+  - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/token_length_summary.json`
+- Run root:
+  - `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE`
+- Command queue (sequential, one process at a time):
+  - 8192 variance pairs for seeds `42, 7, 99` (dense then wayfinder per seed)
+  - 32768 falsification pair (dense then wayfinder, seed 42)
+  - quality-only pair on 6-task dataset at 8192 (dense then wayfinder)
+- Controls:
+  - model=`mlx-community/GLM-4.7-Flash-4bit`
+  - decode_len=`32`, repeats=`1`, skip_multi_turn=`true`
+  - chunk_size=`4096`, kv_step=`4096`, cooldown_sec=`0`
+  - wayfinder config: window=`64`, head_chunk_size=`2`, query_chunk_size=`384`, landmark_stride=`off`
+  - retro/backfill inference off (default)
+- Stop gates:
+  - nonzero exit, missing `results.json`, missing `single_turn` row
+  - dense path contamination (`path_counts` keys beyond `dense`)
+  - unknown fallback share (`observability_fallback_share_known=false`)
+  - prefill fallback presence in wayfinder (`dense_fallback_share_prefill_steps>0`)
+  - prefill gain < 10% (`wayfinder_prefill > 0.90 * dense_prefill`)
+  - memory regression > 5% (`wayfinder_peak > 1.05 * dense_peak`)
+  - absolute peak safety cap > 28GB on this queue
+  - quality gate fail if wayfinder accuracy drops by > 1/6 vs dense
+- Decision: pending.
+- Next action: execute queue and compute absolute + delta + percent delta per metric with gate verdicts.
+
+### EXP-20260219T032934Z-GLM47-MASK-ABLATION
+- Question: At `T=8192`, which mask ingredients drive speed/memory changes: window-only, cycle-only, or full HCSA?
+- Hypothesis: Full HCSA (window+cycle+landmark) and cycle-only variants should outperform window-only in attention-stage throughput at this context length.
+- Change set: measurement only.
+- Entry point:
+  - `scripts/bench_glm_wayfinder_mlx.py` (attention-stage benchmark with explicit `--window`, `--num-cycles`, `--landmark-stride` knobs)
+- Runs (all with `--seq-lens 8192 --iters 1 --warmup 1 --batch 1 --full-swap`):
+  - window-only: `--window 64 --num-cycles 0 --landmark-stride 0 --allow-non-hamiltonian`
+  - cycle-only: `--window 0 --num-cycles 1 --landmark-stride 0`
+  - full HCSA: `--window 64 --num-cycles 1 --landmark-stride 64`
+- Stop gates:
+  - nonzero exit
+  - missing `results.json`
+  - missing usable row for `T=8192`
+  - peak memory over 28GB safety cap
+- Decision: pending.
+- Next action: run the three variants and compare tokens/sec + peak memory deltas against each other.
+
+### EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE (RESULT)
+- Status: completed (no OOM; all commands exited 0).
+- Artifacts:
+  - `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/falsification_summary.json`
+  - per-run outputs under `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/`
+- T=8192 variance summary across seeds 42/7/99 (Wayfinder vs dense, mean delta):
+  - e2e: `-36.23%` (std `3.96 pp`)
+  - prefill: `-39.43%` (std `1.72 pp`)
+  - decode sec: `+31.09%` (std `53.00 pp`)
+  - decode tok/s: `-12.18%` (std `28.89 pp`)
+  - peak memory reduction convention `100*(1-wayfinder/dense)`: `+2.85%`
+- T=32768 paired falsification (seed 42):
+  - e2e: `423.384s -> 152.087s` (abs `-271.297s`, `-64.08%`)
+  - prefill: `406.592s -> 154.861s` (abs `-251.731s`, `-61.91%`)
+  - decode: `16.792s -> 2.226s` (abs `-14.566s`, `-86.86%`)
+  - decode tok/s: `1.9057 -> 14.5038` (`+661.01%`)
+  - peak memory: `26.02GB -> 21.98GB` (reduction convention `+15.52%`)
+- Quality gate (6-task set):
+  - dense accuracy: `3/6 = 0.50`
+  - wayfinder accuracy: `3/6 = 0.50`
+  - delta: `0 tasks`, `0.00` accuracy
+- Gate verdict:
+  - Passed: nonzero/missing-artifact gates, memory gates, prefill-gain gates, quality drift gate.
+  - Failed (strict observability only): fallback reasons remained non-informative (`dense_fallback_reason_counts={unspecified: ...}`) for wayfinder decode fallback path.
+- Decision: follow-up.
+- Next action: keep current performance claims but treat fallback-reason observability as unresolved; add explicit reason labeling for wayfinder decode dense fallback before claiming strict path-audit pass.
+
+### EXP-20260219T032934Z-GLM47-MASK-ABLATION (RESULT)
+- Status: completed (no OOM; all commands exited 0).
+- Artifacts:
+  - `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-MASK-ABLATION/mask_ablation_summary.json`
+  - per-variant outputs under `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-MASK-ABLATION/`
+- Level-A attention-stage (`T=8192`, cached wayfinder attention):
+  - window-only: `105182.01 tok/s`, peak `1,186,138,668`
+  - cycle-only: `121369.33 tok/s`, peak `1,175,489,072`
+  - full HCSA: `59386.06 tok/s`, peak `1,074,268,720`
+- Level-B full-swap smoke (seq_len=256 in this script):
+  - window-only: `11.9819 tok/s`, peak `17,356,661,108`
+  - cycle-only: `10.0504 tok/s`, peak `17,355,396,984`
+  - full HCSA: `11.8862 tok/s`, peak `17,357,336,952`
+- Gate verdict: passed (all peaks below 28GB safety cap).
+- Decision: follow-up.
+- Next action: because this script is a mixed micro+smoke benchmark (not consumer e2e), do not overinterpret; if needed, add consumer-level ablation support in `bench_glm_consumer_mlx.py` for `num_cycles` and run the same variants there.
+
+## 2026-02-19 — GLM-4.7 Strict Observability Rerun (OOM-Safe)
+
+### EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN
+- Question: After explicit fallback-reason labeling, do wayfinder decode fallback traces remain OOM-safe and become fully informative (no `unspecified`) at both `T=8192` and `T=32768`?
+- Hypothesis: Adding `dense_fallback_reason` labels in GLM wayfinder dense-fallback paths will remove `unspecified` counts while preserving the prior OOM-safe memory profile and decode-fallback behavior.
+- Change set:
+  - `hcsa/integrations/glm_mlx.py`: emit explicit `dense_fallback_reason` for dense fallback routes (`active_dense_threshold`, `active_large_q`, `wayfinder_decode_dense`, `q_len_mismatch`).
+- Baseline:
+  - `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/falsification_summary.json`
+- Command queue (sequential, one process at a time):
+  - `gtimeout 2400 python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 384 --debug-wayfinder-decode-backend dense --skip-multi-turn --skip-quality --seed 42 --out-dir benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t8192_s42`
+  - `gtimeout 2400 python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --head-chunk-size 2 --query-chunk-size 384 --debug-wayfinder-decode-backend dense --skip-multi-turn --skip-quality --seed 42 --out-dir benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t32768_s42`
+- Controls:
+  - model=`mlx-community/GLM-4.7-Flash-4bit`
+  - decode_len=`32`, repeats=`1`, skip_multi_turn=`true`, skip_quality=`true`
+  - chunk_size=`4096`, kv_step=`4096`, cooldown_sec=`0`, seed=`42`
+  - wayfinder config: window=`64`, head_chunk_size=`2`, query_chunk_size=`384`, decode backend=`dense`
+  - retro/backfill inference off (default)
+  - absolute peak memory safety cap: `28GB`
+- Stop gates:
+  - nonzero exit, timeout, missing `results.json`, or missing `single_turn` row
+  - `observability_fallback_share_known=false`
+  - decode fallback not observed (`dense_fallback_share_decode_steps <= 0`)
+  - prefill fallback observed (`dense_fallback_share_prefill_steps > 0`)
+  - any `dense_fallback_reason_counts` entry in `{unspecified, "", none, null}`
+  - no informative fallback reasons present
+  - `peak_memory_bytes > 28_000_000_000`
+- Decision: pending.
+- Next action: execute the two-run queue, write strict gate report, and append RESULT entry with absolute metrics plus deltas vs the `EXP-20260219T032934Z` baseline.
+
+### EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN (RESULT)
+- Status: completed (no OOM; both commands exited 0).
+- Artifacts:
+  - `benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t8192_s42/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t32768_s42/results.json`
+  - `benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/strict_obs_gate_report.json`
+- Gate verdict:
+  - Passed: all strict observability and safety gates.
+  - Violations: none.
+- Observability outcome:
+  - `T=8192`: `dense_fallback_reason_counts={"wayfinder_decode_dense": 256}`, decode fallback share `1.0`, prefill fallback share `0.0`.
+  - `T=32768`: `dense_fallback_reason_counts={"wayfinder_decode_dense": 256}`, decode fallback share `1.0`, prefill fallback share `0.0`.
+  - `unspecified` reason count: `0` in both runs.
+- OOM safety:
+  - `T=8192` peak memory: `20.07GB` (below 28GB cap)
+  - `T=32768` peak memory: `21.98GB` (below 28GB cap)
+- Comparison vs baseline `EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE`:
+  - `T=8192`: e2e `10.7991s -> 10.6634s` (abs `-0.1357s`, `-1.26%`), prefill `10.0480s -> 9.8659s` (abs `-0.1821s`, `-1.81%`), decode `0.7511s -> 0.7974s` (abs `+0.0464s`, `+6.17%`), decode tok/s `42.6055 -> 40.1281` (abs `-2.4774`, `-5.81%`), peak memory `20.07GB -> 20.07GB` (abs `0`, `0.00%`).
+  - `T=32768`: e2e `152.0873s -> 188.7893s` (abs `+36.7020s`, `+24.13%`), prefill `147.2544s -> 181.3493s` (abs `+34.0948s`, `+23.15%`), decode `4.8328s -> 7.4400s` (abs `+2.6072s`, `+53.95%`), decode tok/s `6.6214 -> 4.3011` (abs `-2.3203`, `-35.04%`), peak memory `21.98GB -> 21.98GB` (abs `0`, `0.00%`).
+- Decision: keep.
+- Next action: retain this patch as the strict fallback-reason observability fix; if performance stability is the question, rerun paired dense+wayfinder with thermal/state controls before changing README claims.

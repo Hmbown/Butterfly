@@ -1,0 +1,82 @@
+{
+  "run_id": "EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN",
+  "safety_cap_peak_memory_bytes": 28000000000,
+  "cases": {
+    "wayfinder_t8192_s42": {
+      "candidate_results": "benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t8192_s42/results.json",
+      "baseline_results": "benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/wayfinder_t8192_s42/results.json",
+      "candidate_abs": {
+        "e2e_sec": 10.663361166996765,
+        "prefill_sec": 9.86591429199325,
+        "decode_sec": 0.7974468750035157,
+        "decode_tok_s": 40.12806495712824,
+        "peak_memory_bytes": 20071482232,
+        "path_counts": {
+          "wayfinder": 16,
+          "wayfinder_dense_fallback": 256
+        },
+        "dense_fallback_reason_counts": {
+          "wayfinder_decode_dense": 256
+        },
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true
+      },
+      "delta_vs_baseline_abs": {
+        "e2e_sec": -0.1357303340046201,
+        "prefill_sec": -0.1820996250025928,
+        "decode_sec": 0.04636929099797271,
+        "decode_tok_s": -2.4773871046175415,
+        "peak_memory_bytes": 0
+      },
+      "delta_vs_baseline_pct": {
+        "e2e_sec": -1.2568680799864878,
+        "prefill_sec": -1.8122947132326126,
+        "decode_sec": 6.173701889847707,
+        "decode_tok_s": -5.81471850369572,
+        "peak_memory_bytes": 0.0
+      },
+      "gates_passed": true,
+      "gate_failures": []
+    },
+    "wayfinder_t32768_s42": {
+      "candidate_results": "benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/wayfinder_t32768_s42/results.json",
+      "baseline_results": "benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/wayfinder_t32768_s42/results.json",
+      "candidate_abs": {
+        "e2e_sec": 188.7892819999979,
+        "prefill_sec": 181.34925137499522,
+        "decode_sec": 7.4400306250026915,
+        "decode_tok_s": 4.301057564529638,
+        "peak_memory_bytes": 21978678158,
+        "path_counts": {
+          "wayfinder": 64,
+          "wayfinder_dense_fallback": 256
+        },
+        "dense_fallback_reason_counts": {
+          "wayfinder_decode_dense": 256
+        },
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "observability_fallback_share_known": true
+      },
+      "delta_vs_baseline_abs": {
+        "e2e_sec": 36.70202929100196,
+        "prefill_sec": 34.094824665997294,
+        "decode_sec": 2.6072046250046697,
+        "decode_tok_s": -2.320327107712462,
+        "peak_memory_bytes": 0
+      },
+      "delta_vs_baseline_pct": {
+        "e2e_sec": 24.13221926049759,
+        "prefill_sec": 23.153684020226432,
+        "decode_sec": 53.94782731688947,
+        "decode_tok_s": -35.04292867079061,
+        "peak_memory_bytes": 0.0
+      },
+      "gates_passed": true,
+      "gate_failures": []
+    }
+  },
+  "gate_passed": true,
+  "gate_violations": []
+}

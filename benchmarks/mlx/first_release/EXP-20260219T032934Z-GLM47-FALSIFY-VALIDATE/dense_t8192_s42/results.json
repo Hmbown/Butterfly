@@ -1,0 +1,146 @@
+{
+  "created_at": "2026-02-19T03:30:25.206015+00:00",
+  "command": "scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --skip-multi-turn --skip-quality --seed 42 --out-dir benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/dense_t8192_s42",
+  "model_path": "mlx-community/GLM-4.7-Flash-4bit",
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_discovered_active_row_kernel": false,
+    "debug_disable_fused_dispatch": false,
+    "debug_enable_decode_local_tail_fastpath": false,
+    "debug_active_dense_threshold": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "single_turn": [
+    {
+      "seq_len": 8192,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 17.06359383300878,
+      "ttft_sec": 0.2708487500058254,
+      "itl_p50_sec": 0.01958191599987913,
+      "itl_p95_sec": 0.020343416996183805,
+      "decode_sec": 0.8830615830083843,
+      "e2e_sec": 17.946655416017165,
+      "decode_tok_s": 36.23756328633784,
+      "peak_memory_bytes": 20660500140,
+      "sample_output_text": "  } } } } } } } } } } } } } } } } } } } } } } } } } } } } } } }",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 34,
+        "layer_observations": 34,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 34
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 2,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 2,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "timing_ms_by_phase": {
+          "overall": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 34
+          },
+          "prefill": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 2
+          },
+          "decode": {
+            "graph_build_ms": 0.0,
+            "attention_ms": 0.0,
+            "total_profile_ms": 0.0,
+            "graph_vs_attention_total_ms": 0.0,
+            "graph_build_share_of_graph_plus_attention": null,
+            "attention_share_of_graph_plus_attention": null,
+            "layer_observations_with_timing": 32
+          }
+        },
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 34
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_prefill_steps": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "timing_ms_by_phase": {
+        "overall": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 34
+        },
+        "prefill": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 2
+        },
+        "decode": {
+          "graph_build_ms": 0.0,
+          "attention_ms": 0.0,
+          "total_profile_ms": 0.0,
+          "graph_vs_attention_total_ms": 0.0,
+          "graph_build_share_of_graph_plus_attention": null,
+          "attention_share_of_graph_plus_attention": null,
+          "layer_observations_with_timing": 32
+        }
+      },
+      "observability_fallback_share_known": true
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}
