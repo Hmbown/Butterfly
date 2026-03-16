@@ -1,6 +1,6 @@
-# Wayfinder (HCSA) - graph-sparse causal attention for inference
+# Wayfinder (HCSA): graph-sparse causal attention for inference
 
-Wayfinder implements Hamiltonian Cycle Sparse Attention (HCSA): an inference-time runtime that replaces dense causal self-attention with a bounded-degree graph neighborhood.
+Wayfinder implements Hamiltonian Cycle Sparse Attention (HCSA), an inference-time runtime that replaces dense causal self-attention with a bounded-degree graph neighborhood.
 
 The graph has three ingredients:
 - local causal window
@@ -9,9 +9,9 @@ The graph has three ingredients:
 
 In this repo, "Hamiltonian cycle" means a permutation-induced cycle over token indices (each token gets two cycle neighbors, then causal masking is applied), not a metric-space TSP claim.
 
-Status for this release:
+Release status:
 - Validated path: MLX backend (`hcsa/integrations/glm_mlx.py`) on Apple Silicon, model `mlx-community/GLM-4.7-Flash-4bit`, `T=8192`, `decode_len=32`, single-turn benchmark.
-- Decode policy: dense by default (`wayfinder_decode_backend="dense"`), and decode steps (`q_len <= 2`) route to standard dense SDPA. Wayfinder is intentionally a prefill optimization path.
+- Decode policy: dense by default (`wayfinder_decode_backend="dense"`). Decode steps (`q_len <= 2`) route to standard dense SDPA; Wayfinder is currently a prefill optimization path.
 - Strict path-audit follow-up (`EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN`) passed with explicit decode fallback reasons (`wayfinder_decode_dense`, no `unspecified`) and no OOM (`20.07 GB` at `T=8192`, `21.98 GB` at `T=32768`, both below a `28 GB` safety cap).
 - Experimental/non-default: Qwen and Nanbeige integrations.
 - PyTorch backend exists (`hcsa/torch/`) but is not the validated focus of this release.
@@ -30,8 +30,22 @@ This is not:
 - Exact dense attention with a faster kernel (that is the FlashAttention / FlashInfer category).
 
 Mental model: dense causal attention is a complete causal DAG over positions; HCSA is a bounded-degree sparse causal DAG.
+Terminology map: `docs/GLOSSARY.md`.
 
-## Attention pattern comparison
+## Visual summary
+
+Suggested order:
+1. Pattern landscape (`docs/assets/attention_comparison_5panel.png`)
+2. Hamiltonian mechanism (`docs/assets/hcsa_graph_circle.png`)
+3. Validated metric card (`docs/assets/wayfinder_metric_card.png`)
+
+Storyboard and narration guidance: `docs/VISUAL_STORYBOARD.md`.
+
+![Wayfinder attention pattern comparison](docs/assets/attention_comparison_5panel.png)
+![Wayfinder Hamiltonian cycle graph](docs/assets/hcsa_graph_circle.png)
+![Wayfinder validated metric card](docs/assets/wayfinder_metric_card.png)
+
+## Attention pattern comparison details
 
 Five causal attention patterns at sequence length `T=64` (illustrative mask size, not the benchmark length):
 
@@ -47,11 +61,14 @@ The HCSA panel uses the same mask logic as the implementation: random Hamiltonia
 
 Reproduce:
 ```bash
-python3 scripts/viz/attention_pattern_comparison.py --seq-len 64 --window 8
-python3 scripts/viz/graph_viz.py --seq-len 32 --out docs/assets/hcsa_graph_circle.png
+python3 scripts/viz/attention_pattern_comparison.py --seq-len 64 --window 8 --out docs/assets/attention_comparison_5panel.png
+python3 scripts/viz/graph_viz.py --seq-len 32 --window 4 --landmark-stride 8 --out docs/assets/hcsa_graph_circle.png
+python3 scripts/viz/wayfinder_metric_card.py \
+  --stable-summary-json benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json \
+  --out docs/assets/wayfinder_metric_card.png
 ```
 
-## Results: GLM-4.7-Flash-4bit (Apple Silicon, MLX)
+## Validated results: GLM-4.7-Flash-4bit (Apple Silicon, MLX)
 
 Validated run: `EXP-20260218T151213Z-STABLE-PROFILE` (`T=8192`, `decode_len=32`, single turn).
 
@@ -63,7 +80,7 @@ Validated run: `EXP-20260218T151213Z-STABLE-PROFILE` (`T=8192`, `decode_len=32`,
 | Decode throughput | `tok/s` | `40.5762 tok/s` | `39.8499 tok/s` | `-1.79%` |
 | Peak memory | `GB` | `~20.66 GB` | `~20.07 GB` | `-2.85%` |
 
-Takeaway: speedup comes from prefill. Decode behavior is intentionally dense-first, which avoids decode-quality regression from sparse decode routing.
+Takeaway: the measured improvement is a prefill effect. Decode remains dense-first by design, which keeps the validated path conservative.
 
 Full evidence and artifacts: `docs/FIRST_RELEASE.md`.
 
@@ -80,6 +97,14 @@ Sweep artifacts:
 - `benchmarks/mlx/first_release/EXP-20260218T183512Z-GLM47-TOKENLEN-SWEEP/token_length_summary.json`
 - `benchmarks/mlx/first_release/EXP-20260219T040010Z-GLM47-STRICT-OBS-RERUN/strict_obs_gate_report.json`
 
+## Current Qwen 3.5 work
+
+Qwen 3.5 support is experimental and is not part of the validated public release path.
+
+Current work includes custom kernels needed to get HCSA/Wayfinder working correctly on that model family.
+
+The present engineering objective is to keep prefill speed roughly consistent as context length increases. That objective is still under investigation and should not be read as a validated performance claim.
+
 ## Research context
 
 Sparse structured attention references:
@@ -95,7 +120,7 @@ Different bucket (exact attention, faster kernels):
 - FlashAttention: <https://arxiv.org/abs/2205.14135>
 - FlashInfer: <https://arxiv.org/abs/2501.01005>
 
-## Try It Now (Interactive Chat)
+## Try it now (interactive chat)
 
 This script is a thin wrapper over `mlx_lm.load` and `mlx_lm.stream_generate`:
 - `scripts/chat_glm_wayfinder.py`
@@ -118,7 +143,7 @@ Dense baseline:
 python3 scripts/chat_glm_wayfinder.py --mode dense
 ```
 
-## Quick Start (5 Minutes)
+## Quick start (5 minutes)
 
 ```bash
 git clone <this-repo> && cd <this-repo>
@@ -136,7 +161,7 @@ Expected verify artifacts:
 - `benchmarks/mlx/preflight/<RUN_ID>_summary.json`
 - `benchmarks/mlx/preflight/<RUN_ID>_raw.txt`
 
-## First Successful Run
+## First successful run
 
 ```bash
 python3 scripts/bench_glm_consumer_mlx.py \
@@ -153,7 +178,7 @@ Success criteria:
 - exit code is `0`
 - `benchmarks/mlx/first_release/first_run_dense_t2048/results.json` exists
 
-## Stable Public Profile (Default)
+## Stable public profile (default)
 
 ```bash
 ./scripts/run_public_stable_profile_glm.sh
@@ -165,7 +190,7 @@ Output artifacts:
 - `<out-root>/<run-id>/stable_profile_summary.json`
 - `<out-root>/<run-id>/stable_profile_summary.md`
 
-## Support Matrix (Validated vs Experimental)
+## Support matrix
 
 | Tier | Status | Scope | Default | Evidence |
 |---|---|---|---|---|
@@ -182,7 +207,13 @@ Boundary note: Nanbeige `T=131072, decode_len=32` has diagnostic data but remain
 - For fallback diagnostics, add `--hsa-trace`.
 - Keep Nanbeige `T=131072` slices non-default unless release evidence changes.
 
-Release evidence: `docs/FIRST_RELEASE.md`. Architecture details: `docs/ARCHITECTURE.md`. Research notes: `docs/RESEARCH.md`.
+- `docs/FIRST_RELEASE.md` — release evidence and benchmark artifacts
+- `docs/ARCHITECTURE.md` — architecture details
+- `docs/RESEARCH.md` — research notes
+- `docs/PUBLIC_POSITIONING.md` — positioning
+- `docs/RELEASE_GATE.md` — release gate criteria
+- `SECURITY.md` — security reporting
+- `CONTRIBUTING.md` — contributor guide
 
 ## License
 

@@ -1,7 +1,11 @@
 # First Public Release (2026-02-18)
 
-This release ships one safe default path and separates validated behavior from experimental and known-regression slices. The public scope is primarily a GLM-4.7-Flash-4bit stable-path release.
+This release exposes one conservative default path and separates validated behavior from experimental and known-regression slices. The public scope is a GLM-4.7-Flash-4bit stable-path release.
+
 Referenced by README support matrix: `README.md`.
+Public launch controls and messaging contract:
+- `docs/RELEASE_GATE.md`
+- `docs/PUBLIC_POSITIONING.md`
 
 ## Public Default
 
@@ -12,15 +16,15 @@ Referenced by README support matrix: `README.md`.
 - Retro/backfill inference default remains off.
 - Execution policy: run one benchmark/inference command at a time.
 
-## Support Matrix
+## Support matrix
 
 | Tier | Status | Scope | Decision |
 |---|---|---|---|
 | Validated (default) | Recommended | GLM consumer benchmark path + stable wrapper | Keep as default |
-| Experimental (opt-in) | Not default | Qwen and Nanbeige diagnostic sweeps | Keep opt-in only |
+| Experimental (opt-in) | Not default | Qwen, Qwen 3.5, and Nanbeige diagnostic sweeps | Keep opt-in only |
 | Known regression / non-default | Do not default | Nanbeige `T=131072, decode_len=256` | Keep non-default |
 
-### Validated Evidence (2026-02-18)
+### Validated evidence (2026-02-18)
 
 Stable wrapper run `EXP-20260218T151213Z-STABLE-PROFILE`:
 
@@ -35,14 +39,18 @@ Stable wrapper run `EXP-20260218T151213Z-STABLE-PROFILE`:
 - Memory convention: `100*(1-wayfinder/dense)=+2.8509%` (reduction)
 
 Artifacts:
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/dense/results.json`
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/wayfinder/results.json`
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json`
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.md`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/dense/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/wayfinder/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.md`
 
-### Experimental Boundary Closure (2026-02-18)
+### Experimental status note
 
-Nanbeige instrumented pair `T=131072, decode_len=32`:
+Qwen 3.5 work remains outside the validated release scope and is experimental. Current work includes custom kernels needed to get HCSA/Wayfinder working correctly on that model family. The present engineering target is to keep prefill speed roughly consistent as context length increases. That target has not yet been validated and is not a release claim.
+
+### Experimental boundary closure (2026-02-18)
+
+Nanbeige instrumented pair `T=131072, decode_len=32`: 
 
 - Dense: `e2e=467.1097s`, `prefill=435.8845s`, `decode=31.2253s`, `decode_tok_s=1.0248`, `peak_memory=18,460,513,312`
 - Wayfinder trace: `e2e=471.7444s`, `prefill=425.2292s`, `decode=46.5151s`, `decode_tok_s=0.6879`, `peak_memory=18,474,229,212`
@@ -58,10 +66,10 @@ Nanbeige instrumented pair `T=131072, decode_len=32`:
 Decision: keep this long-boundary Nanbeige path experimental/non-default.
 
 Artifacts:
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218T151213Z/instrumented_trace32_T131072/results.json`
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218T151213Z/instrumented_dense32_T131072/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218T151213Z/instrumented_trace32_T131072/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218T151213Z/instrumented_dense32_T131072/results.json`
 
-### Known Regression (2026-02-18)
+### Known regression (2026-02-18)
 
 Nanbeige `T=131072, decode_len=256` paired instrumented result:
 
@@ -74,8 +82,8 @@ Nanbeige `T=131072, decode_len=256` paired instrumented result:
 Decision: non-default, do not promote.
 
 Artifacts:
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218/instrumented_wayfinder256_T131072/results.json`
-- `/Volumes/VIXinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218/instrumented_dense256_T131072_rerun/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218/instrumented_wayfinder256_T131072/results.json`
+- `/Volumes/VixinSSD/wayfinder/benchmarks/mlx/nanbeige4_1_3b_wayfinder/hang_debug_20260218/instrumented_dense256_T131072_rerun/results.json`
 
 ## Exact Reproduction Commands
 
