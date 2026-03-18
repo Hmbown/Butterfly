@@ -82,10 +82,12 @@ def bench_prefill(
             _sync_cuda()
 
     times_ms: List[float] = []
+    peak_mem_gb: float = 0.0
     for _ in range(repeats):
         _sync_cuda()
         gc.collect()
         torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
         _sync_cuda()
 
         t0 = time.perf_counter()
@@ -94,12 +96,15 @@ def bench_prefill(
         _sync_cuda()
         elapsed_ms = (time.perf_counter() - t0) * 1000.0
         times_ms.append(elapsed_ms)
+        run_peak = torch.cuda.max_memory_allocated() / (1024 ** 3)
+        peak_mem_gb = max(peak_mem_gb, run_peak)
 
     times_ms.sort()
     median_ms = times_ms[len(times_ms) // 2]
     mean_ms = sum(times_ms) / len(times_ms)
     min_ms = times_ms[0]
     max_ms = times_ms[-1]
+    prefill_tok_per_sec = round(seq_len / (median_ms / 1000.0), 1)
 
     return {
         "label": label,
@@ -110,6 +115,8 @@ def bench_prefill(
         "mean_ms": round(mean_ms, 2),
         "min_ms": round(min_ms, 2),
         "max_ms": round(max_ms, 2),
+        "prefill_tok_per_sec": prefill_tok_per_sec,
+        "peak_mem_gb": round(peak_mem_gb, 2),
         "all_ms": [round(t, 2) for t in times_ms],
         "gpu_mem": _gpu_mem_gb(),
     }
@@ -125,9 +132,12 @@ def collect_wayfinder_profiles(model: torch.nn.Module) -> List[Dict[str, Any]]:
             "mode": p.get("mode"),
             "reason": p.get("reason"),
             "elapsed_ms": p.get("elapsed_ms"),
+            "graph_build_ms": p.get("graph_build_ms"),
+            "attn_kernel_ms": p.get("attn_kernel_ms"),
             "path": p.get("path"),
             "engine": p.get("engine"),
             "graph_cache_hit": p.get("graph_cache_hit"),
+            "graph_metrics": p.get("graph_metrics"),
         })
     return profiles
 
@@ -214,7 +224,8 @@ def main() -> None:
             _log(f"    median={result['median_ms']:.1f}ms  "
                  f"mean={result['mean_ms']:.1f}ms  "
                  f"min={result['min_ms']:.1f}ms  "
-                 f"mem={result['gpu_mem'].get('allocated_gb', '?')}GB")
+                 f"tok/s={result.get('prefill_tok_per_sec', '?')}  "
+                 f"peak={result.get('peak_mem_gb', '?')}GB")
         except torch.cuda.OutOfMemoryError as e:
             _log(f"    OOM at T={seq_len:,}: {e}")
             results.append({
@@ -274,7 +285,8 @@ def main() -> None:
             _log(f"    median={result['median_ms']:.1f}ms  "
                  f"mean={result['mean_ms']:.1f}ms  "
                  f"min={result['min_ms']:.1f}ms  "
-                 f"mem={result['gpu_mem'].get('allocated_gb', '?')}GB")
+                 f"tok/s={result.get('prefill_tok_per_sec', '?')}  "
+                 f"peak={result.get('peak_mem_gb', '?')}GB")
 
             wf_active = sum(1 for p in profiles if p["mode"] == "wayfinder")
             _log(f"    wayfinder_active_layers={wf_active}/{len(profiles)}")
@@ -296,6 +308,61 @@ def main() -> None:
     gc.collect()
     torch.cuda.empty_cache()
 
+    # ── Phase 3: Logit divergence (dense vs wayfinder at small T) ────────
+    divergence_t = min(args.seq_lens)
+    if divergence_t >= 4:
+        _log(f"\n═══ Phase 3: Logit divergence at T={divergence_t} ═══")
+        _log("Loading model pair for divergence measurement...")
+        try:
+            model_div = AutoModelForCausalLM.from_pretrained(
+                args.model_path, trust_remote_code=True,
+                torch_dtype=dtype, device_map="auto",
+            )
+            model_div.eval()
+            device = next(model_div.parameters()).device
+            inputs_div = _make_dummy_input(tokenizer, divergence_t, device)
+
+            with torch.inference_mode():
+                logits_dense = model_div(**inputs_div, use_cache=False).logits
+
+            cfg_div = NemotronHWayfinderConfig(
+                path="permute", strategy="random",
+                window=args.window,
+                landmark_stride=args.landmark_stride if args.landmark_stride > 0 else None,
+                num_cycles=args.num_cycles, engine=args.engine,
+            )
+            swap_nemotron_h_attention_with_wayfinder(model_div, cfg_div)
+            with torch.inference_mode():
+                logits_wf = model_div(**inputs_div, use_cache=False).logits
+
+            cos_sim = torch.nn.functional.cosine_similarity(
+                logits_dense.float().flatten(), logits_wf.float().flatten(), dim=0,
+            ).item()
+            l2_dist = torch.norm(logits_dense.float() - logits_wf.float()).item()
+            l2_rel = l2_dist / (torch.norm(logits_dense.float()).item() + 1e-8)
+            top1_dense = logits_dense.argmax(dim=-1)
+            top1_wf = logits_wf.argmax(dim=-1)
+            top1_agree = (top1_dense == top1_wf).float().mean().item()
+
+            div_result = {
+                "type": "divergence",
+                "seq_len": divergence_t,
+                "cosine_similarity": round(cos_sim, 6),
+                "l2_distance": round(l2_dist, 4),
+                "l2_relative": round(l2_rel, 6),
+                "top1_agreement": round(top1_agree, 4),
+            }
+            results.append(div_result)
+            _log(f"  cosine_sim={cos_sim:.6f}  l2_rel={l2_rel:.6f}  "
+                 f"top1_agree={top1_agree:.4f}")
+
+            del model_div, logits_dense, logits_wf
+            gc.collect()
+            torch.cuda.empty_cache()
+        except Exception as e:
+            _log(f"  Divergence measurement FAILED: {e}")
+            results.append({"type": "divergence", "error": str(e)})
+
     # ── Save results ─────────────────────────────────────────────────────
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w") as f:
@@ -304,35 +371,40 @@ def main() -> None:
     _log(f"\n═══ Results saved to {out_path} ═══")
 
     # ── Summary table ────────────────────────────────────────────────────
-    _log("\n╔══════════════════════════════════════════════════════╗")
-    _log("║       Dense vs Wayfinder Prefill (Nemotron)         ║")
-    _log("╠══════════╦═══════════════╦═══════════════╦══════════╣")
-    _log("║  SeqLen  ║  Dense (ms)   ║ Wayfinder(ms) ║ Speedup  ║")
-    _log("╠══════════╬═══════════════╬═══════════════╬══════════╣")
+    _log("\n  SeqLen │ Dense ms │   WF ms │ Speedup │ Dense tok/s │    WF tok/s │ Dense peak │   WF peak")
+    _log("  ──────┼──────────┼─────────┼─────────┼─────────────┼─────────────┼────────────┼──────────")
 
-    dense_by_seq = {}
-    wf_by_seq = {}
+    dense_by_seq: Dict[int, Dict[str, Any]] = {}
+    wf_by_seq: Dict[int, Dict[str, Any]] = {}
     for r in results:
         if r.get("type") != "bench" or "error" in r:
             continue
         if r["label"] == "dense":
-            dense_by_seq[r["seq_len"]] = r["median_ms"]
+            dense_by_seq[r["seq_len"]] = r
         elif r["label"] == "wayfinder":
-            wf_by_seq[r["seq_len"]] = r["median_ms"]
+            wf_by_seq[r["seq_len"]] = r
 
     for seq_len in args.seq_lens:
         d = dense_by_seq.get(seq_len)
         w = wf_by_seq.get(seq_len)
-        d_str = f"{d:>11.1f}" if d else "       N/A"
-        w_str = f"{w:>11.1f}" if w else "       N/A"
-        if d and w and w > 0:
-            speedup = d / w
-            s_str = f"{speedup:>6.2f}x"
+        d_ms = f"{d['median_ms']:>8.1f}" if d else "     N/A"
+        w_ms = f"{w['median_ms']:>7.1f}" if w else "    N/A"
+        if d and w and w["median_ms"] > 0:
+            s = f"{d['median_ms'] / w['median_ms']:>6.2f}x"
         else:
-            s_str = "   N/A"
-        _log(f"║  {seq_len:>6}  ║ {d_str}   ║ {w_str}   ║ {s_str} ║")
+            s = "    N/A"
+        d_tps = f"{d.get('prefill_tok_per_sec', 0):>11.0f}" if d else "        N/A"
+        w_tps = f"{w.get('prefill_tok_per_sec', 0):>11.0f}" if w else "        N/A"
+        d_pk = f"{d.get('peak_mem_gb', 0):>9.1f}GB" if d else "       N/A"
+        w_pk = f"{w.get('peak_mem_gb', 0):>7.1f}GB" if w else "     N/A"
+        _log(f"  {seq_len:>6} │ {d_ms} │ {w_ms} │ {s} │ {d_tps} │ {w_tps} │ {d_pk} │ {w_pk}")
 
-    _log("╚══════════╩═══════════════╩═══════════════╩══════════╝")
+    for r in results:
+        if r.get("type") == "divergence" and "error" not in r:
+            _log(f"\n  Logit divergence (T={r['seq_len']}): "
+                 f"cosine={r['cosine_similarity']:.6f}  "
+                 f"top1_agree={r['top1_agreement']:.4f}  "
+                 f"l2_rel={r['l2_relative']:.6f}")
 
 
 if __name__ == "__main__":

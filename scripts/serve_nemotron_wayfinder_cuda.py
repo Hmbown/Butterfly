@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""OpenAI-compatible server for Qwen3.5 + Wayfinder on CUDA.
+"""OpenAI-compatible server for Nemotron 3 Super + Wayfinder on CUDA.
 
 Loads the model once, optionally swaps in Wayfinder attention, and serves
 an OpenAI chat-completions endpoint. Dense decode is always used for
 autoregressive token generation (Wayfinder only activates during prefill).
 
 Usage:
-    python scripts/serve_qwen_wayfinder_cuda.py \
-        --model-path ~/HF_Models/Qwen3.5-9B \
+    python scripts/serve_nemotron_wayfinder_cuda.py \
+        --model-path ~/HF_Models/nvidia/Nemotron-3-Super-49B-v1 \
         --mode wayfinder \
-        --port 8012
+        --port 8013
 
     # Then query it:
-    curl http://localhost:8012/v1/chat/completions \
+    curl http://localhost:8013/v1/chat/completions \
         -H "Content-Type: application/json" \
-        -d '{"model":"qwen3.5-9b-wayfinder","messages":[{"role":"user","content":"Hello"}]}'
+        -d '{"model":"nemotron-wayfinder","messages":[{"role":"user","content":"Hello"}]}'
 """
 from __future__ import annotations
 
@@ -38,10 +38,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.integrations.qwen_torch import (  # noqa: E402
-    QwenCUDAWayfinderConfig,
-    iter_qwen_wayfinder_layers,
-    swap_qwen_attention_with_wayfinder_cuda,
+from hcsa.integrations.nemotron_h_torch import (  # noqa: E402
+    NemotronHWayfinderConfig,
+    iter_nemotron_h_wayfinder_layers,
+    swap_nemotron_h_attention_with_wayfinder,
 )
 
 
@@ -56,12 +56,12 @@ class ServerState:
     model_id: str
     mode: str
     lock: threading.Lock
-    wayfinder_cfg: Optional[QwenCUDAWayfinderConfig] = None
+    wayfinder_cfg: Optional[NemotronHWayfinderConfig] = None
     replaced_layers: Optional[List[int]] = None
 
 
 def create_app(state: ServerState) -> FastAPI:
-    app = FastAPI(title="Wayfinder CUDA OpenAI Bridge", version="0.1.0")
+    app = FastAPI(title="Wayfinder CUDA OpenAI Bridge (Nemotron)", version="0.1.0")
 
     @app.get("/health")
     async def health() -> Dict[str, Any]:
@@ -129,7 +129,6 @@ def create_app(state: ServerState) -> FastAPI:
             raise HTTPException(status_code=429, detail="Server busy — one request at a time.")
 
         try:
-            # Build prompt via chat template
             prompt_text = state.tokenizer.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True,
             )
@@ -153,9 +152,8 @@ def create_app(state: ServerState) -> FastAPI:
             text = state.tokenizer.decode(new_ids, skip_special_tokens=True)
             completion_tokens = len(new_ids)
 
-            # Collect Wayfinder profiles
             wayfinder_profiles = []
-            for layer in iter_qwen_wayfinder_layers(state.model):
+            for layer in iter_nemotron_h_wayfinder_layers(state.model):
                 p = layer.last_profile
                 wayfinder_profiles.append({
                     "layer_idx": p.get("layer_idx"),
@@ -209,7 +207,7 @@ def create_app(state: ServerState) -> FastAPI:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Serve Qwen3.5 + Wayfinder on CUDA (OpenAI-compatible)")
+    p = argparse.ArgumentParser(description="Serve Nemotron 3 Super + Wayfinder on CUDA (OpenAI-compatible)")
     p.add_argument("--model-path", type=str, required=True,
                     help="Local path or HF model ID")
     p.add_argument("--model-id", type=str, default="",
@@ -219,7 +217,7 @@ def main() -> None:
     p.add_argument("--dtype", type=str, default="bfloat16",
                     choices=["bfloat16", "float16", "float32"])
     p.add_argument("--host", type=str, default="0.0.0.0")
-    p.add_argument("--port", type=int, default=8012)
+    p.add_argument("--port", type=int, default=8013)
     p.add_argument("--log-level", type=str, default="info")
 
     # Wayfinder config
@@ -253,7 +251,7 @@ def main() -> None:
     mode = args.mode.strip().lower()
 
     if mode == "wayfinder":
-        wf_cfg = QwenCUDAWayfinderConfig(
+        wf_cfg = NemotronHWayfinderConfig(
             path=args.path,
             strategy=args.strategy,
             window=args.window,
@@ -262,9 +260,9 @@ def main() -> None:
             engine=args.engine,
             seed=args.seed,
         )
-        replaced_layers = swap_qwen_attention_with_wayfinder_cuda(model, wf_cfg)
+        replaced_layers = swap_nemotron_h_attention_with_wayfinder(model, wf_cfg)
         _log(f"Wayfinder swap: {len(replaced_layers)} layers replaced {replaced_layers}")
-        _log(f"  path={wf_cfg.path} strategy={wf_cfg.strategy} "
+        _log(f"  path={wf_cfg.path} strategy={wf_cfg.strategy} engine={wf_cfg.engine} "
              f"window={wf_cfg.window} landmark_stride={wf_cfg.landmark_stride}")
     else:
         _log("Dense mode — no Wayfinder swap.")

@@ -669,10 +669,13 @@ class NemotronHWayfinderAttention(nn.Module):
             key_states = _repeat_kv(key_states, self.num_key_value_groups)
             value_states = _repeat_kv(value_states, self.num_key_value_groups)
 
+        t_graph = time.perf_counter()
         cache, cache_hit = self._get_or_build_cache(hidden_states, q_len)
+        graph_build_ms = float((time.perf_counter() - t_graph) * 1000.0)
         schedule_bias = self._schedule_bias(hidden_states.device)
         graph_source = cache.graph.source
 
+        t_attn = time.perf_counter()
         if self.cfg.path == "sparse":
             wayfinder_out, _ = sparse_row_attention(
                 query_states,
@@ -744,6 +747,8 @@ class NemotronHWayfinderAttention(nn.Module):
         attn_output = wayfinder_out.transpose(1, 2).contiguous().view(batch_size, q_len, -1)
         attn_output = self.fallback.o_proj(attn_output)
 
+        attn_kernel_ms = float((time.perf_counter() - t_attn) * 1000.0)
+
         self.last_profile = {
             "mode": "wayfinder",
             "reason": None,
@@ -751,11 +756,13 @@ class NemotronHWayfinderAttention(nn.Module):
             "seq_len": q_len,
             "kv_len": k_len_after,
             "path": self.cfg.path,
-            "engine": self._resolve_engine(),
+            "engine": engine,
             "strategy": self.cfg.strategy,
             "graph_source": graph_source,
             "graph_cache_hit": bool(cache_hit),
             "graph_metrics": cache.metrics,
+            "graph_build_ms": graph_build_ms,
+            "attn_kernel_ms": attn_kernel_ms,
             "elapsed_ms": float((time.perf_counter() - t0) * 1000.0),
         }
         return attn_output, None, past_key_values
