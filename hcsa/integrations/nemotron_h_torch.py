@@ -12,8 +12,12 @@ import torch.nn as nn
 from hcsa.graph.abi import graph_metrics
 from hcsa.topology import Topology, TopologyGraph
 from hcsa.torch.attention_wayfinder_permute import (
+    FLEX_ATTENTION_AVAILABLE,
+    build_flex_block_mask,
     recover_cycle_perms,
+    wayfinder_flex_attention,
     wayfinder_permute_window_attention,
+    wayfinder_permute_window_attention_batched,
 )
 from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
 
@@ -49,6 +53,7 @@ class NemotronHWayfinderConfig:
     edge_bias: bool = False
     window_drop: float = 0.0
     compiled_graph_dir: Optional[str] = None
+    engine: str = "auto"  # "auto" | "flex" | "batched" | "legacy"
     dense_fallback_q_len: int = 1
     fallback_on_output_attentions: bool = True
     fallback_on_mask: bool = True
@@ -83,6 +88,15 @@ class _NemotronGraphCache:
     pi_idx_clamped: list[torch.Tensor] = field(default_factory=list)
     valid_mask: list[torch.Tensor] = field(default_factory=list)
     causal_masks: list[torch.Tensor] = field(default_factory=list)
+    # Stacked tensors for batched/flex engines
+    perm_stacked: Optional[torch.Tensor] = None       # [H_q, T]
+    inv_perm_stacked: Optional[torch.Tensor] = None    # [H_q, T]
+    kv_perm_stacked: Optional[torch.Tensor] = None     # [H_kv, T]
+    kv_inv_perm_stacked: Optional[torch.Tensor] = None # [H_kv, T]
+    pi_idx_stacked: Optional[torch.Tensor] = None      # [H_q, T, 2W+1]
+    valid_stacked: Optional[torch.Tensor] = None        # [H_q, T, 2W+1]
+    causal_stacked: Optional[torch.Tensor] = None       # [H_q, T, 2W+1]
+    flex_block_mask: Any = None
     metrics: Optional[Dict[str, Any]] = None
     cache_key: Optional[tuple[Any, ...]] = None
 
@@ -192,17 +206,21 @@ def _is_standard_unpadded_causal_mask(
         return False
 
     min_dtype = torch.finfo(attention_mask.dtype).min
-    expected = torch.zeros((q_len, k_len), device=attention_mask.device, dtype=attention_mask.dtype)
+    # Sampling-based check: verify structure without materializing T×T tensor.
+    m = attention_mask
     if q_len > 1:
-        upper = torch.triu(
-            torch.ones((q_len, k_len), device=attention_mask.device, dtype=torch.bool),
-            diagonal=1,
-        )
-        expected = expected.masked_fill(upper, min_dtype)
-    expected = expected.view(1, 1, q_len, k_len)
-    if attention_mask.shape[0] != 1:
-        expected = expected.expand(attention_mask.shape[0], -1, -1, -1)
-    return torch.equal(attention_mask, expected)
+        if float(m[0, 0, 0, 1]) != min_dtype:
+            return False
+        if float(m[0, 0, 1, 0]) != 0.0:
+            return False
+        if float(m[0, 0, q_len - 1, 0]) != 0.0:
+            return False
+        if float(m[0, 0, 0, q_len - 1]) != min_dtype:
+            return False
+    diag = torch.diagonal(m[0, 0])
+    if not torch.all(diag == 0):
+        return False
+    return True
 
 
 def extract_qkv_from_nemotron_h_attention(
@@ -263,7 +281,7 @@ class NemotronHWayfinderAttention(nn.Module):
         if self.cfg.strategy in _DYNAMIC_STRATEGIES:
             self.routing_proj = nn.Linear(
                 self.hidden_size,
-                self.num_heads * self.routing_dim,
+                self.num_key_value_heads * self.routing_dim,
                 bias=False,
                 device=proj_device,
                 dtype=proj_dtype,
@@ -276,8 +294,9 @@ class NemotronHWayfinderAttention(nn.Module):
         else:
             self.register_parameter("edge_type_bias", None)
 
+        # Generate one permutation per KV head; shared by all query heads in GQA group.
         self.topology = Topology(
-            n_heads=self.num_heads,
+            n_heads=self.num_key_value_heads,
             strategy=self.cfg.strategy,
             num_cycles=self.cfg.num_cycles,
             edge_disjoint=self.cfg.edge_disjoint,
@@ -300,6 +319,12 @@ class NemotronHWayfinderAttention(nn.Module):
     @property
     def cache_mode(self) -> str:
         return self.topology.cache_mode
+
+    def _resolve_engine(self) -> str:
+        engine = self.cfg.engine
+        if engine == "auto":
+            return "flex" if FLEX_ATTENTION_AVAILABLE else "batched"
+        return engine
 
     def set_runtime_controls(
         self,
@@ -342,9 +367,9 @@ class NemotronHWayfinderAttention(nn.Module):
             return None
         # Wayfinder's torch path uses the first sample to drive per-head dynamic routing.
         routing = self.routing_proj(hidden_states[0])
-        routing = routing.reshape(hidden_states.shape[1], self.num_heads, self.routing_dim).permute(1, 0, 2)
+        routing = routing.reshape(hidden_states.shape[1], self.num_key_value_heads, self.routing_dim).permute(1, 0, 2)
         routing = routing.detach().float().cpu()
-        return [routing[h] for h in range(self.num_heads)]
+        return [routing[h] for h in range(self.num_key_value_heads)]
 
     def _build_graph(self, hidden_states: torch.Tensor, seq_len: int) -> TopologyGraph:
         if self.cfg.compiled_graph_dir:
@@ -353,7 +378,7 @@ class NemotronHWayfinderAttention(nn.Module):
                 raise FileNotFoundError(f"Compiled graph path does not exist: {compiled_path}")
             return self.topology.load(
                 compiled_path,
-                expect_heads=self.num_heads,
+                expect_heads=self.num_key_value_heads,
                 expect_tokens=seq_len,
             )
 
@@ -428,8 +453,41 @@ class NemotronHWayfinderAttention(nn.Module):
         device = hidden_states.device
         abi = graph.abi
 
-        neigh_idx = torch.as_tensor(abi.neigh_idx, dtype=torch.long, device=device)
-        edge_type = torch.as_tensor(abi.edge_type, dtype=torch.uint8, device=device)
+        # neigh_idx/edge_type from topology are [H_kv, T, D].
+        neigh_idx_kv = torch.as_tensor(abi.neigh_idx, dtype=torch.long, device=device)
+        edge_type_kv = torch.as_tensor(abi.edge_type, dtype=torch.uint8, device=device)
+
+        # Extract cycle perms from H_kv tensors BEFORE replication.
+        kv_perm_list: list[torch.Tensor] = []
+        kv_inv_list: list[torch.Tensor] = []
+        perm_list: list[torch.Tensor] = []
+        inv_list: list[torch.Tensor] = []
+        pi_list: list[torch.Tensor] = []
+        valid_list: list[torch.Tensor] = []
+        causal_list: list[torch.Tensor] = []
+        if self.cfg.path == "permute":
+            kv_perm_list, kv_inv_list, _pil, _vl, _cl = self._extract_cycle_perms(
+                neigh_idx_kv,
+                edge_type_kv,
+                meta=getattr(abi, "meta", None),
+                seq_len=seq_len,
+                device=device,
+            )
+            g = self.num_key_value_groups
+            perm_list = [p for p in kv_perm_list for _ in range(g)]
+            inv_list = [p for p in kv_inv_list for _ in range(g)]
+            pi_list = [p for p in _pil for _ in range(g)]
+            valid_list = [p for p in _vl for _ in range(g)]
+            causal_list = [p for p in _cl for _ in range(g)]
+
+        # Replicate [H_kv, T, D] → [H_q, T, D] so sparse/legacy paths
+        # get neigh_idx matching the GQA-expanded Q/K/V head count.
+        if neigh_idx_kv.ndim == 3 and self.num_key_value_groups > 1:
+            neigh_idx = neigh_idx_kv.repeat_interleave(self.num_key_value_groups, dim=0)
+            edge_type = edge_type_kv.repeat_interleave(self.num_key_value_groups, dim=0)
+        else:
+            neigh_idx = neigh_idx_kv
+            edge_type = edge_type_kv
 
         safe_idx: Optional[torch.Tensor] = None
         causal_mask: Optional[torch.Tensor] = None
@@ -437,26 +495,38 @@ class NemotronHWayfinderAttention(nn.Module):
             safe_idx = _safe_neighbor_idx(neigh_idx, seq_len)
             causal_mask = _causal_neighbor_mask(neigh_idx, seq_len)
 
-        perm_list: list[torch.Tensor] = []
-        inv_list: list[torch.Tensor] = []
-        pi_list: list[torch.Tensor] = []
-        valid_list: list[torch.Tensor] = []
-        causal_list: list[torch.Tensor] = []
-        if self.cfg.path == "permute":
-            perm_list, inv_list, pi_list, valid_list, causal_list = self._extract_cycle_perms(
-                neigh_idx,
-                edge_type,
-                meta=getattr(abi, "meta", None),
-                seq_len=seq_len,
-                device=device,
-            )
-
         metrics = None
         if self.cfg.compute_graph_metrics:
             try:
                 metrics = graph_metrics(abi)
             except Exception:
                 metrics = None
+
+        # Build stacked tensors for batched/flex engines
+        perm_stacked = inv_perm_stacked = None
+        kv_perm_stacked = kv_inv_perm_stacked = None
+        pi_idx_stacked = valid_stacked = causal_stacked = None
+        flex_block_mask_val = None
+
+        if self.cfg.path == "permute" and perm_list:
+            kv_perm_stacked = torch.stack(kv_perm_list)     # [H_kv, T]
+            kv_inv_perm_stacked = torch.stack(kv_inv_list)  # [H_kv, T]
+            perm_stacked = torch.stack(perm_list)            # [H_q, T]
+            inv_perm_stacked = torch.stack(inv_list)         # [H_q, T]
+            if pi_list:
+                pi_idx_stacked = torch.stack(pi_list)        # [H_q, T, 2W+1]
+                valid_stacked = torch.stack(valid_list)       # [H_q, T, 2W+1]
+                causal_stacked = torch.stack(causal_list)     # [H_q, T, 2W+1]
+
+            engine = self._resolve_engine()
+            if engine == "flex" and FLEX_ATTENTION_AVAILABLE:
+                try:
+                    flex_block_mask_val = build_flex_block_mask(
+                        perm_stacked, window=int(self.cfg.window),
+                        B=1, device=device,
+                    )
+                except Exception:
+                    pass
 
         return _NemotronGraphCache(
             graph=graph,
@@ -469,6 +539,14 @@ class NemotronHWayfinderAttention(nn.Module):
             pi_idx_clamped=pi_list,
             valid_mask=valid_list,
             causal_masks=causal_list,
+            perm_stacked=perm_stacked,
+            inv_perm_stacked=inv_perm_stacked,
+            kv_perm_stacked=kv_perm_stacked,
+            kv_inv_perm_stacked=kv_inv_perm_stacked,
+            pi_idx_stacked=pi_idx_stacked,
+            valid_stacked=valid_stacked,
+            causal_stacked=causal_stacked,
+            flex_block_mask=flex_block_mask_val,
             metrics=metrics,
             cache_key=self._cache_key(seq_len, device),
         )
@@ -581,9 +659,15 @@ class NemotronHWayfinderAttention(nn.Module):
             past_key_values=past_key_values,
         )
 
-        # Wayfinder kernels currently assume per-query-head K/V; expand grouped K/V heads.
-        key_states = _repeat_kv(key_states, self.num_key_value_groups)
-        value_states = _repeat_kv(value_states, self.num_key_value_groups)
+        engine = self._resolve_engine()
+
+        # Only skip GQA expansion for the permute+flex path, which handles
+        # GQA natively via enable_gqa=True. All other paths (sparse, batched,
+        # legacy) require expanded K/V with H_q heads.
+        use_native_gqa = (self.cfg.path == "permute" and engine == "flex")
+        if not use_native_gqa:
+            key_states = _repeat_kv(key_states, self.num_key_value_groups)
+            value_states = _repeat_kv(value_states, self.num_key_value_groups)
 
         cache, cache_hit = self._get_or_build_cache(hidden_states, q_len)
         schedule_bias = self._schedule_bias(hidden_states.device)
@@ -604,27 +688,55 @@ class NemotronHWayfinderAttention(nn.Module):
                 window_drop_mask=self._window_drop_mask(cache, q_len),
             )
         elif self.cfg.path == "permute":
-            edge_bias_scalar: Optional[float] = None
-            if self.edge_type_bias is not None:
-                edge_bias_scalar = float(self.edge_type_bias[0].item())
-            if schedule_bias is not None:
-                cycle_bias = float(schedule_bias[0].item())
-                edge_bias_scalar = cycle_bias if edge_bias_scalar is None else edge_bias_scalar + cycle_bias
+            if engine == "flex" and cache.perm_stacked is not None:
+                wayfinder_out, new_bm = wayfinder_flex_attention(
+                    query_states, key_states, value_states,
+                    window=int(self.cfg.window),
+                    perm=cache.perm_stacked,
+                    inv_perm=cache.inv_perm_stacked,
+                    kv_perm=cache.kv_perm_stacked,
+                    block_mask=cache.flex_block_mask,
+                )
+                if cache.flex_block_mask is None:
+                    cache.flex_block_mask = new_bm
 
-            wayfinder_out, _weights, _permute_ms, _attn_ms = wayfinder_permute_window_attention(
-                query_states,
-                key_states,
-                value_states,
-                window=int(self.cfg.window),
-                neigh_idx=cache.neigh_idx,
-                edge_type=cache.edge_type,
-                graph_meta=getattr(cache.graph.abi, "meta", None),
-                return_weights=False,
-                cache=cache,
-                edge_type_bias_scalar=edge_bias_scalar,
-                window_drop_prob=self._effective_window_drop() if self.training else 0.0,
-                training=self.training,
-            )
+            elif engine == "batched" and cache.perm_stacked is not None:
+                wayfinder_out = wayfinder_permute_window_attention_batched(
+                    query_states, key_states, value_states,
+                    window=int(self.cfg.window),
+                    perm=cache.perm_stacked,
+                    inv_perm=cache.inv_perm_stacked,
+                    pi_idx_clamped=cache.pi_idx_stacked,
+                    valid_mask=cache.valid_stacked,
+                    causal_mask=cache.causal_stacked,
+                )
+
+            else:
+                # Legacy per-head loop
+                edge_bias_scalar: Optional[float] = None
+                if self.edge_type_bias is not None:
+                    edge_bias_scalar = float(self.edge_type_bias[0].item())
+                if schedule_bias is not None:
+                    cycle_bias = float(schedule_bias[0].item())
+                    edge_bias_scalar = (
+                        cycle_bias if edge_bias_scalar is None
+                        else edge_bias_scalar + cycle_bias
+                    )
+
+                wayfinder_out, _weights, _permute_ms, _attn_ms = wayfinder_permute_window_attention(
+                    query_states,
+                    key_states,
+                    value_states,
+                    window=int(self.cfg.window),
+                    neigh_idx=cache.neigh_idx,
+                    edge_type=cache.edge_type,
+                    graph_meta=getattr(cache.graph.abi, "meta", None),
+                    return_weights=False,
+                    cache=cache,
+                    edge_type_bias_scalar=edge_bias_scalar,
+                    window_drop_prob=self._effective_window_drop() if self.training else 0.0,
+                    training=self.training,
+                )
         else:
             raise ValueError(f"Unknown Wayfinder path: {self.cfg.path!r}")
 
@@ -639,6 +751,7 @@ class NemotronHWayfinderAttention(nn.Module):
             "seq_len": q_len,
             "kv_len": k_len_after,
             "path": self.cfg.path,
+            "engine": self._resolve_engine(),
             "strategy": self.cfg.strategy,
             "graph_source": graph_source,
             "graph_cache_hit": bool(cache_hit),

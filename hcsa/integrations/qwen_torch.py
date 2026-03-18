@@ -272,7 +272,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
         if self.cfg.strategy in _DYNAMIC_STRATEGIES:
             self.routing_proj = nn.Linear(
                 self.hidden_size,
-                self.num_heads * self.routing_dim,
+                self.num_key_value_heads * self.routing_dim,
                 bias=False,
                 device=proj_device,
                 dtype=proj_dtype,
@@ -340,7 +340,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
                 raise FileNotFoundError(f"Compiled graph path does not exist: {compiled_path}")
             return self.topology.load(
                 compiled_path,
-                expect_heads=self.num_heads,
+                expect_heads=self.num_key_value_heads,
                 expect_tokens=seq_len,
             )
         if self.cfg.path == "permute" and self.cache_mode == "static":
@@ -349,10 +349,10 @@ class QwenCUDAWayfinderAttention(nn.Module):
         if self.cfg.strategy in _DYNAMIC_STRATEGIES and self.routing_proj is not None:
             routing = self.routing_proj(hidden_states[0])
             routing = routing.reshape(
-                hidden_states.shape[1], self.num_heads, self.routing_dim
+                hidden_states.shape[1], self.num_key_value_heads, self.routing_dim
             ).permute(1, 0, 2)
             routing = routing.detach().float().cpu()
-            routing_by_head = [routing[h] for h in range(self.num_heads)]
+            routing_by_head = [routing[h] for h in range(self.num_key_value_heads)]
         return self.topology.construct(
             {"T": int(seq_len), "include_self": True},
             routing_by_head=routing_by_head,
@@ -413,29 +413,41 @@ class QwenCUDAWayfinderAttention(nn.Module):
         device = hidden_states.device
         abi = graph.abi
 
-        neigh_idx = torch.as_tensor(abi.neigh_idx, dtype=torch.long, device=device)
-        edge_type = torch.as_tensor(abi.edge_type, dtype=torch.uint8, device=device)
+        # neigh_idx/edge_type from topology are [H_kv, T, D].
+        neigh_idx_kv = torch.as_tensor(abi.neigh_idx, dtype=torch.long, device=device)
+        edge_type_kv = torch.as_tensor(abi.edge_type, dtype=torch.uint8, device=device)
 
-        safe_idx = causal_mask = None
-        if self.cfg.path == "sparse":
-            safe_idx = _safe_neighbor_idx(neigh_idx, seq_len)
-            causal_mask = _causal_neighbor_mask(neigh_idx, seq_len)
-
+        # Extract cycle perms from H_kv tensors BEFORE replication.
+        kv_perm_list: list[torch.Tensor] = []
+        kv_inv_list: list[torch.Tensor] = []
         perm_list = inv_list = pi_list = valid_list = causal_list = []
         if self.cfg.path == "permute":
-            # _extract_cycle_perms returns H_kv entries; replicate for H_q
-            _pl, _il, _pil, _vl, _cl = self._extract_cycle_perms(
-                neigh_idx, edge_type,
+            kv_perm_list, kv_inv_list, _pil, _vl, _cl = self._extract_cycle_perms(
+                neigh_idx_kv, edge_type_kv,
                 meta=getattr(abi, "meta", None),
                 seq_len=seq_len, device=device,
             )
             # Replicate each KV-head entry for its query-head group
             g = self.num_key_value_groups
-            perm_list = [p for p in _pl for _ in range(g)]
-            inv_list = [p for p in _il for _ in range(g)]
+            perm_list = [p for p in kv_perm_list for _ in range(g)]
+            inv_list = [p for p in kv_inv_list for _ in range(g)]
             pi_list = [p for p in _pil for _ in range(g)]
             valid_list = [p for p in _vl for _ in range(g)]
             causal_list = [p for p in _cl for _ in range(g)]
+
+        # Replicate [H_kv, T, D] → [H_q, T, D] so sparse/legacy paths
+        # get neigh_idx matching the GQA-expanded Q/K/V head count.
+        if neigh_idx_kv.ndim == 3 and self.num_key_value_groups > 1:
+            neigh_idx = neigh_idx_kv.repeat_interleave(self.num_key_value_groups, dim=0)
+            edge_type = edge_type_kv.repeat_interleave(self.num_key_value_groups, dim=0)
+        else:
+            neigh_idx = neigh_idx_kv
+            edge_type = edge_type_kv
+
+        safe_idx = causal_mask = None
+        if self.cfg.path == "sparse":
+            safe_idx = _safe_neighbor_idx(neigh_idx, seq_len)
+            causal_mask = _causal_neighbor_mask(neigh_idx, seq_len)
 
         metrics = None
         if self.cfg.compute_graph_metrics:
@@ -451,26 +463,15 @@ class QwenCUDAWayfinderAttention(nn.Module):
         flex_block_mask_val = None
 
         if self.cfg.path == "permute" and perm_list:
-            # perm_list has H_kv entries; replicate each for its query-head group
-            kv_perm_stacked = torch.stack(perm_list)     # [H_kv, T]
-            kv_inv_perm_stacked = torch.stack(inv_list)  # [H_kv, T]
-            perm_stacked = kv_perm_stacked.repeat_interleave(
-                self.num_key_value_groups, dim=0
-            )  # [H_q, T]
-            inv_perm_stacked = kv_inv_perm_stacked.repeat_interleave(
-                self.num_key_value_groups, dim=0
-            )  # [H_q, T]
+            # kv_perm_list is H_kv; perm_list is already H_q (replicated)
+            kv_perm_stacked = torch.stack(kv_perm_list)     # [H_kv, T]
+            kv_inv_perm_stacked = torch.stack(kv_inv_list)  # [H_kv, T]
+            perm_stacked = torch.stack(perm_list)            # [H_q, T]
+            inv_perm_stacked = torch.stack(inv_list)         # [H_q, T]
             if pi_list:
-                # pi/valid/causal are [H_kv, ...]; replicate to [H_q, ...]
-                pi_idx_stacked = torch.stack(pi_list).repeat_interleave(
-                    self.num_key_value_groups, dim=0
-                )    # [H_q, T, 2W+1]
-                valid_stacked = torch.stack(valid_list).repeat_interleave(
-                    self.num_key_value_groups, dim=0
-                )   # [H_q, T, 2W+1]
-                causal_stacked = torch.stack(causal_list).repeat_interleave(
-                    self.num_key_value_groups, dim=0
-                ) # [H_q, T, 2W+1]
+                pi_idx_stacked = torch.stack(pi_list)        # [H_q, T, 2W+1]
+                valid_stacked = torch.stack(valid_list)       # [H_q, T, 2W+1]
+                causal_stacked = torch.stack(causal_list)     # [H_q, T, 2W+1]
 
             engine = self._resolve_engine()
             if engine == "flex" and FLEX_ATTENTION_AVAILABLE:
@@ -594,8 +595,11 @@ class QwenCUDAWayfinderAttention(nn.Module):
 
         engine = self._resolve_engine()
 
-        # Skip GQA expansion for flex engine — it handles GQA natively
-        if engine != "flex":
+        # Only skip GQA expansion for the permute+flex path, which handles
+        # GQA natively via enable_gqa=True. All other paths (sparse, batched,
+        # legacy) require expanded K/V with H_q heads.
+        use_native_gqa = (self.cfg.path == "permute" and engine == "flex")
+        if not use_native_gqa:
             key_states = _repeat_kv(key_states, self.num_key_value_groups)
             value_states = _repeat_kv(value_states, self.num_key_value_groups)
 
@@ -612,8 +616,6 @@ class QwenCUDAWayfinderAttention(nn.Module):
                 edge_type_bias=self.edge_type_bias,
             )
         elif self.cfg.path == "permute":
-            engine = self._resolve_engine()
-
             if engine == "flex" and cache.perm_stacked is not None:
                 wayfinder_out, new_bm = wayfinder_flex_attention(
                     query_states, key_states, value_states,
