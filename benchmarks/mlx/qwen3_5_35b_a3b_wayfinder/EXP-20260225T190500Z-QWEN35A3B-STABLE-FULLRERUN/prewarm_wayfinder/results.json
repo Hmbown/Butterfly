@@ -1,0 +1,195 @@
+{
+  "created_at": "2026-02-25T19:07:08.458676+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/prewarm_wayfinder",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "wayfinder",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true,
+    "active_dense_threshold": null,
+    "wayfinder_decode_backend": "dense"
+  },
+  "swap": {
+    "replaced_layers": 10,
+    "replaced_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39
+    ],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0036282919900259003,
+    "writeout_sec_total": 0.0042640419997042045,
+    "script_start_unix_sec": 1772046428.4586902,
+    "script_end_unix_sec": 1772046458.495751
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 16,
+      "repeat": 1,
+      "prefill_sec": 1.81484883298981,
+      "ttft_sec": 0.10255429199605715,
+      "itl_p50_sec": 0.029798457995639183,
+      "itl_p95_sec": 0.030062541001825593,
+      "decode_sec": 0.5526999580033589,
+      "e2e_sec": 2.367548790993169,
+      "decode_tok_s": 28.948799015292785,
+      "peak_memory_bytes": 24976397290,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints",
+      "expected_primary_path": "permute",
+      "hsa_trace_summary": {
+        "sample_count": 17,
+        "layer_observations": 136,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 16
+        },
+        "path_counts": {
+          "permute": 8,
+          "permute_dense_fallback": 128
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 128
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8,
+          "2057": 8,
+          "2058": 8,
+          "2059": 8,
+          "2060": 8,
+          "2061": 8,
+          "2062": 8,
+          "2063": 8,
+          "2064": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 128
+        },
+        "dense_fallback_reason_counts": {
+          "wayfinder_decode_dense": 128
+        },
+        "fallback_layer_observations": 128,
+        "decode_layer_observations": 128,
+        "decode_fallback_layer_observations": 128,
+        "prefill_layer_observations": 8,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 16,
+        "decode_fallback_steps": 16,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.9411764705882353,
+        "dense_fallback_share_decode_layers": 1.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9411764705882353,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0
+      },
+      "path_counts": {
+        "permute": 8,
+        "permute_dense_fallback": 128
+      },
+      "dense_fallback_reason_counts": {
+        "wayfinder_decode_dense": 128
+      },
+      "dense_fallback_share_run": 0.9411764705882353,
+      "dense_fallback_share_decode_steps": 1.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.0678990840096958,
+        "prompt_tokenize_sec": 0.0678990840096958,
+        "prefill_sec": 1.81484883298981,
+        "decode_sec": 0.5526999580033589,
+        "writeout_sec": 0.0004377919976832345
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

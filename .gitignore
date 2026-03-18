@@ -38,22 +38,24 @@ graphs/
 *.log
 firebase*.log
 
-# Internal agent/handoff prompts (not for public consumption)
+# Internal agent/handoff prompts
 glm/
-docs/HANDOFF_PROMPT.md
 
 # Environment-specific diagnostics
 runs/mlx/qwen_env_check.json
 runs/mlx/qwen_env_check_full.json
 
-# Markdown (only root README.md is tracked)
+# Markdown (only tracked docs are whitelisted)
 *.md
 !/README.md
-!AGENTS.md
-!NO_INFERENCE_PLANNING_PROMPT.md
 !docs/FIRST_RELEASE.md
 !docs/ARCHITECTURE.md
 !docs/RESEARCH.md
+!SECURITY.md
+!CONTRIBUTING.md
+
+# Local tool databases
+counterpoint.copilot.db
 
 # IDE / editor
 .idea/

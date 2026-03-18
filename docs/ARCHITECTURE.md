@@ -30,15 +30,6 @@ Example at `T=4096`, `W=64`, `s=64`:
 - Dense fan-in `4095`
 - approximately `31x` fewer edges per token
 
-## Current Release Context
-For first public release posture and measured defaults, use:
-- `docs/FIRST_RELEASE.md`
-
-The validated default path is GLM-4.7 stable profile via:
-- `./scripts/run_public_stable_profile_glm.sh`
-
-Qwen/Nanbeige long-boundary slices remain opt-in/experimental or known-regression, not default.
-
 ## How It's Fast
 Key implementation mechanisms (current tree):
 
@@ -54,13 +45,6 @@ Key implementation mechanisms (current tree):
 3. Exact graph horizon behavior in integrations (`hcsa/integrations/glm_mlx.py`)
 - graph horizons align with KV cache sizing decisions
 - helps active-row path selection avoid unnecessary random gather behavior in key cases
-
-## Visual References
-Current visual assets used by docs:
-- `docs/assets/attention_comparison.png`
-- `docs/assets/hcsa_graph_circle.png`
-
-README links these visuals at a high level. Keep architecture-level explanation here.
 
 ## Project Map
 | Path | Purpose |
@@ -79,7 +63,8 @@ README links these visuals at a high level. Keep architecture-level explanation 
 | `tests/` | Correctness and regression tests |
 | `benchmarks/`, `results/` | Measurement artifacts |
 
-## Notes For Contributors
-- Keep public claims aligned to measured release evidence in `docs/FIRST_RELEASE.md`.
+## Notes for contributors
+
 - Keep benchmark execution sequential for reproducibility and memory safety.
-- For any benchmark/ablation change, follow ledger protocol in `AGENTS.md`.
+- Keep public claims tied to measured evidence in `docs/FIRST_RELEASE.md`.
+- See `CONTRIBUTING.md` for PR expectations.

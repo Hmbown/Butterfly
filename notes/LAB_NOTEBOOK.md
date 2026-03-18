@@ -3,6 +3,119 @@
 This notebook is the narrative companion to `notes/experiments.ndjson`.
 Each experiment is recorded as hypothesis -> intervention -> measurement -> decision.
 
+---
+
+## Templates (Copy/Paste)
+
+### LAB_NOTEBOOK.md — PRERUN template
+
+- **EXP-ID**: `EXP-<STAMP>-<SLUG>-PRERUN`
+- Date (UTC): `<YYYY-MM-DD>`
+- Question: `<what are we trying to learn?>`
+- Hypothesis: `<expected outcome + why>`
+- Change set: `<code/config changes (or "measurement-only")>`
+- Baseline: `<name + path to baseline results.json (if any)>`
+- Command queue (sequential; one process at a time):
+  - `<command 1>`
+  - `<command 2>`
+- Controls (held fixed):
+  - model: `<hf/mlx model id>`
+  - mode(s): `<dense/wayfinder/sparse>`
+  - seq_len: `<T>`
+  - decode_len: `<N>`
+  - repeats: `<k>`
+  - seed: `<int>`
+  - window/landmark/num_cycles: `<values>`
+  - chunk_size / kv_step: `<values>`
+  - cooldown_sec: `<value>`
+  - retro_backfill_inference: `off` (default; do not pass retro inference flags)
+- Expected artifacts:
+  - `<out_dir>/results.json` (required)
+  - `<out_dir>/README.md` (if emitted)
+  - optional mem snapshots (`pre_mem.json`, `post_mem.json`) if wrapped
+- Stop-gates (file-based):
+  - Nonzero exit OR missing `results.json` => FAIL (do not record RESULT metrics)
+  - If dense fallback is present, require informative `dense_fallback_reason_counts` (no `unspecified`)
+  - Require `observability_fallback_share_known=true` before trusting any fallback-share numbers
+  - Require all requested `(seq_len, repeat)` rows exist in `results.json`
+
+### LAB_NOTEBOOK.md — RESULT template
+
+- **EXP-ID**: `EXP-<STAMP>-<SLUG>-RESULT`
+- Date (UTC): `<YYYY-MM-DD>`
+- Question / hypothesis: `<copy from PRERUN>`
+- Change set: `<copy>`
+- Artifacts (paths):
+  - dense: `<path>/results.json`
+  - wayfinder: `<path>/results.json`
+  - optional sparse: `<path>/results.json`
+  - derived summary: `<path>/summary.json`
+- Key metrics (absolute + deltas vs baseline):
+  - `prefill_sec`, `decode_sec`, `e2e_sec`
+  - `decode_tok_s`
+  - `ttft_sec`, `itl_p95_sec` (if present)
+  - `peak_memory_bytes`
+  - `dense_fallback_share_run`, `dense_fallback_share_decode_steps`
+- Delta computation conventions:
+  - Absolute delta: `candidate - baseline`
+  - Percent delta: `100 * (candidate - baseline) / baseline`
+  - Memory reduction % (sign convention): `100 * (1 - wayfinder/dense)` (negative means Wayfinder used *more* memory)
+- Decision: `keep` / `revert` / `follow-up`
+- Next action: `<immediate next step>`
+
+### experiments.ndjson — PRERUN line template (single JSON object, 1 line)
+
+```json
+{"id":"EXP-<STAMP>-<SLUG>-PRERUN","date":"<YYYY-MM-DD>","question":"<...>","hypothesis":"<...>","change_set":["<...>"],"command":"<cmd1> && <cmd2>","controls":{"baseline_run_path":"<path/to/baseline/results.json or null>","one_process_at_a_time":true,"retro_backfill_inference":"off","seed":42,"seq_len":8192,"decode_len":64,"repeats":3,"stop_gates":["nonzero exit","missing results.json","timeout/hang","fallback present but reasons missing/unspecified"]},"metrics":{"status":"pending","artifacts_expected":["<out_dir1>/results.json","<out_dir2>/results.json"],"required":["single_turn[].prefill_sec","single_turn[].decode_sec","single_turn[].e2e_sec","single_turn[].decode_tok_s","single_turn[].peak_memory_bytes","single_turn[].path_counts","single_turn[].dense_fallback_reason_counts","single_turn[].dense_fallback_share_run","single_turn[].observability_fallback_share_known"]},"decision":"pending","next_action":"Run command queue; compute deltas; append RESULT entry."}
+```
+
+### experiments.ndjson — RESULT line template (single JSON object, 1 line)
+
+```json
+{"id":"EXP-<STAMP>-<SLUG>-RESULT","date":"<YYYY-MM-DD>","question":"<copy>","hypothesis":"<copy>","change_set":["<copy>"],"command":"<what actually ran>","controls":{"baseline_run_path":"<...>","stop_gates":["<copy>"]},"metrics":{"dense":{"path":"<...>/results.json","mean":{"e2e_sec":0,"prefill_sec":0,"decode_sec":0,"decode_tok_s":0,"peak_memory_bytes":0}},"wayfinder":{"path":"<...>/results.json","mean":{"e2e_sec":0,"prefill_sec":0,"decode_sec":0,"decode_tok_s":0,"peak_memory_bytes":0,"dense_fallback_share_run":0.0},"path_counts_agg":{},"dense_fallback_reason_counts_agg":{}},"delta_vs_dense_abs":{"e2e_sec":0,"decode_tok_s":0,"peak_memory_bytes":0},"delta_vs_dense_pct":{"e2e_sec":0,"decode_tok_s":0,"peak_memory_bytes":0},"memory_reduction_pct_convention":"100*(1-wayfinder/dense)"},"decision":"<keep|revert|follow-up>","next_action":"<...>"}
+```
+
+### Deltas + stop-gates from output files (consumer runs)
+
+For `scripts/bench_qwen_consumer_mlx.py`, compute deltas from:
+- Dense baseline: `<dense_out_dir>/results.json` → `single_turn[]` rows
+- Candidate: `<wayfinder_out_dir>/results.json` → `single_turn[]` rows
+
+Suggested post-run assertions (stop-gates) you can run before writing a RESULT entry:
+- Both `results.json` files exist and are valid JSON dicts.
+- For every requested `seq_len`, the file has `repeats` rows (or at least one row if `repeats=1`).
+- For Wayfinder: if any `path_counts` includes a `*_dense_fallback` key, require `dense_fallback_reason_counts` has at least one informative key (not `unspecified`/empty).
+- Require `observability_fallback_share_known == true` when recording any `dense_fallback_share_*` numbers.
+
+Minimal delta extraction pointers (per row):
+- `seq_len`, `repeat`
+- `prefill_sec`, `decode_sec`, `e2e_sec`
+- `decode_tok_s`
+- `peak_memory_bytes`
+- `path_counts`, `dense_fallback_reason_counts`, `dense_fallback_share_run`, `dense_fallback_share_decode_steps`, `observability_fallback_share_known`
+
+For `scripts/bench_qwen_wayfinder_mlx.py` (isolated attention + optional block):
+- Read `<out_dir>/results.json` → `results[]` rows.
+- Per-row pointers:
+  - `level_a_real_qkv.baseline_attention.{tokens_per_sec,latency_ms,peak_memory_bytes}`
+  - `level_a_real_qkv.wayfinder_attention.{tokens_per_sec,latency_ms,peak_memory_bytes,cache_hit_rate,graph_build_ms_first,graph_build_ms_cached}`
+  - `level_a_real_qkv.sanity_mae`
+- Suggested stop-gates:
+  - Require `sanity_mae <= 1e-3` (or a tighter threshold if empirically stable for the model/dtype).
+  - Require `cache_hit_rate == 1.0` on the cached/timed Wayfinder stage (otherwise cached numbers are not comparable).
+
+### Proposed sequential command queue (no runs in this session)
+
+Smaller tier (start here): `mlx-community/Qwen3-4B-4bit`
+- `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-4B-4bit --mode dense --seq-lens 2048 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_4b_wayfinder/queue_20260219T210000Z/t2048/dense`
+- `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-4B-4bit --mode wayfinder --seq-lens 2048 --decode-len 64 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_4b_wayfinder/queue_20260219T210000Z/t2048/wayfinder`
+- (if stop-gates pass) repeat at `--seq-lens 8192` with out dirs under `.../t8192/{dense,wayfinder}`
+
+Large tier: `mlx-community/Qwen3-30B-A3B-4bit`
+- `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 2048 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_30b_a3b_wayfinder/queue_20260219T210000Z/t2048/dense`
+- `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 2048 --decode-len 64 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_30b_a3b_wayfinder/queue_20260219T210000Z/t2048/wayfinder`
+- (if stop-gates pass) repeat at `--seq-lens 8192` with out dirs under `.../t8192/{dense,wayfinder}`
+
 ## 2026-02-07 — Qwen3-1.7B Permute Path (MLX)
 
 ### EXP-20260207-133728
@@ -8256,3 +8369,579 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - `T=32768`: e2e `152.0873s -> 188.7893s` (abs `+36.7020s`, `+24.13%`), prefill `147.2544s -> 181.3493s` (abs `+34.0948s`, `+23.15%`), decode `4.8328s -> 7.4400s` (abs `+2.6072s`, `+53.95%`), decode tok/s `6.6214 -> 4.3011` (abs `-2.3203`, `-35.04%`), peak memory `21.98GB -> 21.98GB` (abs `0`, `0.00%`).
 - Decision: keep.
 - Next action: retain this patch as the strict fallback-reason observability fix; if performance stability is the question, rerun paired dense+wayfinder with thermal/state controls before changing README claims.
+
+## 2026-02-19 — Public Launch Documentation Package
+
+### EXP-20260219T145347Z-PUBLIC-LAUNCH-DOCS (RESULT)
+- Question: Can we ship a decision-complete public launch documentation package that clarifies Wayfinder's mechanism, validated scope, and release controls without changing runtime behavior?
+- Hypothesis: A docs-first package (positioning, glossary, visual storyboard, release gate, security/contributing policy) plus README/architecture integration will improve public clarity and trust while preserving existing technical claims.
+- Change set:
+  - `README.md`
+  - `docs/ARCHITECTURE.md`
+  - `docs/FIRST_RELEASE.md`
+  - `.gitignore`
+  - `docs/PUBLIC_POSITIONING.md`
+  - `docs/GLOSSARY.md`
+  - `docs/VISUAL_STORYBOARD.md`
+  - `docs/RELEASE_GATE.md`
+  - `SECURITY.md`
+  - `CONTRIBUTING.md`
+  - `scripts/viz/wayfinder_metric_card.py`
+  - generated assets under `docs/assets/`
+- Commands:
+  - `python3 scripts/viz/attention_pattern_comparison.py --seq-len 64 --window 8 --out docs/assets/attention_comparison_5panel.png`
+  - `python3 scripts/viz/graph_viz.py --seq-len 32 --window 4 --landmark-stride 8 --out docs/assets/hcsa_graph_circle.png`
+  - `python3 scripts/viz/wayfinder_metric_card.py --stable-summary-json benchmarks/mlx/first_release/EXP-20260218T151213Z-STABLE-PROFILE/stable_profile_summary.json --out docs/assets/wayfinder_metric_card.png`
+  - `python3 -m py_compile scripts/viz/wayfinder_metric_card.py`
+- Controls:
+  - Documentation/visualization only; no benchmark execution.
+  - No runtime/kernel/model behavior changes.
+  - Public claims remain anchored to existing release evidence in `docs/FIRST_RELEASE.md`.
+- Metrics:
+  - New docs files: 4 under `docs/` (`PUBLIC_POSITIONING`, `GLOSSARY`, `VISUAL_STORYBOARD`, `RELEASE_GATE`)
+  - New policy files: 2 (`SECURITY.md`, `CONTRIBUTING.md`)
+  - New script: `scripts/viz/wayfinder_metric_card.py`
+  - Visual generation commands: pass
+  - Script compile check: pass
+- Decision: keep.
+- Next action: perform one reviewer pass on copy tone and then use this package for phased soft launch communications.
+
+## 2026-02-19 — Qwen3 MoE Parity Campaign (Qwen3-30B-A3B-4bit, MLX)
+
+### EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1 (PRERUN)
+- Date (UTC): 2026-02-19
+- Question: Can Wayfinder reproduce GLM-stable-profile-like validated gains on a Qwen3 MoE model (`Qwen3-30B-A3B`) under the consumer harness at `T=8192`, while keeping retro/backfill inference off?
+- Hypothesis: At `T=8192`, Wayfinder will achieve **prefill gain >= 30%** and **e2e gain >= 20%** vs dense, with **memory regression <= +5%** and **quality drift <= 1 task** on the 6-task main consumer set.
+- Change set:
+  - `docs/QWEN3_MOE_RESEARCH_AND_COMPAT.md` (new)
+  - `scripts/summarize_qwen_moe_parity.py` (new)
+  - measurement only (benchmark artifacts under `benchmarks/mlx/qwen3_moe_wayfinder/`)
+- Baseline:
+  - Within-run baseline: dense `results.json` for each `(T, seed)` slice in this run root.
+  - Posture reference (not a numeric baseline): `docs/FIRST_RELEASE.md` (GLM stable profile).
+- Run root:
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1`
+- Command queue (sequential; one process at a time):
+  - `python3 -m py_compile scripts/summarize_qwen_moe_parity.py`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --help >/dev/null`
+  - `./scripts/verify_install_and_preflight.sh --run-id EXP-20260219T152803Z-VERIFY-INSTALL --out-dir benchmarks/mlx/preflight`
+  - Dense perf:
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t2048_s42`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t8192_s42`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 7 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t8192_s7`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 99 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t8192_s99`
+  - Wayfinder perf:
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t2048_s42`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t8192_s42`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 7 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t8192_s7`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 99 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t8192_s99`
+  - Optional long slice (only if memory-safe after `T=8192`):
+    - Dense: `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t32768_s42`
+    - Wayfinder: `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t32768_s42`
+  - Quality @ `T=8192` (main + holdout):
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 64 --repeats 1 --seed 42 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --skip-multi-turn --skip-single-turn --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/quality_dense_main`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 64 --repeats 1 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --skip-multi-turn --skip-single-turn --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/quality_wayfinder_main`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 64 --repeats 1 --seed 42 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_holdout_v1.json --skip-multi-turn --skip-single-turn --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/quality_dense_holdout`
+    - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 64 --repeats 1 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_holdout_v1.json --skip-multi-turn --skip-single-turn --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/quality_wayfinder_holdout`
+  - Summarize:
+    - `python3 scripts/summarize_qwen_moe_parity.py --run-root benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1 --strict`
+- Controls (held fixed):
+  - model: `mlx-community/Qwen3-30B-A3B-4bit`
+  - perf: decode_len=`32`, repeats=`1`, chunk_size=`4096`, kv_step=`4096`, cooldown_sec=`0`, seeds `{42,7,99}`
+  - wayfinder: window=`64`, landmark_stride=`64`, num_cycles=`1`, head_chunk_size=`2`, query_chunk_size=`384`
+  - quality: `T=8192`, decode_len=`64`, seed=`42`, main + holdout datasets
+  - retro/backfill inference: off (do not pass retro flags)
+  - one process at a time: enforced by execution protocol (no parallel runs)
+- Stop gates:
+  - nonzero exit, missing `results.json`, or missing required `single_turn` row(s) => FAIL (record as blocked/follow-up)
+  - `observability_fallback_share_known != true` in any Wayfinder perf row => FAIL
+  - if fallback occurs, require informative `dense_fallback_reason_counts` (no `unspecified`/empty)
+  - memory cap: stop if `peak_memory_bytes > 30_000_000_000`
+- Decision criteria (provisional “similar results” gate @ `T=8192`, seed=42):
+  - prefill gain >= 30%
+  - e2e gain >= 20%
+  - memory regression <= +5% (or better)
+  - quality drift <= 1 task lost on 6-task main set
+- Decision: pending.
+- Next action: execute queue sequentially; run summarizer; write RESULT entry and parity report.
+
+### EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-TUNE1 (PRERUN, conditional)
+- Date (UTC): 2026-02-19
+- Trigger: only if `EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1` gate FAILs at `T=8192`.
+- Question: Can a bounded tuning round (query chunk size) improve Wayfinder parity metrics at `T=8192` without violating memory/quality gates?
+- Hypothesis: Adjusting `--query-chunk-size` from `384` to `256` or `512` will improve prefill and/or e2e without increasing peak memory by >5% vs dense.
+- Change set: measurement only (reuse same harness; new out dirs)
+- Baseline:
+  - Dense baseline: `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/dense_t8192_s42/results.json`
+  - Wayfinder baseline: `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-PARITY-V1/wayfinder_t8192_s42/results.json`
+- Command queue (sequential; one process at a time):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 256 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-TUNE1/wayfinder_q256_t8192_s42`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 512 --seed 42 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260219T152803Z-QWEN3-30B-A3B-4BIT-TUNE1/wayfinder_q512_t8192_s42`
+  - (conditional, best variant only) rerun quality main+holdout at `T=8192`, `decode_len=64`, `seed=42` into `.../quality_*`
+- Controls:
+  - identical to parity V1 except `query_chunk_size` is varied; retro/backfill inference remains off.
+- Stop gates:
+  - same as parity V1; additionally stop if any tuned run has `peak_memory_bytes > dense * 1.05`
+- Decision: pending.
+- Next action: if triggered, run the 2-wayfinder variant sweep; select best; rerun quality only if perf improves.
+
+## 2026-02-20 — Qwen3-30B-A3B GLM-Parity Extension
+
+### EXP-20260220T000000Z-QWEN30B-GLM-PARITY-PRERUN
+- Date (UTC): `2026-02-20`
+- Question: Can Qwen3-30B-A3B Wayfinder close the current gap to GLM-style behavior by using GLM-like decode policy while forcing model load from VIXinSSD HF cache?
+- Hypothesis: With `wayfinder_decode_backend=dense`, Qwen Wayfinder should materially improve decode/e2e versus active-permute decode while preserving prefill behavior and memory profile close to dense baseline.
+- Change set:
+  - `hcsa/integrations/qwen_mlx.py`: add `wayfinder_decode_backend` config + fallback reason wiring.
+  - `scripts/bench_qwen_consumer_mlx.py`: add HF cache controls (`--hf-home`, `--hf-hub-cache`, `--hf-offline`) and decode-backend CLI.
+  - `scripts/bench_qwen_wayfinder_mlx.py`: add HF cache controls and decode-backend pass-through.
+  - `tests/mlx/test_qwen_wayfinder_active_decode.py`: add decode-dense fallback test.
+- Baseline: `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/dense_t2048_s42/results.json`
+- Command queue (sequential; one process at a time):
+  - `python3 -m pytest tests/mlx/test_qwen_wayfinder_active_decode.py tests/mlx/test_qwen_sparse_decode.py -q`
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/dense_t2048_s42`
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --debug-wayfinder-decode-backend active_permute --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/wayfinder_active_t2048_s42`
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/wayfinder_dense_decode_t2048_s42`
+- Controls (held fixed):
+  - model: `mlx-community/Qwen3-30B-A3B-4bit`
+  - mode(s): `dense`, `wayfinder(active_permute)`, `wayfinder(dense decode backend)`
+  - seq_len: `2048`
+  - decode_len: `32`
+  - repeats: `1`
+  - seed: `42`
+  - window/landmark/num_cycles: `64 / 64 / 1`
+  - chunk_size / kv_step: `4096 / 4096`
+  - cooldown_sec: `0`
+  - retro_backfill_inference: `off`
+  - HF cache path: `/Volumes/VIXinSSD/hf_cache` (`HF_HUB_OFFLINE=1`)
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/dense_t2048_s42/results.json`
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/wayfinder_active_t2048_s42/results.json`
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T000000Z-QWEN30B-GLM-PARITY/wayfinder_dense_decode_t2048_s42/results.json`
+- Stop-gates:
+  - Any command nonzero exit OR missing `results.json` => FAIL.
+  - `results.json.single_turn[0]` must exist for each run.
+  - `hf_cache.hf_home` must resolve to `/Volumes/VIXinSSD/hf_cache` and offline flag present.
+  - Wayfinder run must report `observability_fallback_share_known=true` before trusting fallback shares.
+
+### EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192-PRERUN
+- Date (UTC): `2026-02-20`
+- Question: At long context (`T=8192`), does Qwen3-30B Wayfinder with dense decode backend produce GLM-like behavior (Wayfinder prefill + dense decode) and improve e2e versus dense?
+- Hypothesis: `wayfinder_decode_backend=dense` will retain prefill benefit while avoiding active-decode regression, yielding net e2e improvement at `T=8192`.
+- Change set: `measurement-only` (uses prior code patch from EXP-20260220T000000Z).
+- Baseline: `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/dense_t8192_s42/results.json`
+- Command queue (sequential; one process at a time):
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/dense_t8192_s42`
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/wayfinder_dense_decode_t8192_s42`
+- Controls (held fixed):
+  - model: `mlx-community/Qwen3-30B-A3B-4bit`
+  - mode(s): `dense`, `wayfinder(dense decode backend)`
+  - seq_len: `8192`
+  - decode_len: `32`
+  - repeats: `1`
+  - seed: `42`
+  - window/landmark/num_cycles: `64 / 64 / 1`
+  - chunk_size / kv_step: `4096 / 4096`
+  - cooldown_sec: `0`
+  - retro_backfill_inference: `off`
+  - HF cache path: `/Volumes/VIXinSSD/hf_cache` (`HF_HUB_OFFLINE=1`)
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/dense_t8192_s42/results.json`
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/wayfinder_dense_decode_t8192_s42/results.json`
+- Stop-gates:
+  - Nonzero exit OR missing `results.json` OR missing `single_turn[0]` => FAIL.
+  - `hf_cache.hf_home` must resolve to `/Volumes/VIXinSSD/hf_cache`.
+
+## 2026-02-25 — Qwen3.5-35B-A3B Setup (No-Inference Planning)
+
+### EXP-20260225T170859Z-QWEN35A3B-SETUP-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: What exact Wayfinder setup should we use for `Qwen3.5-35B-A3B` later, given the model is already local and this session must run with inference fully off?
+- Hypothesis: A queue-based setup can be prepared now (model paths, controls, stop-gates, and commands), but execution remains blocked until `mlx-lm` has Qwen3.5 loader support.
+- Change set:
+  - `scripts/queue_qwen35_a3b_wayfinder.sh` (new)
+  - `configs/experiments/qwen3_5_35b_a3b_wayfinder_setup.yaml` (new)
+  - `docs/QWEN3_5_35B_A3B_SETUP.md` (new)
+- Baseline: `none (planning-only)`
+- Command queue (sequential; no inference):
+  - `python3 -c "import importlib.metadata; print(importlib.metadata.version('mlx-lm'))"`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --help >/dev/null`
+  - `python3 scripts/bench_qwen_wayfinder_mlx.py --help >/dev/null`
+  - `bash -n scripts/queue_qwen35_a3b_wayfinder.sh`
+  - `bash scripts/queue_qwen35_a3b_wayfinder.sh`  (dry-run print only; no `--execute`)
+- Controls (held fixed):
+  - no benchmark, no inference, no finetuning
+  - retro/backfill inference remains off in prepared commands
+  - one-process-at-a-time policy maintained for the prepared future queue
+- Expected artifacts:
+  - `configs/experiments/qwen3_5_35b_a3b_wayfinder_setup.yaml`
+  - `docs/QWEN3_5_35B_A3B_SETUP.md`
+  - `scripts/queue_qwen35_a3b_wayfinder.sh`
+- Stop-gates:
+  - If `mlx-lm < 0.30.7`, do not execute queue.
+  - Any attempt to run model benchmarks in this planning session is out-of-scope.
+  - Queue execution later must stop on nonzero exit or missing `results.json`.
+
+### EXP-20260225T170859Z-QWEN35A3B-SETUP-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Change set: copied from PRERUN.
+- Artifacts (paths):
+  - setup config: `configs/experiments/qwen3_5_35b_a3b_wayfinder_setup.yaml`
+  - setup runbook: `docs/QWEN3_5_35B_A3B_SETUP.md`
+  - queue script: `scripts/queue_qwen35_a3b_wayfinder.sh`
+- Key metrics (planning-only):
+  - local selected model path: `/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit`
+  - local `mlx-lm` version: `0.30.5`
+  - required min version for Qwen3.5 loader support: `0.30.7`
+  - queue commands prepared: `4` (dense/wayfinder pairs at `T=2048` and `T=8192`)
+  - no inference commands run in this setup session: `true`
+- Decision: `follow-up`
+- Next action: upgrade `mlx-lm` to `>=0.30.7`, then execute `scripts/queue_qwen35_a3b_wayfinder.sh --execute` in a separate benchmark session.
+
+### EXP-20260220T020000Z-QWEN30B-T8192-PREFILL-TUNING-PRERUN
+- Date (UTC): `2026-02-20`
+- Question: Can we recover `T=8192` e2e by reducing prefill overhead while keeping dense decode backend?
+- Hypothesis: Removing landmarks (`landmark_stride=0`) and tuning query chunking can lower Wayfinder prefill time enough to beat dense e2e.
+- Change set: `measurement-only`.
+- Baseline: `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T010000Z-QWEN30B-GLM-PARITY-T8192/dense_t8192_s42/results.json`
+- Command queue:
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 0 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T020000Z-QWEN30B-T8192-PREFILL-TUNING/ls0_q384`
+  - `HF_HOME=/Volumes/VIXinSSD/hf_cache HF_HUB_CACHE=/Volumes/VIXinSSD/hf_cache/hub HF_HUB_OFFLINE=1 python3 scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3-30B-A3B-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 0 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 192 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T020000Z-QWEN30B-T8192-PREFILL-TUNING/ls0_q192`
+- Controls (held fixed):
+  - model: `mlx-community/Qwen3-30B-A3B-4bit`
+  - mode: `wayfinder(dense decode backend)`
+  - seq_len/decode_len: `8192/32`
+  - repeats/seed: `1/42`
+  - chunk_size/kv_step: `4096/4096`
+  - window/num_cycles: `64/1`
+  - HF cache: `/Volumes/VIXinSSD/hf_cache`, offline mode on
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T020000Z-QWEN30B-T8192-PREFILL-TUNING/ls0_q384/results.json`
+  - `benchmarks/mlx/qwen3_moe_wayfinder/EXP-20260220T020000Z-QWEN30B-T8192-PREFILL-TUNING/ls0_q192/results.json`
+- Stop-gates:
+  - Nonzero exit OR missing `results.json` OR missing `single_turn[0]` => FAIL.
+  - `hf_cache.hf_home` must resolve to `/Volumes/VIXinSSD/hf_cache`.
+
+## 2026-02-25 — Qwen3.5-35B-A3B Compatibility Rerun
+
+### EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: After upgrading `mlx-lm`, does Wayfinder now run on `Qwen3.5-35B-A3B` with the patched Qwen attention integration under single-process inference controls?
+- Hypothesis: Adding Qwen3.5-compatible head/scale attribute resolution plus gated-query handling (`query + gate`) will remove the prior `n_heads` error and allow sequential dense+wayfinder queue stages to execute.
+- Change set:
+  - `hcsa/integrations/qwen_mlx.py`
+  - `scripts/bench_qwen_wayfinder_mlx.py`
+- Baseline:
+  - prior failed stage: `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T171900Z-QWEN35A3B-CONSUMER-QUEUE/t2048/wayfinder/` (`AttributeError: Qwen3NextAttention.n_heads`)
+- Command queue:
+  - `python3 -m py_compile hcsa/integrations/qwen_mlx.py scripts/bench_qwen_wayfinder_mlx.py`
+  - `python3 -m pytest -q tests/mlx/test_qwen_wayfinder_active_decode.py`
+  - `bash scripts/queue_qwen35_a3b_wayfinder.sh --execute --run-id EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN`
+- Controls (held fixed):
+  - model path: `/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit`
+  - single inference process at a time: `true`
+  - retro/backfill inference: `off`
+  - cache/offline controls via queue defaults
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t2048/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t2048/wayfinder/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t8192/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t8192/wayfinder/results.json`
+- Stop-gates:
+  - nonzero exit code on any queue stage
+  - missing `results.json` at any queued stage
+  - concurrent inference process detected
+
+### EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Command executed:
+  - `bash scripts/queue_qwen35_a3b_wayfinder.sh --execute --run-id EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN`
+- Artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t2048/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t2048/wayfinder/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t8192/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t8192/wayfinder/results.json`
+- Key metrics and deltas vs paired dense baseline:
+  - `T=2048`
+    - dense: `e2e=3.0056s`, `prefill=1.9179s`, `decode=1.0877s`, `decode_tok_s=29.420`, `peak=24,935,466,998`
+    - wayfinder: `e2e=4.9825s`, `prefill=2.6715s`, `decode=2.3110s`, `decode_tok_s=13.847`, `peak=24,976,397,290`
+    - deltas (wayfinder - dense):
+      - `e2e`: `+1.9769s` (`+65.78%`)
+      - `prefill`: `+0.7536s` (`+39.30%`)
+      - `decode`: `+1.2233s` (`+112.47%`)
+      - `decode_tok_s`: `-15.5729` (`-52.93%`)
+      - `peak_memory`: `+40,930,292` (`+0.16%`)
+      - memory reduction convention `100*(1-wayfinder/dense)`: `-0.1641%`
+  - `T=8192`
+    - dense: `e2e=14.4305s`, `prefill=12.2817s`, `decode=2.1488s`, `decode_tok_s=14.892`, `peak=29,371,883,558`
+    - wayfinder: `e2e=17.1658s`, `prefill=15.3206s`, `decode=1.8452s`, `decode_tok_s=17.343`, `peak=29,373,458,886`
+    - deltas (wayfinder - dense):
+      - `e2e`: `+2.7353s` (`+18.96%`)
+      - `prefill`: `+3.0390s` (`+24.74%`)
+      - `decode`: `-0.3036s` (`-14.13%`)
+      - `decode_tok_s`: `+2.4506` (`+16.46%`)
+      - `peak_memory`: `+1,575,328` (`+0.01%`)
+      - memory reduction convention `100*(1-wayfinder/dense)`: `-0.0054%`
+- Observability checks:
+  - `T=2048`: `path_counts={permute:8, permute_dense_fallback:256}`, `dense_fallback_reason_counts={wayfinder_decode_dense:256}`
+  - `T=8192`: `path_counts={permute:8, permute_dense_fallback:264}`, `dense_fallback_reason_counts={active_large_q:8, wayfinder_decode_dense:256}`
+  - `observability_fallback_share_known=true` for both wayfinder runs.
+- Decision: `follow-up`
+- Next action: keep the compatibility patch (Qwen3.5 now runs end-to-end), then tune prefill path (`active_large_q` fallbacks and chunking/graph policy) before claiming performance improvements.
+
+### EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: With decode minimized (`decode_len=1`), is Wayfinder prefill faster than dense on Qwen3.5-35B-A3B when decode backend is forced to dense?
+- Hypothesis: Prefill-focused run should clarify whether the regression is in prefill itself; if Wayfinder prefill is healthy, `prefill_sec` should be <= dense under this control.
+- Change set:
+  - `measurement-only`
+- Baseline:
+  - prior paired run: `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t8192/dense/results.json`
+- Command queue (sequential):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 8192 --decode-len 1 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/dense_t8192_d1_s42`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 1 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/wayfinder_dense_decode_t8192_d1_s42`
+- Controls (held fixed):
+  - one inference process at a time: `true`
+  - model: `/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit`
+  - seq_len: `8192`, decode_len: `1`, repeats: `1`, seed: `42`
+  - retro/backfill inference: `off`
+  - HF cache/offline: `/Volumes/VIXinSSD/hf_cache`, `HF_HUB_OFFLINE=1`
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/dense_t8192_d1_s42/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/wayfinder_dense_decode_t8192_d1_s42/results.json`
+- Stop-gates:
+  - nonzero exit code
+  - missing `results.json`
+  - concurrent inference process detected
+
+### EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Command executed (sequential, one inference process at a time):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 8192 --decode-len 1 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/dense_t8192_d1_s42`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 1 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/wayfinder_dense_decode_t8192_d1_s42`
+- Artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/dense_t8192_d1_s42/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T183600Z-QWEN35A3B-PREFILL-WFDENSEDECODE/wayfinder_dense_decode_t8192_d1_s42/results.json`
+- Metrics (`T=8192`, `decode_len=1`):
+  - dense: `prefill=73.3440s`, `decode=66.0771s`, `e2e=139.4211s`, `decode_tok_s=0.01513`, `peak=29,371,883,558`
+  - wayfinder+dense-decode: `prefill=23.9197s`, `decode=22.3596s`, `e2e=46.2793s`, `decode_tok_s=0.04472`, `peak=29,373,458,886`
+- Deltas (wayfinder - dense):
+  - `prefill`: `-49.4243s` (`-67.39%`)
+  - `decode`: `-43.7175s` (`-66.16%`)
+  - `e2e`: `-93.1418s` (`-66.81%`)
+  - `decode_tok_s`: `+0.02959` (`+195.52%`)
+  - `peak_memory`: `+1,575,328` (`+0.0054%`)
+  - memory reduction convention `100*(1-wayfinder/dense)`: `-0.0054%`
+- Observability:
+  - `path_counts={permute:8, permute_dense_fallback:16}`
+  - `dense_fallback_reason_counts={active_large_q:8, wayfinder_decode_dense:8}`
+  - `observability_fallback_share_known=true`
+- Decision: `follow-up`
+- Next action: rerun this exact pair with `repeats>=3` to check stability, then compare against `decode_len=32` paired runs before declaring a new default.
+
+### EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: For a concrete prompt, do dense and Wayfinder+dense-decode produce the same visible output on Qwen3.5-35B-A3B under the current setup?
+- Hypothesis: Outputs should be the same or very close on a deterministic short extraction task when decode backend is dense.
+- Change set:
+  - `measurement-only`
+- Baseline:
+  - dense output artifact from this run
+- Command queue (sequential):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 8192 --decode-len 24 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --seed 42 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --quality-task-id-filter extract-01 --skip-single-turn --skip-multi-turn --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 24 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --quality-task-id-filter extract-01 --skip-single-turn --skip-multi-turn --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/wayfinder_dense_decode`
+- Controls (held fixed):
+  - one inference process at a time: `true`
+  - task: `extract-01` only
+  - decode backend for wayfinder: `dense`
+  - HF cache/offline: `/Volumes/VIXinSSD/hf_cache`, `HF_HUB_OFFLINE=1`
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/wayfinder_dense_decode/results.json`
+- Stop-gates:
+  - nonzero exit
+  - missing `results.json`
+  - missing `quality.rows[0].output`
+
+### EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Command executed (sequential):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 8192 --decode-len 24 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --seed 42 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --quality-task-id-filter extract-01 --skip-single-turn --skip-multi-turn --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 24 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --quality-dataset benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json --quality-task-id-filter extract-01 --skip-single-turn --skip-multi-turn --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/wayfinder_dense_decode`
+- Artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T184500Z-QWEN35A3B-VISIBLE-OUTPUT-CHECK/wayfinder_dense_decode/results.json`
+- Visible output check (`quality.rows[0]`, task `extract-01`):
+  - expected: `Q9X4`
+  - dense output: contains `Q9X4` (correct=true)
+  - wayfinder+dense-decode output: contains `Q9X4` (correct=true)
+  - verdict: semantically matched on this task; wrapper/control tokens differ slightly but answer content matches.
+- Decision: `keep`
+- Next action: if needed, scale to full 6-task dataset (`quality_eval_qwen3_consumer_v1.json`) and compare per-task output parity.
+
+### EXP-20260225T185200Z-LMSTUDIO-WAYFINDER-BRIDGE-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: Can we expose local Qwen3.5 Wayfinder through an OpenAI-compatible endpoint that LM Studio can target?
+- Hypothesis: A small FastAPI bridge that loads Qwen3.5, swaps Wayfinder attention, and serves `/v1/chat/completions` should enable LM Studio plugin routing.
+- Change set:
+  - `scripts/serve_qwen_wayfinder_openai.py` (new)
+  - `docs/LM_STUDIO_WAYFINDER_SETUP.md` (new runbook)
+- Baseline: none (new integration path)
+- Commands:
+  - `python3 -m py_compile scripts/serve_qwen_wayfinder_openai.py`
+  - `python3 scripts/serve_qwen_wayfinder_openai.py --help`
+  - `python3 scripts/serve_qwen_wayfinder_openai.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --host 127.0.0.1 --port 8012 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384`
+  - `curl -s http://127.0.0.1:8012/health`
+  - `curl -s http://127.0.0.1:8012/v1/models`
+  - `curl -s http://127.0.0.1:8012/v1/chat/completions -H 'Content-Type: application/json' -d '{"model":"Qwen3.5-35B-A3B-MLX-4bit-wayfinder","messages":[{"role":"user","content":"Return exactly Q9X4"}],"max_tokens":8,"temperature":0.0}'`
+- Controls (held fixed):
+  - one-inference gate enforced in server: `true`
+  - decode backend in Wayfinder mode: `dense`
+  - HF cache/offline pinned to `/Volumes/VIXinSSD/hf_cache`
+- Expected artifacts:
+  - `scripts/serve_qwen_wayfinder_openai.py`
+  - `docs/LM_STUDIO_WAYFINDER_SETUP.md`
+- Stop-gates:
+  - server startup failure
+  - missing `/health` or `/v1/models`
+  - `/v1/chat/completions` request failure
+
+### EXP-20260225T185200Z-LMSTUDIO-WAYFINDER-BRIDGE-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Artifacts:
+  - bridge script: `scripts/serve_qwen_wayfinder_openai.py`
+  - setup runbook: `docs/LM_STUDIO_WAYFINDER_SETUP.md`
+- Results:
+  - server started successfully with Wayfinder swap: `layers_replaced=10`
+  - `/health`: `{"ok":true,"model":"Qwen3.5-35B-A3B-MLX-4bit-wayfinder","mode":"wayfinder","busy":false}`
+  - `/v1/models`: `{"object":"list","data":[{"id":"Qwen3.5-35B-A3B-MLX-4bit-wayfinder",...}]}`
+  - `/v1/chat/completions`: HTTP `200`, returned assistant text for test request (`max_tokens=8`)
+- Decision: `keep`
+- Next action: connect LM Studio `openai-compat-endpoint` generator to `http://127.0.0.1:8012/v1` and validate in-app chat flow.
+
+### EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: Under stronger warmup and repeated measurements, is Wayfinder actually better or worse than dense for Qwen3.5-35B-A3B at `T={2048,8192}` with dense decode backend?
+- Hypothesis: Additional warmup plus `repeats=3` will reduce run-to-run noise and yield a stable dense-vs-wayfinder comparison; wayfinder may improve prefill at larger T, while decode remains controlled by dense backend.
+- Change set:
+  - `measurement-only`
+- Baseline:
+  - prior paired run path: `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN`
+- Command queue (sequential, one inference process at a time):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 2048 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/prewarm_dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/prewarm_wayfinder`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 2048 8192 --decode-len 32 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 2400 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 8192 --decode-len 32 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 2400 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/wayfinder`
+- Controls (held fixed):
+  - model: `/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit`
+  - decode backend policy for wayfinder: `dense`
+  - `seq_lens={2048,8192}`, `decode_len=32`, `seed=42`, `repeats=3` (measured run)
+  - HF cache/offline: `/Volumes/VIXinSSD/hf_cache`, `HF_HUB_OFFLINE=1`
+  - one inference process at a time: `true`
+  - retro/backfill inference: `off`
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/wayfinder/results.json`
+- Stop-gates:
+  - nonzero exit
+  - missing `results.json`
+  - missing `single_turn` rows for `T=2048` or `T=8192`
+
+### EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Commands: executed sequentially, all exit code `0`.
+- Artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN/wayfinder/results.json`
+- Repeat-level observations:
+  - `T=2048`: one noisy first repeat; repeats 2-3 are near parity.
+  - `T=8192`: wayfinder improves decode and e2e in all summary views; prefill depends on whether first measured repeat is included.
+- Summary (all 3 repeats, median):
+  - `T=2048`:
+    - `prefill`: dense `1.8973s`, wayfinder `1.8565s` (delta `-0.0409s`, `-2.15%`)
+    - `decode`: dense `1.0816s`, wayfinder `1.1214s` (delta `+0.0398s`, `+3.68%`)
+    - `e2e`: dense `2.9617s`, wayfinder `2.9779s` (delta `+0.0162s`, `+0.55%`)
+    - `peak_memory`: dense `24,935,466,998`, wayfinder `24,976,397,290` (delta `+40,930,292`, `+0.1641%`)
+    - memory reduction convention `100*(1-wayfinder/dense)`: `-0.1641%`
+  - `T=8192`:
+    - `prefill`: dense `13.5620s`, wayfinder `14.3209s` (delta `+0.7588s`, `+5.60%`)
+    - `decode`: dense `15.0374s`, wayfinder `5.8339s` (delta `-9.2035s`, `-61.20%`)
+    - `e2e`: dense `25.5574s`, wayfinder `23.9346s` (delta `-1.6228s`, `-6.35%`)
+    - `peak_memory`: dense `29,371,883,558`, wayfinder `29,373,458,886` (delta `+1,575,328`, `+0.0054%`)
+    - memory reduction convention `100*(1-wayfinder/dense)`: `-0.0054%`
+- Warmed subset (repeats 2-3 only):
+  - `T=2048`: near parity (`e2e -0.44%`, wayfinder slightly faster overall)
+  - `T=8192`: wayfinder clearly faster (`prefill -8.97%`, `decode -45.41%`, `e2e -28.76%`)
+- Observability:
+  - aggregated wayfinder fallback reasons across measured rows:
+    - `wayfinder_decode_dense: 1536`
+    - `active_large_q: 24`
+- Decision: `follow-up`
+- Next action: keep dense-decode wayfinder path; run one more long stability batch (`repeats=5`) and report median-of-last-3 as release metric to suppress first-repeat transients.
+
+### EXP-20260225T192700Z-QWEN35A3B-16KPLUS-PRERUN
+- Date (UTC): `2026-02-25`
+- Question: At `16k` and above (`16384`, `32768`), is Wayfinder better or worse than dense on Qwen3.5-35B-A3B under the same dense-decode policy?
+- Hypothesis: Wayfinder may pull ahead at longer contexts where routing overhead amortizes, with decode remaining on dense backend.
+- Change set:
+  - `measurement-only`
+- Baseline:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T190500Z-QWEN35A3B-STABLE-FULLRERUN`
+- Command queue (sequential, one inference process at a time):
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 2048 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/prewarm_dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 --decode-len 16 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/prewarm_wayfinder`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 16384 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 15 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 3600 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/dense`
+  - `python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 16384 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 15 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 3600 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/wayfinder`
+- Controls (held fixed):
+  - model: `/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit`
+  - wayfinder decode backend: `dense`
+  - `decode_len=32`, `seed=42`, `chunk_size=4096`, `kv_step=4096`
+  - HF cache/offline: `/Volumes/VIXinSSD/hf_cache`, `HF_HUB_OFFLINE=1`
+  - one inference process at a time: `true`
+- Expected artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/wayfinder/results.json`
+- Stop-gates:
+  - nonzero exit
+  - missing `results.json`
+  - missing `single_turn` row for `16384` or `32768`
+
+### EXP-20260225T192700Z-QWEN35A3B-16KPLUS-RESULT
+- Date (UTC): `2026-02-25`
+- Question / hypothesis: copied from PRERUN.
+- Commands: all four commands executed sequentially, exit code `0`.
+- Artifacts:
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/dense/results.json`
+  - `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/wayfinder/results.json`
+- Metrics (single repeat):
+  - `T=16384`
+    - dense: `prefill=38.9707s`, `decode=11.8695s`, `e2e=50.8402s`, `decode_tok_s=2.6960`, `peak=30,224,801,930`
+    - wayfinder: `prefill=46.7473s`, `decode=14.8121s`, `e2e=61.5594s`, `decode_tok_s=2.1604`, `peak=30,226,377,258`
+    - deltas (wayfinder - dense):
+      - `prefill`: `+7.7766s` (`+19.96%`)
+      - `decode`: `+2.9426s` (`+24.79%`)
+      - `e2e`: `+10.7193s` (`+21.08%`)
+      - `decode_tok_s`: `-0.5356` (`-19.87%`)
+      - `peak_memory`: `+1,575,328` (`+0.0052%`)
+      - memory reduction convention `100*(1-wayfinder/dense)`: `-0.0052%`
+  - `T=32768`
+    - dense: `prefill=593.9268s`, `decode=18.4877s`, `e2e=612.4145s`, `decode_tok_s=1.7309`, `peak=35,264,923,642`
+    - wayfinder: `prefill=451.9092s`, `decode=18.2466s`, `e2e=470.1558s`, `decode_tok_s=1.7538`, `peak=35,266,498,970`
+    - deltas (wayfinder - dense):
+      - `prefill`: `-142.0176s` (`-23.91%`)
+      - `decode`: `-0.2411s` (`-1.30%`)
+      - `e2e`: `-142.2587s` (`-23.23%`)
+      - `decode_tok_s`: `+0.0229` (`+1.32%`)
+      - `peak_memory`: `+1,575,328` (`+0.0045%`)
+      - memory reduction convention `100*(1-wayfinder/dense)`: `-0.0045%`
+- Observability (wayfinder):
+  - `T=16384`: `path_counts={permute:8, permute_dense_fallback:280}`, `dense_fallback_reason_counts={active_large_q:24, wayfinder_decode_dense:256}`
+  - `T=32768`: `path_counts={permute:8, permute_dense_fallback:312}`, `dense_fallback_reason_counts={active_large_q:56, wayfinder_decode_dense:256}`
+- Decision: `follow-up`
+- Next action: repeat `T=16384` with `repeats>=3` (same settings) to confirm whether the 16k loss is stable or a one-run outlier, while keeping the 32k win as current evidence.

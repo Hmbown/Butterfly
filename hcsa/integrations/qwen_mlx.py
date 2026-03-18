@@ -67,6 +67,7 @@ class QwenWayfinderConfig:
     spectral_gap_threshold: float = 4.0
     use_fused_dispatch: bool = True
     active_dense_threshold: Optional[int | str] = None
+    wayfinder_decode_backend: Literal["active_permute", "dense"] = "active_permute"
 
 
 @dataclass(frozen=True)
@@ -115,12 +116,87 @@ def _schedule_bias_to_vec(schedule_bias: Optional[Dict[str, float]]) -> np.ndarr
     return vec
 
 
+def _attn_get_first(attn: nn.Module, names: Sequence[str]) -> Any:
+    for name in names:
+        value = getattr(attn, name, None)
+        if value is not None:
+            return value
+    return None
+
+
+def _attn_num_heads(attn: nn.Module) -> int:
+    value = _attn_get_first(attn, ("n_heads", "num_attention_heads", "num_heads"))
+    if value is None:
+        raise AttributeError("Unable to resolve attention query head count.")
+    return int(value)
+
+
+def _attn_num_kv_heads(attn: nn.Module) -> int:
+    value = _attn_get_first(attn, ("n_kv_heads", "num_key_value_heads", "num_kv_heads"))
+    if value is None:
+        raise AttributeError("Unable to resolve attention KV head count.")
+    return int(value)
+
+
+def _attn_scale(attn: nn.Module, *, head_dim: Optional[int] = None) -> float:
+    value = _attn_get_first(attn, ("scale", "scaling"))
+    if value is not None:
+        return float(value)
+    if head_dim is not None:
+        return float(head_dim ** -0.5)
+    raise AttributeError("Unable to resolve attention scaling factor.")
+
+
+def _attn_head_dim(attn: nn.Module, *, scale: Optional[float] = None) -> int:
+    value = getattr(attn, "head_dim", None)
+    if value is not None:
+        return int(value)
+    resolved_scale = _attn_scale(attn) if scale is None else float(scale)
+    return int(round(resolved_scale ** -2))
+
+
+def _attn_rope(attn: nn.Module) -> nn.Module:
+    rope = _attn_get_first(attn, ("rope", "rotary_emb"))
+    if rope is None:
+        raise AttributeError("Unable to resolve attention RoPE module.")
+    return rope
+
+
+def _apply_rope_qk(
+    rope: nn.Module,
+    queries: mx.array,
+    keys: mx.array,
+    *,
+    cache: Optional[Any],
+) -> tuple[mx.array, mx.array]:
+    if cache is not None:
+        offset = int(getattr(cache, "offset", 0))
+        try:
+            return rope(queries, offset=offset), rope(keys, offset=offset)
+        except TypeError:
+            pass
+    else:
+        try:
+            return rope(queries), rope(keys)
+        except TypeError:
+            pass
+
+    q_len = int(queries.shape[2])
+    start = int(getattr(cache, "offset", 0)) if cache is not None else 0
+    positions = (mx.arange(q_len, dtype=mx.int32) + start)[None, :]
+    try:
+        return rope(positions, queries, keys)
+    except TypeError:
+        return rope(positions, queries), rope(positions, keys)
+
+
 def extract_qkv_from_qwen_attention(
     attn: nn.Module,
     x: mx.array,
     *,
     cache: Optional[Any] = None,
-) -> Tuple[mx.array, mx.array, mx.array]:
+    return_gate: bool = False,
+) -> Tuple[mx.array, mx.array, mx.array] | Tuple[mx.array, mx.array, mx.array, Optional[mx.array]]:
     """Extract Q/K/V tensors from a Qwen attention module after RoPE.
 
     Returns:
@@ -129,30 +205,60 @@ def extract_qkv_from_qwen_attention(
         values:  [B, Hk, Tk, Dh]
     """
     B, L, _D = x.shape
-    queries = attn.q_proj(x)
-    keys = attn.k_proj(x)
-    values = attn.v_proj(x)
-
+    n_heads = _attn_num_heads(attn)
+    n_kv_heads = _attn_num_kv_heads(attn)
     q_norm = getattr(attn, "q_norm", None)
     k_norm = getattr(attn, "k_norm", None)
-    queries = queries.reshape(B, L, attn.n_heads, -1)
-    keys = keys.reshape(B, L, attn.n_kv_heads, -1)
+
+    head_dim = _attn_head_dim(attn, scale=_attn_get_first(attn, ("scale", "scaling")))
+    gate: Optional[mx.array] = None
+
+    if hasattr(attn, "qkv_proj") and not all(
+        hasattr(attn, name) for name in ("q_proj", "k_proj", "v_proj")
+    ):
+        qkv = attn.qkv_proj(x)
+        k_dim = int(n_kv_heads * head_dim)
+        v_dim = int(n_kv_heads * head_dim)
+        q_dim = int(qkv.shape[-1]) - k_dim - v_dim
+        if q_dim <= 0:
+            raise ValueError(f"Unable to split qkv projection with shape {qkv.shape}.")
+        q_part, k_part, v_part = mx.split(qkv, [q_dim, q_dim + k_dim], axis=-1)
+        queries = q_part.reshape(B, L, n_heads, -1)
+        keys = k_part.reshape(B, L, n_kv_heads, -1)
+        values = v_part.reshape(B, L, n_kv_heads, -1)
+    else:
+        q_proj_out = attn.q_proj(x)
+        queries = q_proj_out.reshape(B, L, n_heads, -1)
+        keys = attn.k_proj(x).reshape(B, L, n_kv_heads, -1)
+        values = attn.v_proj(x).reshape(B, L, n_kv_heads, -1)
+
+    q_dim = int(queries.shape[-1])
+    norm_dim = None
+    if q_norm is not None and hasattr(q_norm, "weight"):
+        try:
+            norm_dim = int(q_norm.weight.shape[0])
+        except Exception:
+            norm_dim = None
+    expected_q_dim = norm_dim if norm_dim is not None else head_dim
+    if q_dim == 2 * int(expected_q_dim):
+        queries, gate_heads = mx.split(queries, 2, axis=-1)
+        gate = gate_heads.reshape(B, L, -1)
+
     if q_norm is not None:
         queries = q_norm(queries)
     if k_norm is not None:
         keys = k_norm(keys)
     queries = queries.transpose(0, 2, 1, 3)
     keys = keys.transpose(0, 2, 1, 3)
-    values = values.reshape(B, L, attn.n_kv_heads, -1).transpose(0, 2, 1, 3)
+    values = values.transpose(0, 2, 1, 3)
+
+    rope = _attn_rope(attn)
+    queries, keys = _apply_rope_qk(rope, queries, keys, cache=cache)
 
     if cache is not None:
-        queries = attn.rope(queries, offset=cache.offset)
-        keys = attn.rope(keys, offset=cache.offset)
         keys, values = cache.update_and_fetch(keys, values)
-    else:
-        queries = attn.rope(queries)
-        keys = attn.rope(keys)
-
+    if return_gate:
+        return queries, keys, values, gate
     return queries, keys, values
 
 
@@ -543,18 +649,23 @@ class QwenWayfinderAttention(nn.Module):
     def __init__(self, base_attn: nn.Module, cfg: QwenWayfinderConfig):
         super().__init__()
 
-        self.n_heads = int(base_attn.n_heads)
-        self.n_kv_heads = int(base_attn.n_kv_heads)
-        self.scale = float(base_attn.scale)
-        self.head_dim = int(round(self.scale ** -2))
+        self.n_heads = _attn_num_heads(base_attn)
+        self.n_kv_heads = _attn_num_kv_heads(base_attn)
+        self.scale = _attn_scale(base_attn)
+        self.head_dim = _attn_head_dim(base_attn, scale=self.scale)
 
-        self.q_proj = base_attn.q_proj
-        self.k_proj = base_attn.k_proj
-        self.v_proj = base_attn.v_proj
+        if hasattr(base_attn, "q_proj"):
+            self.q_proj = base_attn.q_proj
+        if hasattr(base_attn, "k_proj"):
+            self.k_proj = base_attn.k_proj
+        if hasattr(base_attn, "v_proj"):
+            self.v_proj = base_attn.v_proj
+        if hasattr(base_attn, "qkv_proj"):
+            self.qkv_proj = base_attn.qkv_proj
         self.o_proj = base_attn.o_proj
         self.q_norm = getattr(base_attn, "q_norm", None) or nn.Identity()
         self.k_norm = getattr(base_attn, "k_norm", None) or nn.Identity()
-        self.rope = base_attn.rope
+        self.rope = _attn_rope(base_attn)
 
         self.path = cfg.path
         self.permute_head_chunk_size = int(max(1, cfg.permute_head_chunk_size))
@@ -568,6 +679,7 @@ class QwenWayfinderAttention(nn.Module):
         self.circular = bool(cfg.circular)
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
+        self.wayfinder_decode_backend = str(cfg.wayfinder_decode_backend)
         if cfg.active_dense_threshold == "auto":
             self.active_dense_threshold = (2 * cfg.window + 1) ** 2
         elif cfg.active_dense_threshold is None:
@@ -715,6 +827,7 @@ class QwenWayfinderAttention(nn.Module):
         queries: mx.array,
         keys: mx.array,
         values: mx.array,
+        gate: Optional[mx.array],
         perms: mx.array,
         window: int,
         q_chunk: int,
@@ -791,6 +904,11 @@ class QwenWayfinderAttention(nn.Module):
                     preserve_dtype=True,
                 )
                 y_blk = mx.matmul(w, v_blk).astype(values.dtype)  # [B, 1, Q, dh]
+                if gate is not None:
+                    g_h = gate[:, :, f0:f1]
+                    g_idx = mx.broadcast_to(q_idx[0][None, :, None], (B, e - s, dh))
+                    g_blk = mx.take_along_axis(g_h, g_idx, axis=1)
+                    y_blk = y_blk * mx.sigmoid(g_blk[:, None, :, :]).astype(y_blk.dtype)
                 part = self._o_proj_part(y_blk.reshape(B, e - s, dh), f0, f1)  # [B, Q, D]
                 out = out.at[:, q_idx[0], :].add(part)
                 mx.eval(out)
@@ -823,6 +941,7 @@ class QwenWayfinderAttention(nn.Module):
         queries: mx.array,
         keys: mx.array,
         values: mx.array,
+        gate: Optional[mx.array],
         mask: Optional[mx.array],
         cache: Optional[Any],
     ) -> mx.array:
@@ -834,7 +953,10 @@ class QwenWayfinderAttention(nn.Module):
             scale=self.scale,
             mask=mask,
         )
-        return self.o_proj(y.transpose(0, 2, 1, 3).reshape(y.shape[0], y.shape[2], -1))
+        y_bt = y.transpose(0, 2, 1, 3).reshape(y.shape[0], y.shape[2], -1)
+        if gate is not None:
+            y_bt = y_bt * mx.sigmoid(gate[:, -int(y_bt.shape[1]) :, :]).astype(y_bt.dtype)
+        return self.o_proj(y_bt)
 
     def __call__(
         self,
@@ -843,7 +965,12 @@ class QwenWayfinderAttention(nn.Module):
         cache: Optional[Any] = None,
     ) -> mx.array:
         t_total0 = _now_ms()
-        queries, keys, values = extract_qkv_from_qwen_attention(self, x, cache=cache)
+        queries, keys, values, gate = extract_qkv_from_qwen_attention(
+            self,
+            x,
+            cache=cache,
+            return_gate=True,
+        )
         q_len = int(queries.shape[2])
         k_len = int(keys.shape[2])
         sparse_active_mode = self.path == "sparse" and cache is not None and q_len < k_len
@@ -855,15 +982,25 @@ class QwenWayfinderAttention(nn.Module):
             and k_len <= self.active_dense_threshold
             and q_len > 2
         )
+        force_dense_wayfinder_decode = (
+            active_mode
+            and q_len <= 2
+            and self.path == "permute"
+            and self.wayfinder_decode_backend == "dense"
+        )
         use_active_permute = active_mode and not (force_dense_active or force_dense_large_active)
+        use_active_permute = use_active_permute and not force_dense_wayfinder_decode
         sparse_active_positions: Optional[mx.array] = None
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
         if force_dense_active or force_dense_large_active or (
-            q_len != k_len and not (use_active_permute or sparse_active_mode)
+            force_dense_wayfinder_decode
+            or (q_len != k_len and not (use_active_permute or sparse_active_mode))
         ):
             fallback_reason = "active_dense_threshold" if force_dense_active else (
-                "active_large_q" if force_dense_large_active else "q_len_mismatch"
+                "active_large_q"
+                if force_dense_large_active
+                else ("wayfinder_decode_dense" if force_dense_wayfinder_decode else "q_len_mismatch")
             )
             fallback_graph_seq_len = (
                 self._adaptive_graph_seq_len(k_len=k_len, q_len=q_len, cache=cache)
@@ -871,7 +1008,7 @@ class QwenWayfinderAttention(nn.Module):
                 else int(k_len)
             )
             t_attn0 = _now_ms()
-            out = self._dense_fallback(queries, keys, values, mask, cache)
+            out = self._dense_fallback(queries, keys, values, gate, mask, cache)
             attn_ms = _now_ms() - t_attn0
             self.last_profile = AttentionProfile(
                 graph_build_ms=0.0,
@@ -890,6 +1027,8 @@ class QwenWayfinderAttention(nn.Module):
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
                     "active_large_q_dense_triggered": bool(force_dense_large_active),
+                    "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                    "wayfinder_decode_backend": self.wayfinder_decode_backend,
                     "adaptive_graph_reuse": bool(int(fallback_graph_seq_len) != int(k_len)),
                     "sparse_active_mode": bool(sparse_active_mode),
                 },
@@ -1027,7 +1166,7 @@ class QwenWayfinderAttention(nn.Module):
                         scale=self.scale,
                     )
                 except Exception as exc:
-                    out = self._dense_fallback(queries, keys, values, mask, cache)
+                    out = self._dense_fallback(queries, keys, values, gate, mask, cache)
                     attn_ms = _now_ms() - t_attn0
                     self.last_profile = AttentionProfile(
                         graph_build_ms=float(graph_ms),
@@ -1045,6 +1184,8 @@ class QwenWayfinderAttention(nn.Module):
                             "dense_fallback_reason": "active_runtime_error",
                             "active_dense_triggered": False,
                             "active_large_q_dense_triggered": bool(force_dense_large_active),
+                            "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                            "wayfinder_decode_backend": self.wayfinder_decode_backend,
                             "adaptive_graph_reuse": bool(graph_T != T),
                             "sparse_active_mode": False,
                             "fallback_error": f"{type(exc).__name__}: {exc}",
@@ -1056,6 +1197,7 @@ class QwenWayfinderAttention(nn.Module):
                     queries=queries,
                     keys=keys,
                     values=values,
+                    gate=gate,
                     perms=graph_cache.perm_mx_stacked,
                     window=self.graph_runtime.window,
                     q_chunk=q_chunk_eff,
@@ -1108,9 +1250,10 @@ class QwenWayfinderAttention(nn.Module):
         if out_stream is not None:
             out = out_stream
         else:
-            out = self.o_proj(
-                y_h.transpose(0, 2, 1, 3).reshape(y_h.shape[0], y_h.shape[2], -1)
-            )
+            y_bt = y_h.transpose(0, 2, 1, 3).reshape(y_h.shape[0], y_h.shape[2], -1)
+            if gate is not None:
+                y_bt = y_bt * mx.sigmoid(gate[:, -int(y_bt.shape[1]) :, :]).astype(y_bt.dtype)
+            out = self.o_proj(y_bt)
         total_ms = _now_ms() - t_total0
         self.last_profile = AttentionProfile(
             graph_build_ms=float(graph_ms),
@@ -1134,6 +1277,8 @@ class QwenWayfinderAttention(nn.Module):
                 "dense_fallback_reason": None,
                 "active_dense_triggered": False,
                 "active_large_q_dense_triggered": bool(force_dense_large_active),
+                "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                "wayfinder_decode_backend": self.wayfinder_decode_backend,
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "sparse_active_mode": bool(sparse_active_mode),
             },

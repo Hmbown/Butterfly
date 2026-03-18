@@ -1,0 +1,333 @@
+{
+  "created_at": "2026-02-25T19:41:00.721223+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 16384 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 15 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 3600 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/wayfinder",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "wayfinder",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": 64,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true,
+    "active_dense_threshold": null,
+    "wayfinder_decode_backend": "dense"
+  },
+  "swap": {
+    "replaced_layers": 10,
+    "replaced_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39
+    ],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 2,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 32768,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0005244159983703867,
+    "writeout_sec_total": 0.012225040016346611,
+    "script_start_unix_sec": 1772048460.721235,
+    "script_end_unix_sec": 1772049047.443108
+  },
+  "single_turn": [
+    {
+      "seq_len": 16384,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 46.74731458298629,
+      "ttft_sec": 13.696832375004306,
+      "itl_p50_sec": 0.03182133300288115,
+      "itl_p95_sec": 0.03215425000234973,
+      "decode_sec": 14.812119166002958,
+      "e2e_sec": 61.55943374898925,
+      "decode_tok_s": 2.1603930971232645,
+      "peak_memory_bytes": 30226377258,
+      "sample_output_text": "\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant:\n\nAssistant",
+      "expected_primary_path": "permute",
+      "hsa_trace_summary": {
+        "sample_count": 36,
+        "layer_observations": 288,
+        "phase_counts": {
+          "prefill": 4,
+          "decode": 32
+        },
+        "path_counts": {
+          "permute": 8,
+          "permute_dense_fallback": 280
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 280
+        },
+        "graph_seq_len_counts": {
+          "4096": 8,
+          "8192": 8,
+          "12288": 8,
+          "16384": 8,
+          "16385": 8,
+          "16386": 8,
+          "16387": 8,
+          "16388": 8,
+          "16389": 8,
+          "16390": 8,
+          "16391": 8,
+          "16392": 8,
+          "16393": 8,
+          "16394": 8,
+          "16395": 8,
+          "16396": 8,
+          "16397": 8,
+          "16398": 8,
+          "16399": 8,
+          "16400": 8,
+          "16401": 8,
+          "16402": 8,
+          "16403": 8,
+          "16404": 8,
+          "16405": 8,
+          "16406": 8,
+          "16407": 8,
+          "16408": 8,
+          "16409": 8,
+          "16410": 8,
+          "16411": 8,
+          "16412": 8,
+          "16413": 8,
+          "16414": 8,
+          "16415": 8,
+          "16416": 8
+        },
+        "q_len_counts": {
+          "4096": 32,
+          "1": 256
+        },
+        "dense_fallback_reason_counts": {
+          "active_large_q": 24,
+          "wayfinder_decode_dense": 256
+        },
+        "fallback_layer_observations": 280,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 256,
+        "prefill_layer_observations": 32,
+        "prefill_fallback_layer_observations": 24,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 32,
+        "prefill_step_observations": 4,
+        "prefill_fallback_steps": 3,
+        "dense_fallback_share_run": 0.9722222222222222,
+        "dense_fallback_share_decode_layers": 1.0,
+        "dense_fallback_share_prefill_layers": 0.75,
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.75,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9722222222222222,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.9965277777777778
+      },
+      "path_counts": {
+        "permute": 8,
+        "permute_dense_fallback": 280
+      },
+      "dense_fallback_reason_counts": {
+        "active_large_q": 24,
+        "wayfinder_decode_dense": 256
+      },
+      "dense_fallback_share_run": 0.9722222222222222,
+      "dense_fallback_share_decode_steps": 1.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 4.613031083994429,
+        "prompt_tokenize_sec": 4.613031083994429,
+        "prefill_sec": 46.74731458298629,
+        "decode_sec": 14.812119166002958,
+        "writeout_sec": 0.007554042007541284
+      }
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 451.90922691699234,
+      "ttft_sec": 17.040547750002588,
+      "itl_p50_sec": 0.03435575000185054,
+      "itl_p95_sec": 0.03595954200136475,
+      "decode_sec": 18.246556124999188,
+      "e2e_sec": 470.1557830419915,
+      "decode_tok_s": 1.7537556008258202,
+      "peak_memory_bytes": 35266498970,
+      "sample_output_text": "\n\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "permute",
+      "hsa_trace_summary": {
+        "sample_count": 40,
+        "layer_observations": 320,
+        "phase_counts": {
+          "prefill": 8,
+          "decode": 32
+        },
+        "path_counts": {
+          "permute": 8,
+          "permute_dense_fallback": 312
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 312
+        },
+        "graph_seq_len_counts": {
+          "4096": 8,
+          "8192": 8,
+          "12288": 8,
+          "16384": 8,
+          "20480": 8,
+          "24576": 8,
+          "28672": 8,
+          "32768": 8,
+          "32769": 8,
+          "32770": 8,
+          "32771": 8,
+          "32772": 8,
+          "32773": 8,
+          "32774": 8,
+          "32775": 8,
+          "32776": 8,
+          "32777": 8,
+          "32778": 8,
+          "32779": 8,
+          "32780": 8,
+          "32781": 8,
+          "32782": 8,
+          "32783": 8,
+          "32784": 8,
+          "32785": 8,
+          "32786": 8,
+          "32787": 8,
+          "32788": 8,
+          "32789": 8,
+          "32790": 8,
+          "32791": 8,
+          "32792": 8,
+          "32793": 8,
+          "32794": 8,
+          "32795": 8,
+          "32796": 8,
+          "32797": 8,
+          "32798": 8,
+          "32799": 8,
+          "32800": 8
+        },
+        "q_len_counts": {
+          "4096": 64,
+          "1": 256
+        },
+        "dense_fallback_reason_counts": {
+          "active_large_q": 56,
+          "wayfinder_decode_dense": 256
+        },
+        "fallback_layer_observations": 312,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 256,
+        "prefill_layer_observations": 64,
+        "prefill_fallback_layer_observations": 56,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 32,
+        "prefill_step_observations": 8,
+        "prefill_fallback_steps": 7,
+        "dense_fallback_share_run": 0.975,
+        "dense_fallback_share_decode_layers": 1.0,
+        "dense_fallback_share_prefill_layers": 0.875,
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.875,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.975,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0
+      },
+      "path_counts": {
+        "permute": 8,
+        "permute_dense_fallback": 312
+      },
+      "dense_fallback_reason_counts": {
+        "active_large_q": 56,
+        "wayfinder_decode_dense": 256
+      },
+      "dense_fallback_share_run": 0.975,
+      "dense_fallback_share_decode_steps": 1.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 18.691722125004162,
+        "prompt_tokenize_sec": 18.691722125004162,
+        "prefill_sec": 451.90922691699234,
+        "decode_sec": 18.246556124999188,
+        "writeout_sec": 0.0037823750026291236
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -1,0 +1,113 @@
+{
+  "created_at": "2026-02-25T18:26:44.703028+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --heartbeat-sec 30 --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN/t2048/dense",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.00048016700020525604,
+    "writeout_sec_total": 0.009457249994738959,
+    "script_start_unix_sec": 1772044004.7030442,
+    "script_end_unix_sec": 1772044040.72766
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 1.9178559160063742,
+      "ttft_sec": 0.1586048750032205,
+      "itl_p50_sec": 0.029788250001729466,
+      "itl_p95_sec": 0.03034254199883435,
+      "decode_sec": 1.0877034169971012,
+      "e2e_sec": 3.0055593330034753,
+      "decode_tok_s": 29.419784382349956,
+      "peak_memory_bytes": 24935466998,
+      "sample_output_text": "\n\nAssistant:\n\n<think>\n\n</think>\n\nNo policy or constraints were provided in the conversation history to summarize. Please provide the specific policy text or document you would like",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 33,
+        "layer_observations": 33,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 33
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 33
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07626537499891128,
+        "prompt_tokenize_sec": 0.07626537499891128,
+        "prefill_sec": 1.9178559160063742,
+        "decode_sec": 1.0877034169971012,
+        "writeout_sec": 0.0070728749997215346
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -1,0 +1,70 @@
+name: qwen3_5_35b_a3b_wayfinder_setup
+mode: no_inference_planning
+created_utc: "2026-02-25T17:08:59Z"
+
+model:
+  hf_repo: Qwen/Qwen3.5-35B-A3B
+  mlx_repo: mlx-community/Qwen3.5-35B-A3B-4bit
+  selected_local_path: /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit
+  local_candidates:
+    - path: /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit
+      size_human: 18G
+      total_parameters: 34660608768
+      total_weight_bytes: 19508797056
+      format: safetensors_sharded_4bit
+      selected: true
+    - path: /Volumes/VIXinSSD/hf_cache/hub/models--Qwen--Qwen3.5-35B-A3B/snapshots/b1fc3d59ae0ab1e4279e04a8dd0fc4dc361fc2b6
+      size_human: 67G
+      format: hf_snapshot_safetensors
+      selected: false
+    - path: /Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-35B-A3B-4bit/snapshots/1e20fd8d42056f870933bf98ca6211024744f7ec
+      size_human: 19G
+      format: hf_snapshot_safetensors_4bit
+      selected: false
+  architecture_facts:
+    top_level_model_type: qwen3_5_moe
+    text_model_type: qwen3_5_moe_text
+    num_hidden_layers: 40
+    layer_types:
+      linear_attention: 30
+      full_attention: 10
+      full_attention_interval: 4
+    num_attention_heads: 16
+    num_key_value_heads: 2
+    num_experts: 256
+    num_experts_per_tok: 8
+    max_position_embeddings: 262144
+
+compatibility:
+  local_mlx_lm_version: "0.30.5"
+  required_min_mlx_lm_for_qwen3_5: "0.30.7"
+  status: blocked_until_upgrade
+  blocker: "mlx-lm < 0.30.7 cannot resolve qwen3_5_moe model_type."
+
+wayfinder_defaults:
+  mode: wayfinder
+  path: permute
+  window: 64
+  landmark_stride: 64
+  num_cycles: 1
+  head_chunk_size: 2
+  query_chunk_size: 384
+  wayfinder_decode_backend: dense
+  retro_backfill_inference: off
+
+queue:
+  script: scripts/queue_qwen35_a3b_wayfinder.sh
+  run_id_pattern: "EXP-<UTCSTAMP>-QWEN35A3B-CONSUMER-QUEUE"
+  output_root_pattern: "benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/<RUN_ID>"
+  commands:
+    - "python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --heartbeat-sec 30 --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/<RUN_ID>/t2048/dense"
+    - "python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 2048 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --heartbeat-sec 30 --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/<RUN_ID>/t2048/wayfinder"
+    - "python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --seed 42 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --heartbeat-sec 30 --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/<RUN_ID>/t8192/dense"
+    - "python3 scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode wayfinder --debug-wayfinder-decode-backend dense --seq-lens 8192 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 10 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --seed 42 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --heartbeat-sec 30 --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/<RUN_ID>/t8192/wayfinder"
+
+stop_gates:
+  - "mlx-lm version must be >= 0.30.7 before any queue execution."
+  - "Any nonzero exit code or missing results.json is a hard FAIL."
+  - "Wayfinder run must report swap.replaced_layers >= 1."
+  - "If dense fallback is present, dense_fallback_reason_counts must be informative."
+  - "Keep retro/backfill inference disabled unless a separate PRERUN explicitly enables it."

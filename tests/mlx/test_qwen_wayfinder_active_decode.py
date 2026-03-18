@@ -96,3 +96,38 @@ def test_qwen_wayfinder_active_decode_avoids_dense_fallback():
 
     y_np = np.asarray(y_decode)
     assert np.isfinite(y_np).all()
+
+
+def test_qwen_wayfinder_active_decode_dense_backend_forces_fallback():
+    base_attn = _MockQwenAttn()
+    cfg = QwenWayfinderConfig(
+        path="permute",
+        strategy="random",
+        window=8,
+        landmark_stride=8,
+        num_cycles=1,
+        edge_disjoint=True,
+        enforce_hamiltonian=True,
+        seed=42,
+        edge_bias=False,
+        compute_edge_utilization_proxy=False,
+        compute_graph_metrics=False,
+        wayfinder_decode_backend="dense",
+    )
+    attn = QwenWayfinderAttention(base_attn, cfg)
+    cache = _MockKVCache()
+
+    x_prefill = mx.random.normal((1, 16, 64))
+    y_prefill = attn(x_prefill, cache=cache)
+    mx.eval(y_prefill)
+    assert y_prefill.shape == (1, 16, 64)
+
+    x_decode = mx.random.normal((1, 1, 64))
+    y_decode = attn(x_decode, cache=cache)
+    mx.eval(y_decode)
+    assert y_decode.shape == (1, 1, 64)
+
+    notes = attn.last_profile.notes
+    assert "dense_fallback" in attn.last_profile.path
+    assert notes.get("dense_fallback_reason") == "wayfinder_decode_dense"
+    assert bool(notes.get("wayfinder_decode_dense_triggered", False))

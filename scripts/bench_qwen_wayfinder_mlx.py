@@ -5,6 +5,7 @@ import argparse
 import gc
 import json
 import math
+import os
 import statistics
 import sys
 import time
@@ -50,6 +51,60 @@ def _median(values: List[float]) -> float:
 
 def _log(message: str) -> None:
     print(message, flush=True)
+
+
+def _attn_num_heads(attn: Any) -> int:
+    for name in ("n_heads", "num_attention_heads", "num_heads"):
+        value = getattr(attn, name, None)
+        if value is not None:
+            return int(value)
+    raise AttributeError("Unable to resolve attention head count.")
+
+
+def _attn_scale(attn: Any) -> float:
+    for name in ("scale", "scaling"):
+        value = getattr(attn, name, None)
+        if value is not None:
+            return float(value)
+    head_dim = getattr(attn, "head_dim", None)
+    if head_dim is not None:
+        return float(int(head_dim) ** -0.5)
+    raise AttributeError("Unable to resolve attention scaling.")
+
+
+def _configure_hf_cache(
+    *,
+    hf_home: Optional[str],
+    hf_hub_cache: Optional[str],
+    hf_offline: bool,
+) -> Dict[str, Optional[str]]:
+    default_home = Path("/Volumes/VIXinSSD/hf_cache")
+    resolved_home = str(default_home) if default_home.exists() else None
+    if hf_home:
+        resolved_home = str(Path(hf_home).expanduser())
+    elif os.environ.get("HF_HOME"):
+        resolved_home = str(Path(os.environ["HF_HOME"]).expanduser())
+
+    resolved_hub = None
+    if hf_hub_cache:
+        resolved_hub = str(Path(hf_hub_cache).expanduser())
+    elif os.environ.get("HF_HUB_CACHE"):
+        resolved_hub = str(Path(os.environ["HF_HUB_CACHE"]).expanduser())
+    elif resolved_home:
+        resolved_hub = str(Path(resolved_home) / "hub")
+
+    if resolved_home:
+        os.environ["HF_HOME"] = resolved_home
+    if resolved_hub:
+        os.environ["HF_HUB_CACHE"] = resolved_hub
+    if hf_offline:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
+    return {
+        "hf_home": resolved_home,
+        "hf_hub_cache": resolved_hub,
+        "hf_hub_offline": os.environ.get("HF_HUB_OFFLINE"),
+    }
 
 
 def _parse_num_cycles(raw: str) -> int | str:
@@ -140,6 +195,7 @@ def _make_wf_cfg(
         retro_backfill_alpha=float(args.retro_alpha),
         retro_backfill_training_only=bool(args.retro_training_only),
         retro_backfill_causal_only=bool(args.retro_causal_only),
+        wayfinder_decode_backend=str(args.decode_backend),  # type: ignore[arg-type]
     )
 
 
@@ -203,7 +259,7 @@ def _bench_one_seq(
         compiled = compile_graph_spec(
             graph_spec,
             T=seq_len,
-            H=int(base_attn.n_heads),
+            H=_attn_num_heads(base_attn),
             out_root=graph_cache_root,
         )
         wf_cfg = QwenWayfinderConfig(
@@ -216,7 +272,7 @@ def _bench_one_seq(
 
     def baseline_attn_fn():
         q, k, v = extract_qkv_from_qwen_attention(base_attn, x, cache=None)
-        y = scaled_dot_product_attention(q, k, v, cache=None, scale=base_attn.scale, mask="causal")
+        y = scaled_dot_product_attention(q, k, v, cache=None, scale=_attn_scale(base_attn), mask="causal")
         return base_attn.o_proj(y.transpose(0, 2, 1, 3).reshape(batch, seq_len, -1))
 
     def wf_attn_fn():
@@ -436,12 +492,37 @@ def _readme(payload: Dict[str, Any]) -> str:
 def main() -> None:
     p = argparse.ArgumentParser(description="Qwen3 HCSA MLX benchmark")
     p.add_argument("--model-path", type=str, default="mlx-community/Qwen3-1.7B-4bit")
+    p.add_argument(
+        "--hf-home",
+        type=str,
+        default=None,
+        help="Hugging Face cache home (defaults to /Volumes/VIXinSSD/hf_cache if present).",
+    )
+    p.add_argument(
+        "--hf-hub-cache",
+        type=str,
+        default=None,
+        help="Hugging Face hub cache directory (defaults to <hf-home>/hub).",
+    )
+    p.add_argument(
+        "--hf-offline",
+        action="store_true",
+        default=False,
+        help="Enable HF offline mode and require cached model artifacts.",
+    )
     p.add_argument("--seq-lens", type=int, nargs="+", default=[2048, 8192, 32768])
     p.add_argument("--batch", type=int, default=1)
     p.add_argument("--warmup", type=int, default=1)
     p.add_argument("--iters", type=int, default=3)
     p.add_argument("--dtype", type=str, default="bfloat16", choices=["bfloat16", "float16", "float32"])
     p.add_argument("--path", type=str, default="permute", choices=["sparse", "permute"])
+    p.add_argument(
+        "--decode-backend",
+        type=str,
+        default="dense",
+        choices=["active_permute", "dense"],
+        help="Wayfinder decode backend policy for active decode path.",
+    )
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument(
@@ -532,6 +613,17 @@ def main() -> None:
             "Pass --allow-multi-seq to override."
         )
 
+    cache_cfg = _configure_hf_cache(
+        hf_home=(str(args.hf_home).strip() or None),
+        hf_hub_cache=(str(args.hf_hub_cache).strip() or None),
+        hf_offline=bool(args.hf_offline),
+    )
+    _log(
+        "HF cache config: "
+        f"HF_HOME={cache_cfg['hf_home']} HF_HUB_CACHE={cache_cfg['hf_hub_cache']} "
+        f"HF_HUB_OFFLINE={cache_cfg['hf_hub_offline']}"
+    )
+
     _log(f"Loading model {args.model_path}")
     model, tokenizer, config = load(
         args.model_path,
@@ -557,6 +649,7 @@ def main() -> None:
         "retro_backfill_alpha": float(args.retro_alpha),
         "retro_backfill_training_only": bool(args.retro_training_only),
         "retro_backfill_causal_only": bool(args.retro_causal_only),
+        "wayfinder_decode_backend": str(args.decode_backend),
     }
 
     # Derive a short model tag from the model path for output directory naming
@@ -612,6 +705,7 @@ def main() -> None:
             wayfinder_config=wayfinder_config,
             rows=rows,
         )
+        payload["hf_cache"] = cache_cfg
         _write_outputs(out_dir, payload)
         progress = {
             "completed_seq_lens": int(i),

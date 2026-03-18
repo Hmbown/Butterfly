@@ -1,0 +1,13 @@
+{"type": "experiment_meta", "timestamp": "20260318T052735Z", "model_path": "/home/hmbown/HF_Models/Qwen3.5-9B", "model_name": "Qwen3.5-9B", "seq_lens": [64, 128, 256, 512, 1024, 2048], "warmup": 2, "repeats": 5, "dtype": "bfloat16", "window": 64, "landmark_stride": 64, "num_cycles": 1, "device": "cuda", "gpu": "NVIDIA GB10"}
+{"type": "bench", "label": "dense", "seq_len": 64, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "dense", "seq_len": 128, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "dense", "seq_len": 256, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "dense", "seq_len": 512, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "dense", "seq_len": 1024, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "dense", "seq_len": 2048, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 64, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 128, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 256, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 512, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 1024, "error": "module 'torch.cpu' has no attribute 'device'"}
+{"type": "bench", "label": "wayfinder", "seq_len": 2048, "error": "module 'torch.cpu' has no attribute 'device'"}

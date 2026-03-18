@@ -1,0 +1,175 @@
+{
+  "created_at": "2026-02-25T19:28:53.758467+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit --mode dense --seq-lens 16384 32768 --decode-len 32 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 15 --seed 42 --heartbeat-sec 30 --stage-timeout-sec 3600 --skip-multi-turn --skip-quality --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --out-dir benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T192700Z-QWEN35A3B-16KPLUS/dense",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-35B-A3B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 2,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 32768,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.003470291994744912,
+    "writeout_sec_total": 0.016051666985731572,
+    "script_start_unix_sec": 1772047733.758483,
+    "script_end_unix_sec": 1772048449.884455
+  },
+  "single_turn": [
+    {
+      "seq_len": 16384,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 38.97068683299585,
+      "ttft_sec": 10.763243624998722,
+      "itl_p50_sec": 0.031854875007411465,
+      "itl_p95_sec": 0.03244754200568423,
+      "decode_sec": 11.869488124997588,
+      "e2e_sec": 50.84017495799344,
+      "decode_tok_s": 2.6959882063158895,
+      "peak_memory_bytes": 30224801930,
+      "sample_output_text": "\n\nAssistant:\n\n<think>\n\n</think>\n\nNo policy or constraints were provided in the conversation history to summarize. Please provide the specific policy text or document you would like",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 36,
+        "layer_observations": 36,
+        "phase_counts": {
+          "prefill": 4,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 36
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 4,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 4,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 36
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 4.411540624991176,
+        "prompt_tokenize_sec": 4.411540624991176,
+        "prefill_sec": 38.97068683299585,
+        "decode_sec": 11.869488124997588,
+        "writeout_sec": 0.007845125001040287
+      }
+    },
+    {
+      "seq_len": 32768,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 593.9268122499925,
+      "ttft_sec": 17.27164645800076,
+      "itl_p50_sec": 0.03424679199815728,
+      "itl_p95_sec": 0.034473249994334765,
+      "decode_sec": 18.487702458005515,
+      "e2e_sec": 612.414514707998,
+      "decode_tok_s": 1.7308803012536267,
+      "peak_memory_bytes": 35264923642,
+      "sample_output_text": "\n\nAssistant:\n\n<think>\n\n</think>\n\nNo policy or constraints were provided in the conversation history to summarize. Please provide the specific policy text or document you would like",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 40,
+        "layer_observations": 40,
+        "phase_counts": {
+          "prefill": 8,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 40
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 8,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 8,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 40
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 18.411335832992336,
+        "prompt_tokenize_sec": 18.411335832992336,
+        "prefill_sec": 593.9268122499925,
+        "decode_sec": 18.487702458005515,
+        "writeout_sec": 0.004385457999887876
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

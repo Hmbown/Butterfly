@@ -5,6 +5,7 @@ import argparse
 from contextlib import contextmanager
 from collections import Counter
 import json
+import os
 import numpy as np
 import re
 import signal
@@ -31,6 +32,41 @@ from hcsa.integrations.qwen_mlx import (  # noqa: E402
 
 def _log(msg: str) -> None:
     print(msg, flush=True)
+
+
+def _configure_hf_cache(
+    *,
+    hf_home: Optional[str],
+    hf_hub_cache: Optional[str],
+    hf_offline: bool,
+) -> Dict[str, Optional[str]]:
+    default_home = Path("/Volumes/VIXinSSD/hf_cache")
+    resolved_home = str(default_home) if default_home.exists() else None
+    if hf_home:
+        resolved_home = str(Path(hf_home).expanduser())
+    elif os.environ.get("HF_HOME"):
+        resolved_home = str(Path(os.environ["HF_HOME"]).expanduser())
+
+    resolved_hub = None
+    if hf_hub_cache:
+        resolved_hub = str(Path(hf_hub_cache).expanduser())
+    elif os.environ.get("HF_HUB_CACHE"):
+        resolved_hub = str(Path(os.environ["HF_HUB_CACHE"]).expanduser())
+    elif resolved_home:
+        resolved_hub = str(Path(resolved_home) / "hub")
+
+    if resolved_home:
+        os.environ["HF_HOME"] = resolved_home
+    if resolved_hub:
+        os.environ["HF_HUB_CACHE"] = resolved_hub
+    if hf_offline:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+
+    return {
+        "hf_home": resolved_home,
+        "hf_hub_cache": resolved_hub,
+        "hf_hub_offline": os.environ.get("HF_HUB_OFFLINE"),
+    }
 
 
 @contextmanager
@@ -939,6 +975,24 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Qwen consumer-like benchmark (single-turn/multi-turn/quality)")
     p.add_argument("--model-path", type=str, default="mlx-community/Qwen3-1.7B-4bit")
     p.add_argument(
+        "--hf-home",
+        type=str,
+        default=None,
+        help="Hugging Face cache home (defaults to /Volumes/VIXinSSD/hf_cache if present).",
+    )
+    p.add_argument(
+        "--hf-hub-cache",
+        type=str,
+        default=None,
+        help="Hugging Face hub cache directory (defaults to <hf-home>/hub).",
+    )
+    p.add_argument(
+        "--hf-offline",
+        action="store_true",
+        default=False,
+        help="Enable HF offline mode and require all model files to already exist in cache.",
+    )
+    p.add_argument(
         "--mode",
         type=str,
         choices=["dense", "wayfinder", "sparse"],
@@ -992,6 +1046,14 @@ def main() -> None:
     )
     p.add_argument("--head-chunk-size", type=int, default=2)
     p.add_argument("--query-chunk-size", type=int, default=384)
+    p.add_argument(
+        "--debug-wayfinder-decode-backend",
+        type=str,
+        default="dense",
+        choices=["active_permute", "dense"],
+        help="Wayfinder decode backend policy (default: dense, for GLM parity).",
+    )
+    p.add_argument("--wayfinder-decode-backend", type=str, default="", help=argparse.SUPPRESS)
     p.add_argument(
         "--debug-disable-fused-dispatch",
         action="store_true",
@@ -1098,6 +1160,27 @@ def main() -> None:
     except Exception:
         pass
 
+    decode_backend = (
+        str(args.wayfinder_decode_backend).strip()
+        if str(args.wayfinder_decode_backend).strip()
+        else str(args.debug_wayfinder_decode_backend).strip()
+    )
+    if decode_backend not in {"active_permute", "dense"}:
+        p.error(
+            "--debug-wayfinder-decode-backend/--wayfinder-decode-backend "
+            "must be one of ['active_permute', 'dense']"
+        )
+    cache_cfg = _configure_hf_cache(
+        hf_home=(str(args.hf_home).strip() or None),
+        hf_hub_cache=(str(args.hf_hub_cache).strip() or None),
+        hf_offline=bool(args.hf_offline),
+    )
+    _log(
+        "HF cache config: "
+        f"HF_HOME={cache_cfg['hf_home']} HF_HUB_CACHE={cache_cfg['hf_hub_cache']} "
+        f"HF_HUB_OFFLINE={cache_cfg['hf_hub_offline']}"
+    )
+
     _log(f"Loading model {args.model_path}")
     model, tokenizer, _ = load(
         args.model_path,
@@ -1131,6 +1214,7 @@ def main() -> None:
             retro_backfill_training_only=bool(args.retro_training_only),
             retro_backfill_causal_only=bool(args.retro_causal_only),
             use_fused_dispatch=not bool(debug_disable_fused_dispatch),
+            wayfinder_decode_backend=decode_backend,  # type: ignore[arg-type]
         )
 
     replaced_layers = 0
@@ -1167,6 +1251,7 @@ def main() -> None:
         "created_at": datetime.now(UTC).isoformat(),
         "command": " ".join(sys.argv),
         "model_path": args.model_path,
+        "hf_cache": cache_cfg,
         "mode": mode,
         "no_swap": bool(dense_mode),
         "retro_backfill_enabled": bool(args.retro_backfill),
@@ -1179,6 +1264,7 @@ def main() -> None:
             "debug_swap_last_n_layers": int(debug_swap_last_n_layers),
             "debug_swap_layer_indices_arg": str(debug_swap_layer_indices),
             "debug_disable_fused_dispatch": bool(debug_disable_fused_dispatch),
+            "debug_wayfinder_decode_backend": decode_backend,
         },
         "observability": {
             "runtime_summary_always_on": True,

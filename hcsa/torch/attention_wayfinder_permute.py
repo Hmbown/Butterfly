@@ -1,13 +1,28 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
 
 from hcsa.graph.abi import EdgeType
 from hcsa.torch.bench_utils import now_ms, stable_masked_softmax
+
+# ---------------------------------------------------------------------------
+# flex_attention availability
+# ---------------------------------------------------------------------------
+try:
+    from torch.nn.attention.flex_attention import (
+        flex_attention as _raw_flex_attention,
+        create_block_mask as _create_block_mask,
+    )
+    _compiled_flex_attention = torch.compile(_raw_flex_attention)
+    FLEX_ATTENTION_AVAILABLE = True
+except Exception:
+    _compiled_flex_attention = None
+    _create_block_mask = None
+    FLEX_ATTENTION_AVAILABLE = False
 
 
 def _extract_cycle_perms_from_meta(meta: Dict[str, Any], n_heads: int) -> list[list[int] | None]:
@@ -278,3 +293,183 @@ def wayfinder_permute_window_attention(
     if return_weights:
         return y, torch.stack(ws, dim=1), permute_ms, attention_ms
     return y, None, permute_ms, attention_ms
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Batched permute-window attention — all heads in parallel, no Python loop
+# ═══════════════════════════════════════════════════════════════════════════
+
+def wayfinder_permute_window_attention_batched(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    window: int,
+    perm: torch.Tensor,
+    inv_perm: torch.Tensor,
+    pi_idx_clamped: torch.Tensor,
+    valid_mask: torch.Tensor,
+    causal_mask: torch.Tensor,
+) -> torch.Tensor:
+    """Batched permute-window attention — all heads processed in parallel.
+
+    Args:
+        q, k, v: [B, H, T, dh] in model dtype.
+        perm: [H, T] long — maps cycle-position → original-position.
+        inv_perm: [H, T] long — maps original-position → cycle-position.
+        pi_idx_clamped: [H, T, 2W+1] long — local window indices in cycle space.
+        valid_mask: [H, T, 2W+1] bool — valid (in-bounds) positions.
+        causal_mask: [H, T, 2W+1] bool — causal constraint in original space.
+
+    Returns:
+        [B, H, T, dh] in the same dtype as v.
+    """
+    B, H, T, dh = q.shape
+    W = pi_idx_clamped.shape[-1]  # 2*window + 1
+    scale = dh ** -0.5
+
+    # 1. Batched permute Q/K/V to cycle order
+    perm_e = perm[None, :, :, None].expand(B, H, T, dh)
+    q_pi = torch.gather(q, 2, perm_e)
+    k_pi = torch.gather(k, 2, perm_e)
+    v_pi = torch.gather(v, 2, perm_e)
+
+    # 2. Gather local K/V windows: [B, H, T, 2W+1, dh]
+    pi_flat = pi_idx_clamped.reshape(H, T * W)
+    pi_e = pi_flat[None, :, :, None].expand(B, H, T * W, dh)
+    k_win = torch.gather(k_pi, 2, pi_e).reshape(B, H, T, W, dh)
+    v_win = torch.gather(v_pi, 2, pi_e).reshape(B, H, T, W, dh)
+
+    # 3. Scores: [B,H,T,1,dh] @ [B,H,T,dh,W] → [B,H,T,W]
+    scores = (q_pi.unsqueeze(3) @ k_win.transpose(-1, -2)).squeeze(3) * scale
+
+    # 4. Mask + softmax
+    mask = (valid_mask & causal_mask)[None]  # [1, H, T, W]
+    scores.masked_fill_(~mask, float('-inf'))
+    weights = torch.softmax(scores, dim=-1)
+    weights = weights.nan_to_num_(0.0)
+
+    # 5. Weighted sum: [B,H,T,1,W] @ [B,H,T,W,dh] → [B,H,T,dh]
+    y_pi = (weights.unsqueeze(3) @ v_win).squeeze(3)
+
+    # 6. Unpermute back to original order
+    inv_e = inv_perm[None, :, :, None].expand(B, H, T, dh)
+    return torch.gather(y_pi, 2, inv_e)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# flex_attention — fused block-sparse kernel, optimal for large T
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_flex_block_mask(
+    perm: torch.Tensor,
+    *,
+    window: int,
+    B: int = 1,
+    device: torch.device | None = None,
+) -> Any:
+    """Build a block mask for flex_attention in permuted cycle space.
+
+    In permuted space:
+      - Band constraint: |q_idx - kv_idx| <= window
+      - Causal constraint: perm[h, kv_idx] <= perm[h, q_idx]
+        (original position of key <= original position of query)
+
+    The band structure gives excellent block sparsity: only 2-3 active blocks
+    per query row instead of T/block_size.
+    """
+    if not FLEX_ATTENTION_AVAILABLE:
+        raise RuntimeError("flex_attention not available in this PyTorch build")
+
+    H, T = perm.shape
+    _perm = perm
+    _window = window
+
+    def mask_mod(b: torch.Tensor, h: torch.Tensor, q_idx: torch.Tensor, kv_idx: torch.Tensor):
+        in_band = (q_idx - kv_idx).abs() <= _window
+        causal = _perm[h, kv_idx] <= _perm[h, q_idx]
+        return in_band & causal
+
+    return _create_block_mask(
+        mask_mod, B=B, H=H, Q_LEN=T, KV_LEN=T,
+        device=device or perm.device,
+    )
+
+
+def _permute_heads(x: torch.Tensor, perm: torch.Tensor) -> torch.Tensor:
+    """Permute x along dim 2 with per-head permutations. Memory-efficient.
+
+    x: [B, H, T, dh], perm: [H, T] → out[b, h, i, d] = x[b, h, perm[h, i], d]
+    Avoids materializing a [B, H, T, dh] int64 index tensor.
+    """
+    B, H, T, dh = x.shape
+    h_idx = torch.arange(H, device=x.device).unsqueeze(1)  # [H, 1]
+    return x[:, h_idx, perm]  # advanced indexing: [B, H, T, dh]
+
+
+def wayfinder_flex_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    window: int,
+    perm: torch.Tensor,
+    inv_perm: torch.Tensor,
+    kv_perm: torch.Tensor | None = None,
+    block_mask: Any = None,
+) -> tuple[torch.Tensor, Any]:
+    """Flex-attention with block-sparse band pattern in permuted cycle space.
+
+    Uses torch.nn.attention.flex_attention with a compiled block mask that
+    exploits the band structure in cycle order. After permuting Q/K/V to
+    cycle order, the attention pattern is a narrow band (width 2W+1) with
+    per-position causal masking. flex_attention computes only the active
+    blocks, giving O(T*W) work instead of O(T²).
+
+    Supports GQA: when K/V have fewer heads than Q, pass ``kv_perm``
+    ([H_kv, T]) for K/V permutation and ``enable_gqa=True`` is forwarded
+    to the compiled flex_attention kernel.
+
+    Args:
+        q: [B, H_q, T, dh] query states.
+        k: [B, H_kv, T, dh] key states (H_kv <= H_q for GQA).
+        v: [B, H_kv, T, dh] value states.
+        perm: [H_q, T] long — cycle-position → original-position (one per query head).
+        inv_perm: [H_q, T] long — original-position → cycle-position.
+        kv_perm: [H_kv, T] long — per KV-head permutation. If None, uses perm
+                 (assumes H_q == H_kv, i.e. no GQA).
+        block_mask: Cached block mask (from build_flex_block_mask), or None to build.
+
+    Returns:
+        (output [B, H_q, T, dh], block_mask for caching).
+    """
+    if not FLEX_ATTENTION_AVAILABLE:
+        raise RuntimeError("flex_attention not available")
+
+    B, Hq, T, dh = q.shape
+    Hkv = k.shape[1]
+    enable_gqa = Hkv < Hq
+
+    # Permute Q with per-query-head perms
+    q_pi = _permute_heads(q, perm)
+
+    # Permute K/V with KV-head perms (fewer heads for GQA)
+    _kv_p = kv_perm if kv_perm is not None else perm
+    k_pi = _permute_heads(k, _kv_p)
+    v_pi = _permute_heads(v, _kv_p)
+
+    # Build or reuse block mask (always H_q heads for the query side)
+    if block_mask is None:
+        block_mask = build_flex_block_mask(perm, window=window, B=B, device=q.device)
+
+    # Compiled flex_attention — fused block-sparse kernel
+    y_pi = _compiled_flex_attention(
+        q_pi, k_pi, v_pi,
+        block_mask=block_mask,
+        enable_gqa=enable_gqa,
+    )
+
+    # Unpermute
+    y = _permute_heads(y_pi, inv_perm)
+
+    return y, block_mask
