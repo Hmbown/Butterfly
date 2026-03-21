@@ -24,6 +24,8 @@ At stage `s`, each node `b` connects to node `b XOR (1 << s)` — flipping one b
 
 No single layer has global attention, but the **stack** of layers provides global reachability in O(log N) hops.
 
+![Butterfly network schedule, reachability expansion, and per-layer attention masks](docs/assets/wayfinder_butterfly_diagram.png)
+
 ### Hardware alignment
 
 The block layout is static and compile-time known — no routing, no learned gating, no irregular memory access. Each block runs a regular dense matmul against a small contiguous K/V set, mapping directly to Triton/CUDA block operations.
