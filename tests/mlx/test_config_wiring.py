@@ -1,8 +1,8 @@
 """Tests that circular and multi_cycle_mode config flags wire through modules."""
 import mlx.core as mx
 
-from hcsa.mlx.attention import WayfinderAttentionMLX
-from hcsa.mlx.model import GPTConfigMLX, GPTMLX
+from bna.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.model import GPTConfigMLX, GPTMLX
 
 
 class TestWayfinderAttentionMLXWiring:

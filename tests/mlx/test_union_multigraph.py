@@ -2,7 +2,7 @@
 import numpy as np
 import mlx.core as mx
 
-from hcsa.mlx.attention import (
+from bna.mlx.attention import (
     build_union_multigraph_index,
     wayfinder_permute_window_attention_batched,
 )

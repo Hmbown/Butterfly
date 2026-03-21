@@ -93,7 +93,7 @@ class _StopAfterConfig(RuntimeError):
 
 
 def test_bench_qwen_cli_wires_sparse_path(monkeypatch, tmp_path: Path) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_test",
@@ -182,7 +182,7 @@ def test_bench_qwen_cli_wires_sparse_path(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_block_sparse_test",
@@ -247,7 +247,7 @@ def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> 
 
 
 def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Path) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_block_topology_test",
@@ -321,7 +321,7 @@ def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Pa
 
 
 def test_bench_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(monkeypatch, tmp_path: Path) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_block_sparse_longrun_test",
@@ -440,7 +440,7 @@ def test_bench_qwen_backbone_residency_rejects_cpu_or_meta(monkeypatch) -> None:
 
 
 def test_collect_wayfinder_profiles_preserves_sparse_backend_and_cuda_timing(monkeypatch) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_profiles_test",
@@ -503,7 +503,7 @@ def test_collect_wayfinder_profiles_preserves_sparse_backend_and_cuda_timing(mon
 
 
 def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(monkeypatch) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_block_profiles_test",
@@ -562,7 +562,7 @@ def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(mo
 
 
 def test_bench_qwen_cli_divergence_emits_each_requested_seq_len(monkeypatch, tmp_path: Path) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_divergence_test",
@@ -654,7 +654,7 @@ def test_bench_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
         "bench_qwen35_cuda_wayfinder_native_fp8_test",

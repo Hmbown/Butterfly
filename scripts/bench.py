@@ -7,8 +7,8 @@ from statistics import median
 
 import torch
 
-from hcsa.model import GPT, GPTConfig
-from hcsa.utils import auto_device, format_bytes, peak_memory_bytes, reset_peak_memory_stats
+from bna.model import GPT, GPTConfig
+from bna.utils import auto_device, format_bytes, peak_memory_bytes, reset_peak_memory_stats
 
 
 def sync(device: torch.device) -> None:

@@ -9,9 +9,9 @@ from typing import Any, Dict, Iterable, Literal, Optional, Sequence
 import torch
 import torch.nn as nn
 
-from hcsa.graph.abi import graph_metrics
-from hcsa.topology import Topology, TopologyGraph
-from hcsa.torch.attention_wayfinder_permute import (
+from bna.graph.abi import graph_metrics
+from bna.topology import Topology, TopologyGraph
+from bna.torch.attention_wayfinder_permute import (
     FLEX_ATTENTION_AVAILABLE,
     build_flex_block_mask,
     recover_cycle_perms,
@@ -19,7 +19,8 @@ from hcsa.torch.attention_wayfinder_permute import (
     wayfinder_permute_window_attention,
     wayfinder_permute_window_attention_batched,
 )
-from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.bench_utils import _repeat_kv
 
 WayfinderPath = Literal["permute", "sparse"]
 WayfinderStrategy = Literal["random", "regular_partition", "greedy", "online_insertion"]
@@ -101,15 +102,6 @@ class _NemotronGraphCache:
     cache_key: Optional[tuple[Any, ...]] = None
 
 
-def _repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
-    """Expand grouped-query K/V heads to query-head count."""
-    if n_rep == 1:
-        return hidden_states
-    batch, num_key_value_heads, seq_len, head_dim = hidden_states.shape
-    expanded = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, seq_len, head_dim)
-    return expanded.reshape(batch, num_key_value_heads * n_rep, seq_len, head_dim)
-
-
 def _safe_neighbor_idx(neigh_idx: torch.Tensor, seq_len: int) -> torch.Tensor:
     if seq_len <= 0:
         raise ValueError(f"seq_len must be positive, got {seq_len}")
@@ -149,6 +141,40 @@ def _has_required_nemotron_attention_attrs(module: nn.Module) -> bool:
         "head_dim",
     )
     return all(hasattr(module, name) for name in required)
+
+
+def _ensure_nemotron_attention_attrs(module: nn.Module) -> bool:
+    """Fill in missing attributes on native transformers NemotronHAttention.
+
+    The native transformers NemotronHAttention stores config values on the
+    config object rather than as direct attributes. This helper promotes
+    them so the Wayfinder adapter can read them uniformly.
+    """
+    if not all(hasattr(module, p) for p in ("q_proj", "k_proj", "v_proj", "o_proj")):
+        return False
+    config = getattr(module, "config", None)
+    if not hasattr(module, "hidden_size"):
+        hs = getattr(config, "hidden_size", None) if config else None
+        if hs is None:
+            hs = module.q_proj.in_features if hasattr(module.q_proj, "in_features") else None
+        if hs is not None:
+            module.hidden_size = int(hs)
+    if not hasattr(module, "num_heads"):
+        nh = getattr(config, "num_attention_heads", None) if config else None
+        if nh is None and hasattr(module, "head_dim"):
+            nh = module.q_proj.out_features // module.head_dim if hasattr(module.q_proj, "out_features") else None
+        if nh is not None:
+            module.num_heads = int(nh)
+    if not hasattr(module, "num_key_value_heads"):
+        nkvh = getattr(config, "num_key_value_heads", None) if config else None
+        if nkvh is None and hasattr(module, "head_dim"):
+            nkvh = module.k_proj.out_features // module.head_dim if hasattr(module.k_proj, "out_features") else None
+        if nkvh is not None:
+            module.num_key_value_heads = int(nkvh)
+    if not hasattr(module, "num_key_value_groups"):
+        if hasattr(module, "num_heads") and hasattr(module, "num_key_value_heads"):
+            module.num_key_value_groups = module.num_heads // module.num_key_value_heads
+    return _has_required_nemotron_attention_attrs(module)
 
 
 def _get_decoder_with_layers(model: nn.Module) -> nn.Module:
@@ -765,7 +791,11 @@ class NemotronHWayfinderAttention(nn.Module):
             "attn_kernel_ms": attn_kernel_ms,
             "elapsed_ms": float((time.perf_counter() - t0) * 1000.0),
         }
-        return attn_output, None, past_key_values
+        # Native transformers NemotronHAttention returns (attn_output, attn_weights).
+        # Custom NVIDIA model code may expect (attn_output, attn_weights, cache).
+        # Return 2 values for compatibility with both (native ignores extra, custom
+        # is handled by fallback path anyway when layer structure differs).
+        return attn_output, None
 
 
 def iter_nemotron_h_wayfinder_layers(model: nn.Module) -> Iterable[NemotronHWayfinderAttention]:
@@ -836,7 +866,8 @@ def swap_nemotron_h_attention_with_wayfinder(
             replaced.append(idx)
             continue
         if not _has_required_nemotron_attention_attrs(mixer):
-            continue
+            if not _ensure_nemotron_attention_attrs(mixer):
+                continue
 
         if getattr(mixer, "layer_idx", None) is None:
             setattr(mixer, "layer_idx", idx)

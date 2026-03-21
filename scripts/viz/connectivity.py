@@ -25,8 +25,8 @@ try:
 except ImportError:
     raise ImportError("matplotlib and numpy required")
 
-from hcsa.cycles import cycle_prev_next_from_perm, random_cycle, greedy_cycle
-from hcsa.attention_hcsa import _build_neighbors_index
+from bna.cycles import cycle_prev_next_from_perm, random_cycle, greedy_cycle
+from bna.attention_hcsa import _build_neighbors_index
 
 
 def _build_adjacency_matrix(

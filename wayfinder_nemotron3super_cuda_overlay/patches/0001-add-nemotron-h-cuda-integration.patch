@@ -1,5 +1,5 @@
---- a/hcsa/integrations/__init__.py
-+++ b/hcsa/integrations/__init__.py
+--- a/bna/integrations/__init__.py
++++ b/bna/integrations/__init__.py
 @@ -1 +1,51 @@
 -"""Integrations for external model runtimes (MLX, HF, etc.).""" from .qwen_mlx import ( QwenWayfinderConfig, QwenWayfinderAttention, extract_qkv_from_qwen_attention, swap_qwen_attention_with_wayfinder, ) from .gpt2_mlx import ( GPT2WayfinderConfig, GPT2WayfinderAttention, extract_qkv_from_gpt2_attention, swap_gpt2_attention_with_wayfinder, ) from .glm_mlx import ( GLMWayfinderConfig, GLMWayfinderAttention, extract_qkv_from_glm_attention, swap_glm_attention_with_wayfinder, ) __all__ = [ "QwenWayfinderConfig", "QwenWayfinderAttention", "extract_qkv_from_qwen_attention", "swap_qwen_attention_with_wayfinder", "GPT2WayfinderConfig", "GPT2WayfinderAttention", "extract_qkv_from_gpt2_attention", "swap_gpt2_attention_with_wayfinder", "GLMWayfinderConfig", "GLMWayfinderAttention", "extract_qkv_from_glm_attention", "swap_glm_attention_with_wayfinder", ]
 +"""Integrations for external model runtimes (MLX, HF, etc.)."""
@@ -54,7 +54,7 @@
 +    "swap_nemotron_h_attention_with_wayfinder",
 +]
 --- a//dev/null
-+++ b/hcsa/integrations/nemotron_h_torch.py
++++ b/bna/integrations/nemotron_h_torch.py
 @@ -0,0 +1,740 @@
 +from __future__ import annotations
 +
@@ -67,13 +67,13 @@
 +import torch
 +import torch.nn as nn
 +
-+from hcsa.graph.abi import graph_metrics
-+from hcsa.topology import Topology, TopologyGraph
-+from hcsa.torch.attention_wayfinder_permute import (
++from bna.graph.abi import graph_metrics
++from bna.topology import Topology, TopologyGraph
++from bna.torch.attention_wayfinder_permute import (
 +    recover_cycle_perms,
 +    wayfinder_permute_window_attention,
 +)
-+from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
++from bna.torch.attention_wayfinder_sparse import sparse_row_attention
 +
 +WayfinderPath = Literal["permute", "sparse"]
 +WayfinderStrategy = Literal["random", "regular_partition", "greedy", "online_insertion"]
@@ -808,7 +808,7 @@
 +import torch
 +from transformers import AutoModelForCausalLM, AutoTokenizer
 +
-+from hcsa.integrations.nemotron_h_torch import (
++from bna.integrations.nemotron_h_torch import (
 +    NemotronHWayfinderConfig,
 +    swap_nemotron_h_attention_with_wayfinder,
 +)

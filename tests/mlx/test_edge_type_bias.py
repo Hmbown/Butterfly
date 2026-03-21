@@ -5,8 +5,8 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import WayfinderAttentionMLX
-from hcsa.mlx.metrics import edge_utilization_by_type
+from bna.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.metrics import edge_utilization_by_type
 
 
 def _make_attn(

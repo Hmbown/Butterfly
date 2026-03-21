@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.torch.attention_dense import dense_causal_attention
-from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
+from bna.torch.attention_dense import dense_causal_attention
+from bna.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
 
 
 def test_permute_inverse_roundtrip(device: torch.device) -> None:

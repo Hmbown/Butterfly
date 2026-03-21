@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.kv_cache import KVCache, LayerCaches
+from bna.kv_cache import KVCache, LayerCaches
 
 
 def test_kv_cache_update() -> None:

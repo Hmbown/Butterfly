@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from hcsa.compiler.graph_ir import GraphIR, ScheduleSpec
-from hcsa.compiler.passes.normalize_pass import normalize_pass
-from hcsa.compiler.passes.validate_pass import validate_pass
-from hcsa.compiler.sexp import parse_graph_ir, parse_sexp
+from bna.compiler.graph_ir import GraphIR, ScheduleSpec
+from bna.compiler.passes.normalize_pass import normalize_pass
+from bna.compiler.passes.validate_pass import validate_pass
+from bna.compiler.sexp import parse_graph_ir, parse_sexp
 
 
 def test_parse_default_graph_ir() -> None:

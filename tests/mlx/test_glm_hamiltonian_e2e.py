@@ -11,7 +11,7 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
-from hcsa.integrations.glm_mlx import (  # noqa: E402
+from bna.integrations.glm_mlx import (  # noqa: E402
     GLMWayfinderAttention,
     GLMWayfinderConfig,
 )

@@ -3,13 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hcsa.cycles import covering_cycles
-from hcsa.graph.analysis import compute_edge_coverage
+from bna.cycles import covering_cycles
+from bna.graph.analysis import compute_edge_coverage
 
 try:
     import mlx.core as mx
 
-    from hcsa.mlx.attention import (
+    from bna.mlx.attention import (
         dense_causal_attention,
         wayfinder_covering_attention,
         wayfinder_permute_window_attention_batched,

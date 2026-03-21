@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.attention_dense import DenseCausalSelfAttention
-from hcsa.attention_hcsa import HCSASelfAttention
+from bna.attention_dense import DenseCausalSelfAttention
+from bna.attention_hcsa import HCSASelfAttention
 
 
 def test_hcsa_window_T_matches_dense_single_head() -> None:

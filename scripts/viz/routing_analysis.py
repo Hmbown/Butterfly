@@ -22,7 +22,7 @@ try:
 except ImportError:
     raise ImportError("matplotlib and numpy required")
 
-from hcsa.model import GPT, GPTConfig
+from bna.model import GPT, GPTConfig
 
 
 def extract_routing_embeddings(

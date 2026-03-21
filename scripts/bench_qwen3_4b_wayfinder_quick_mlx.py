@@ -24,15 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.graph.abi import WayfinderGraphABI, graph_metrics, stack_head_abis, validate_graph_abi
-from hcsa.graph_strategies import build_strategy
-from hcsa.integrations.qwen_mlx import extract_qkv_from_qwen_attention
-from hcsa.mlx.attention import (
+from bna.graph.abi import WayfinderGraphABI, graph_metrics, stack_head_abis, validate_graph_abi
+from bna.graph_strategies import build_strategy
+from bna.integrations.qwen_mlx import extract_qkv_from_qwen_attention
+from bna.mlx.attention import (
     permute_cycle_window_attention_single,
     sparse_gather_attention,
     stable_masked_softmax,
 )
-from hcsa.mlx.graph_abi import (
+from bna.mlx.graph_abi import (
     MLXGraphABI,
     causal_neighbor_mask,
     safe_neighbor_idx,

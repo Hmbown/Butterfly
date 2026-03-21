@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hcsa.discover import prepare_discovery_workspace, resolve_targets
+from bna.discover import prepare_discovery_workspace, resolve_targets
 
 
 def _make_fake_zmlx_root(tmp_path: Path) -> Path:

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from hcsa.cycles import regular_partition_cycle
-from hcsa.graph.analysis import check_regularity
+from bna.cycles import regular_partition_cycle
+from bna.graph.analysis import check_regularity
 
 
 def test_regular_partition_cycle_is_valid_permutation() -> None:

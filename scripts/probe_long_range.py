@@ -18,8 +18,8 @@ import math
 import torch
 import torch.nn.functional as F
 
-from hcsa.model import GPT, GPTConfig
-from hcsa.utils import auto_device, set_seed
+from bna.model import GPT, GPTConfig
+from bna.utils import auto_device, set_seed
 
 
 def make_copy_task_data(

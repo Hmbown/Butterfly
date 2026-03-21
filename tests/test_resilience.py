@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from hcsa.graph.analysis import check_resilience
+from bna.graph.analysis import check_resilience
 
 
 def test_resilience_safe_drop_rate_survives() -> None:

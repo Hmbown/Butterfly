@@ -8,9 +8,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-from hcsa.compiler import compile_graph_spec, load_graph_ir
-from hcsa.compiler.passes import normalize_pass, validate_pass
-from hcsa.discover import prepare_discovery_workspace, resolve_targets
+from bna.compiler import compile_graph_spec, load_graph_ir
+from bna.compiler.passes import normalize_pass, validate_pass
+from bna.discover import prepare_discovery_workspace, resolve_targets
 
 
 def _json_default(x: Any) -> Any:
@@ -73,8 +73,8 @@ def cmd_bench(args: argparse.Namespace) -> None:
     try:
         import mlx.core as mx
 
-        from hcsa.mlx.attention import WayfinderAttentionMLX
-        from hcsa.mlx.model import DenseCausalAttentionMLX
+        from bna.mlx.attention import WayfinderAttentionMLX
+        from bna.mlx.model import DenseCausalAttentionMLX
     except ImportError as e:  # pragma: no cover - runtime environment check
         raise SystemExit(f"MLX bench command requires MLX runtime: {e}")
 

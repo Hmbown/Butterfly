@@ -10,9 +10,9 @@ import math
 
 import torch
 
-from hcsa.attention_dense import DenseCausalSelfAttention
-from hcsa.attention_hcsa import HCSASelfAttention
-from hcsa.model import GPT, GPTConfig
+from bna.attention_dense import DenseCausalSelfAttention
+from bna.attention_hcsa import HCSASelfAttention
+from bna.model import GPT, GPTConfig
 
 
 def test_hcsa_no_nan_large_input() -> None:

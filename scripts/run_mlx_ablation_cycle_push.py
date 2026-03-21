@@ -18,11 +18,11 @@ import mlx.core as mx
 import mlx.nn as nn
 import mlx.optimizers as optim
 
-from hcsa.tokenizers import CharTokenizer
-from hcsa.compiler import compile_graph_spec
-from hcsa.graph.abi import graph_metrics
-from hcsa.mlx.metrics import edge_utilization_by_type
-from hcsa.mlx.model import GPTConfigMLX, GPTMLX
+from bna.tokenizers import CharTokenizer
+from bna.compiler import compile_graph_spec
+from bna.graph.abi import graph_metrics
+from bna.mlx.metrics import edge_utilization_by_type
+from bna.mlx.model import GPTConfigMLX, GPTMLX
 
 
 def load_text(path: Path) -> str:

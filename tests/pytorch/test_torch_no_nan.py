@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 def test_all_masked_no_nan_and_zero_output(device: torch.device) -> None:

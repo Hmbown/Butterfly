@@ -1,6 +1,6 @@
 import torch
 
-from hcsa.attention_hcsa import HCSASelfAttention
+from bna.attention_hcsa import HCSASelfAttention
 
 
 def test_hcsa_masks_future_neighbors():

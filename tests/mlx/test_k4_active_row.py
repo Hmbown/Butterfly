@@ -13,7 +13,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import wayfinder_permute_window_attention_active_batched
+from bna.mlx.attention import wayfinder_permute_window_attention_active_batched
 
 
 # ---------------------------------------------------------------------------

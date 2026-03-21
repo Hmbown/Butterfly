@@ -7,7 +7,7 @@ from typing import Any
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from hcsa.integrations.nemotron_h_torch import (
+from bna.integrations.nemotron_h_torch import (
     NemotronHWayfinderConfig,
     swap_nemotron_h_attention_with_wayfinder,
 )

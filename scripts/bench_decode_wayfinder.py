@@ -305,7 +305,7 @@ def main() -> None:
     p.add_argument("--output", type=Path, default=None)
     args = p.parse_args()
 
-    from hcsa.integrations.qwen_torch import (
+    from bna.integrations.qwen_torch import (
         QwenCUDAWayfinderConfig,
         iter_qwen_wayfinder_layers,
         restore_qwen_dense_attention,

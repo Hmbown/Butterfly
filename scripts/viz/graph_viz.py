@@ -26,7 +26,7 @@ try:
 except ImportError:
     raise ImportError("matplotlib and networkx required: pip install matplotlib networkx")
 
-from hcsa.cycles import cycle_prev_next_from_perm, random_cycle, greedy_cycle
+from bna.cycles import cycle_prev_next_from_perm, random_cycle, greedy_cycle
 
 
 def build_cycle_graph(

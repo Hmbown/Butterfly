@@ -16,7 +16,7 @@ if str(REPO) not in sys.path:
 import mlx.core as mx
 from mlx_lm import load
 
-from hcsa.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention
+from bna.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention
 
 
 def main():
@@ -52,7 +52,7 @@ def main():
         mx.eval(x)
 
         # Clear cache to force rebuild
-        from hcsa.integrations.qwen_mlx import _QWEN_GRAPH_CACHE_STORE
+        from bna.integrations.qwen_mlx import _QWEN_GRAPH_CACHE_STORE
         _QWEN_GRAPH_CACHE_STORE.clear()
 
         # 1st call — includes graph build

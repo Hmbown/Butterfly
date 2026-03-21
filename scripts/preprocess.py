@@ -14,8 +14,8 @@ from pathlib import Path
 
 import numpy as np
 
-from hcsa.data import load_text
-from hcsa.tokenizers import build_tokenizer
+from bna.data import load_text
+from bna.tokenizers import build_tokenizer
 
 
 def main() -> None:

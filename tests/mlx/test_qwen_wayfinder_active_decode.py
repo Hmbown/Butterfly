@@ -7,7 +7,7 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
-from hcsa.integrations.qwen_mlx import QwenWayfinderAttention, QwenWayfinderConfig  # noqa: E402
+from bna.integrations.qwen_mlx import QwenWayfinderAttention, QwenWayfinderConfig  # noqa: E402
 
 
 class _MockIdentity(nn.Module):

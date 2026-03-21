@@ -18,14 +18,14 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.compiler import compile_graph_spec
-from hcsa.integrations.gpt2_mlx import (
+from bna.compiler import compile_graph_spec
+from bna.integrations.gpt2_mlx import (
     GPT2WayfinderAttention,
     GPT2WayfinderConfig,
     extract_qkv_from_gpt2_attention,
     swap_gpt2_attention_with_wayfinder,
 )
-from hcsa.integrations.qwen_mlx import _QWEN_GRAPH_CACHE_BY_KEY, _QWEN_GRAPH_CACHE_STORE
+from bna.integrations.qwen_mlx import _QWEN_GRAPH_CACHE_BY_KEY, _QWEN_GRAPH_CACHE_STORE
 
 
 def _reset_peak_memory() -> None:

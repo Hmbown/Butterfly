@@ -6,7 +6,7 @@ Thanks for your interest in HCSA.
 
 1. Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for project structure and design decisions.
 2. Run tests: `pytest`
-3. Run lint: `ruff check hcsa/ tests/`
+3. Run lint: `ruff check bna/ tests/`
 
 ## Pull request expectations
 

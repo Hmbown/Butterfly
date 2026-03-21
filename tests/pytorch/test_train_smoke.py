@@ -4,10 +4,10 @@ import math
 
 import torch
 
-from hcsa.data import build_datasets, get_batch
-from hcsa.model import GPT, GPTConfig
-from hcsa.tokenizers import CharTokenizer
-from hcsa.utils import set_seed
+from bna.data import build_datasets, get_batch
+from bna.model import GPT, GPTConfig
+from bna.tokenizers import CharTokenizer
+from bna.utils import set_seed
 
 
 def _one_step(attn: str) -> float:

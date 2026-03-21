@@ -5,8 +5,8 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import WayfinderAttentionMLX
-from hcsa.mlx.model import GPTConfigMLX, GPTMLX
+from bna.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.model import GPTConfigMLX, GPTMLX
 
 
 def _make_attn() -> WayfinderAttentionMLX:

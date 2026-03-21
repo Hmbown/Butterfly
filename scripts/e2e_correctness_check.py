@@ -101,7 +101,7 @@ def test_gpt2(seq_len: int = 512, window: int = 64, seed: int = 42):
     print("=" * 60)
 
     from mlx_lm.utils import load as mlx_load
-    from hcsa.integrations.gpt2_mlx import (
+    from bna.integrations.gpt2_mlx import (
         GPT2WayfinderConfig,
         swap_gpt2_attention_with_wayfinder,
     )
@@ -205,7 +205,7 @@ def test_qwen(seq_len: int = 512, window: int = 64, seed: int = 42):
     print("=" * 60)
 
     from mlx_lm.utils import load as mlx_load
-    from hcsa.integrations.qwen_mlx import (
+    from bna.integrations.qwen_mlx import (
         QwenWayfinderConfig,
         swap_qwen_attention_with_wayfinder,
     )
@@ -305,7 +305,7 @@ def test_glm(seq_len: int = 2048, window: int = 64, seed: int = 42):
     print("=" * 60)
 
     from mlx_lm.utils import load as mlx_load
-    from hcsa.integrations.glm_mlx import (
+    from bna.integrations.glm_mlx import (
         GLMWayfinderConfig,
         swap_glm_attention_with_wayfinder,
     )

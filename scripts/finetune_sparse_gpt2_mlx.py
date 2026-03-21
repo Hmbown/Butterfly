@@ -21,8 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.cycles import recommended_num_cycles
-from hcsa.integrations.gpt2_mlx import GPT2WayfinderConfig, swap_gpt2_attention_with_wayfinder
+from bna.cycles import recommended_num_cycles
+from bna.integrations.gpt2_mlx import GPT2WayfinderConfig, swap_gpt2_attention_with_wayfinder
 
 
 def _jsonable(obj: Any) -> Any:

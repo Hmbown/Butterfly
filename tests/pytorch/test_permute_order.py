@@ -10,11 +10,11 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.permute_attention import (
+from bna.permute_attention import (
     _build_permute_causal_mask,
     permute_cycle_attention,
 )
-from hcsa.cycles import random_cycle
+from bna.cycles import random_cycle
 
 
 def test_permute_causal_mask_self_always_valid() -> None:

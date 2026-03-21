@@ -6,15 +6,15 @@ import numpy as np
 import pytest
 import torch
 
-from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 # MLX is optional for this test file. We always verify against a shared numpy reference.
 try:
     import mlx.core as mx  # type: ignore
 
-    from hcsa.mlx.attention import sparse_gather_attention
-    from hcsa.mlx.graph_abi import MLXGraphABI
+    from bna.mlx.attention import sparse_gather_attention
+    from bna.mlx.graph_abi import MLXGraphABI
 
     HAS_MLX = True
 except Exception:  # pragma: no cover - environment dependent

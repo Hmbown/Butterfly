@@ -21,8 +21,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.compiler import compile_graph_spec
-from hcsa.integrations.qwen_mlx import (
+from bna.compiler import compile_graph_spec
+from bna.integrations.qwen_mlx import (
     QwenWayfinderConfig,
     QwenWayfinderAttention,
     _QWEN_GRAPH_CACHE_BY_KEY,
@@ -119,7 +119,7 @@ def _parse_num_cycles(raw: str) -> int | str:
 
 def _resolved_cycle_count_for_degree(num_cycles: int | str, seq_len: int) -> int:
     if num_cycles == "auto":
-        from hcsa.cycles import recommended_num_cycles
+        from bna.cycles import recommended_num_cycles
 
         return int(recommended_num_cycles(int(seq_len)))
     return int(num_cycles)

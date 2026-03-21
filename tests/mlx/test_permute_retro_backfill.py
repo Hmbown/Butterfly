@@ -5,7 +5,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import wayfinder_permute_window_attention_batched
+from bna.mlx.attention import wayfinder_permute_window_attention_batched
 
 
 def _make_inputs(*, seed: int = 7, B: int = 1, Hq: int = 2, Hkv: int = 1, T: int = 17, dh: int = 8):

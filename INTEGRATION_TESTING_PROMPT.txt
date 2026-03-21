@@ -93,7 +93,7 @@ Compare output to the same call with circular=False. They should differ.
 Both outputs must match a naive reference implementation within tolerance (atol=1e-3).
 
 Minimal setup:
-  from hcsa.mlx.attention import wayfinder_permute_window_attention_active_batched
+  from bna.mlx.attention import wayfinder_permute_window_attention_active_batched
   B, Hq, Hkv, dh, T, W = 1, 2, 2, 32, 64, 8
   Tq = 4
   q = mx.array(rng.standard_normal((B, Hq, Tq, dh)).astype(np.float32))
@@ -143,8 +143,8 @@ Compare Fiedler value to the same graph with circular=False.
 The circular graph should have a higher Fiedler value (better connectivity)
 because the wrap-around edge adds a connection between the first and last permuted positions.
 
-  from hcsa.graph.analysis import laplacian_spectral_gap
-  from hcsa.graph.abi import build_graph_abi_from_cycle
+  from bna.graph.analysis import laplacian_spectral_gap
+  from bna.graph.abi import build_graph_abi_from_cycle
   # Build ABI with circular=True, compute Fiedler, compare to circular=False
 
 

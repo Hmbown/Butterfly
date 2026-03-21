@@ -13,12 +13,12 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
-from hcsa.mlx.attention import (  # noqa: E402
+from bna.mlx.attention import (  # noqa: E402
     WayfinderAttentionMLX,
     wayfinder_permute_window_attention_active_batched,
     wayfinder_permute_window_attention_batched,
 )
-from hcsa.mlx.model import GPTConfigMLX, GPTMLX  # noqa: E402
+from bna.mlx.model import GPTConfigMLX, GPTMLX  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -506,7 +506,7 @@ class TestGap7CausalityCircular:
 class TestGap8LaplacianDiagnostics:
     def test_circular_higher_fiedler(self):
         """Circular graph (wrap-around edge) should have >= Fiedler value."""
-        from hcsa.graph.analysis import laplacian_spectral_gap
+        from bna.graph.analysis import laplacian_spectral_gap
 
         T = 16
         rng = np.random.default_rng(42)
@@ -536,7 +536,7 @@ class TestGap8LaplacianDiagnostics:
         )
 
     def test_fiedler_bridge_candidates(self):
-        from hcsa.graph.analysis import fiedler_bridge_candidates
+        from bna.graph.analysis import fiedler_bridge_candidates
 
         T = 16
         rng = np.random.default_rng(42)
@@ -557,7 +557,7 @@ class TestGap8LaplacianDiagnostics:
 
 class TestGap9GPT2Integration:
     def test_gpt2_wayfinder_forward(self):
-        from hcsa.integrations.gpt2_mlx import (
+        from bna.integrations.gpt2_mlx import (
             GPT2WayfinderAttention,
             GPT2WayfinderConfig,
         )
@@ -591,7 +591,7 @@ class TestGap9GPT2Integration:
         assert not mx.any(mx.isnan(out)).item()
 
     def test_gpt2_wayfinder_union(self):
-        from hcsa.integrations.gpt2_mlx import (
+        from bna.integrations.gpt2_mlx import (
             GPT2WayfinderAttention,
             GPT2WayfinderConfig,
         )

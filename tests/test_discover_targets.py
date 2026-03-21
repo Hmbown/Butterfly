@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from hcsa.discover import get_target, list_targets, resolve_targets
+from bna.discover import get_target, list_targets, resolve_targets
 
 
 def test_discover_targets_registry_has_expected_ids() -> None:

@@ -10,9 +10,9 @@ from typing import Any, Dict, Tuple
 
 import torch
 
-from hcsa.torch.attention_dense import dense_causal_attention
-from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
-from hcsa.torch.bench_utils import sync_device
+from bna.torch.attention_dense import dense_causal_attention
+from bna.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
+from bna.torch.bench_utils import sync_device
 
 
 def _bench(fn, *, warmup: int, iters: int, device: torch.device) -> tuple[float, int]:

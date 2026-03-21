@@ -19,8 +19,8 @@ try:
 except ImportError:
     raise ImportError("matplotlib is required: pip install matplotlib")
 
-from hcsa.attention_dense import DenseCausalSelfAttention
-from hcsa.attention_hcsa import HCSASelfAttention
+from bna.attention_dense import DenseCausalSelfAttention
+from bna.attention_hcsa import HCSASelfAttention
 
 
 def _get_dense_attention_weights(

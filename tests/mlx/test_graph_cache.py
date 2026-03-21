@@ -5,8 +5,8 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import WayfinderAttentionMLX, _GRAPH_CACHE_STORE
-from hcsa.mlx.graph_abi import causal_neighbor_mask, safe_neighbor_idx
+from bna.mlx.attention import WayfinderAttentionMLX, _GRAPH_CACHE_STORE
+from bna.mlx.graph_abi import causal_neighbor_mask, safe_neighbor_idx
 
 
 def _make_attn(

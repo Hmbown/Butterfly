@@ -1,26 +1,26 @@
-# Wayfinder
+# BNA — Butterfly Network Attention
 
 Block-structured attention acceleration for long-context inference. Training-free — works on existing dense-attention models at inference time.
 
 ## How it works
 
-Dense attention is O(T²) per layer — every token scores against every earlier token. Wayfinder replaces this with a block-sparse pattern where each block only attends to a small, fixed set of other blocks, reducing per-layer work to O(T·B) where B is constant. Linear instead of quadratic — the speedup grows with sequence length.
+Dense attention is O(T²) per layer — every token scores against every earlier token. BNA replaces this with a block-sparse pattern where each block only attends to a small, fixed set of other blocks, reducing per-layer work to O(T·B) where B is constant. Linear instead of quadratic — the speedup grows with sequence length.
 
-![Dense causal vs Wayfinder block-sparse attention](docs/assets/wayfinder_block_topology.png)
+![Dense causal vs BNA block-sparse attention](docs/assets/wayfinder_block_topology.png)
 
 ### Block topology
 
 The sequence is split into fixed-size blocks (typically 128 tokens). Each block attends to:
 
 1. **Self + local predecessors** — the block itself and its immediate neighbors
-2. **Partner blocks** — deterministic long-range blocks from a staged schedule
+2. **Partner blocks** — deterministic long-range blocks from a butterfly network schedule
 3. **Sink blocks** — early-sequence anchors (handles the [attention sink](https://arxiv.org/abs/2309.17453) effect)
 
-### Global mixing via hypercube routing
+### Global mixing via butterfly network
 
-The partner schedule forms a [hypercube](https://en.wikipedia.org/wiki/Hypercube) — the same topology used in telecom switch fabrics and parallel computing interconnects since the 1960s (also known as [butterfly](https://en.wikipedia.org/wiki/Butterfly_network) / [Benes](https://en.wikipedia.org/wiki/Clos_network#Bene%C5%A1_network_(m_=_n_=_2)) networks). At layer `l`, block `b` partners with block `b XOR (1 << (l mod log₂ N))` — each layer traverses one dimension of the hypercube. No single layer has global attention, but the **stack** of layers provides global reachability in O(log N) hops.
+The partner schedule forms a [butterfly network](https://en.wikipedia.org/wiki/Butterfly_network) — the same topology used in telecom switch fabrics and parallel computing interconnects since the 1960s (equivalently a [hypercube](https://en.wikipedia.org/wiki/Hypercube) / [Beneš network](https://en.wikipedia.org/wiki/Clos_network#Bene%C5%A1_network_(m_=_n_=_2))). At layer `l`, block `b` partners with block `b XOR (1 << (l mod log₂ N))` — each layer traverses one dimension of the hypercube. No single layer has global attention, but the **stack** of layers provides global reachability in O(log N) hops.
 
-![Block-sparse topology as hypercube communication](docs/assets/wayfinder_hypercube.png)
+![BNA block-sparse topology as hypercube communication](docs/assets/wayfinder_hypercube.png)
 
 ### Hardware alignment
 
@@ -32,39 +32,39 @@ The block layout is static and compile-time known — no routing, no learned gat
 
 `block_sparse` path, `engine=triton`, `block_size=128`. Only the 8 full-attention layers are replaced (24 [Gated DeltaNet](https://arxiv.org/abs/2412.06464) layers stay stock). 8K–131K: BF16. 262K: FP8 weight-only via `torchao` (BF16 OOMs).
 
-| Context | Dense (ms) | Wayfinder (ms) | Speedup | Peak mem |
-|--------:|-----------:|----------------:|--------:|---------:|
-| 8,192   | 4,961      | 4,824           | 1.03x   | 18.4 GB  |
-| 32,768  | 20,669     | 19,414          | 1.06x   | 23.5 GB  |
-| 65,536  | 44,423     | 38,017          | 1.17x   | 30.2 GB  |
-| 98,304  | 69,574     | 59,218          | 1.17x   | 37.0 GB  |
-| 131,072 | 96,021     | 78,645          | 1.22x   | 43.8 GB  |
-| 262,144 | 208,589    | 153,112         | **1.36x** | 64.4 GB |
+| Context | Dense (ms) | BNA (ms) | Speedup | Peak mem |
+|--------:|-----------:|---------:|--------:|---------:|
+| 8,192   | 4,961      | 4,824    | 1.03x   | 18.4 GB  |
+| 32,768  | 20,669     | 19,414   | 1.06x   | 23.5 GB  |
+| 65,536  | 44,423     | 38,017   | 1.17x   | 30.2 GB  |
+| 98,304  | 69,574     | 59,218   | 1.17x   | 37.0 GB  |
+| 131,072 | 96,021     | 78,645   | 1.22x   | 43.8 GB  |
+| 262,144 | 208,589    | 153,112  | **1.36x** | 64.4 GB |
 
-Speedup increases with context because dense grows quadratically while Wayfinder grows linearly. Memory is matched — block topology overhead is near zero.
+Speedup increases with context because dense grows quadratically while BNA grows linearly. Memory is matched — block topology overhead is near zero.
 
 ### Qwen 3.5 35B A3B FP8 — same hardware
 
 10 `full_attention` layers replaced. 30 `linear_attention` / MoE layers stock. Native FP8 checkpoint, BF16 compute.
 
-| Context | Dense (ms) | Wayfinder (ms) | Speedup | Peak mem |
-|--------:|-----------:|----------------:|--------:|---------:|
-| 8,192   | 8,800      | 8,589           | 1.02x   | 35.7 GB  |
-| 32,768  | 25,602     | 25,186          | 1.02x   | 40.5 GB  |
-| 65,536  | 52,810     | 49,433          | 1.07x   | 46.9 GB  |
-| 131,072 | 115,919    | 98,460          | 1.18x   | 59.7 GB  |
+| Context | Dense (ms) | BNA (ms) | Speedup | Peak mem |
+|--------:|-----------:|---------:|--------:|---------:|
+| 8,192   | 8,800      | 8,589    | 1.02x   | 35.7 GB  |
+| 32,768  | 25,602     | 25,186   | 1.02x   | 40.5 GB  |
+| 65,536  | 52,810     | 49,433   | 1.07x   | 46.9 GB  |
+| 131,072 | 115,919    | 98,460   | 1.18x   | 59.7 GB  |
 
-Wayfinder-only probes (no dense layers, testing ceiling):
+BNA-only probes (no dense layers, testing ceiling):
 
-| Context | Wayfinder (ms) | tok/s | Peak mem |
-|--------:|---------------:|------:|---------:|
-| 163,840 | 125,504        | 1,306 | 66.1 GB  |
-| 196,608 | 144,106        | 1,364 | 72.5 GB  |
-| 229,376 | 185,970        | 1,233 | 78.9 GB  |
+| Context | BNA (ms) | tok/s | Peak mem |
+|--------:|---------:|------:|---------:|
+| 163,840 | 125,504  | 1,306 | 66.1 GB  |
+| 196,608 | 144,106  | 1,364 | 72.5 GB  |
+| 229,376 | 185,970  | 1,233 | 78.9 GB  |
 
 ### Quality status
 
-Logit divergence measured (same model, same input, dense vs Wayfinder):
+Logit divergence measured (same model, same input, dense vs BNA):
 
 | Context | Top-1 agreement | Relative L2 |
 |--------:|----------------:|------------:|
@@ -79,7 +79,7 @@ Logit divergence measured (same model, same input, dense vs Wayfinder):
 git clone https://github.com/Hmbown/Wayfinder && cd Wayfinder
 pip install -e ".[dev]"
 
-# Benchmark dense vs Wayfinder prefill
+# Benchmark dense vs BNA prefill
 python scripts/bench_qwen35_cuda_wayfinder.py \
     --model-path <path-to-Qwen3.5-9B> \
     --path block_sparse \
@@ -96,17 +96,17 @@ python scripts/serve_qwen_wayfinder_cuda.py \
 
 ## Limitations
 
-- **Approximation.** Wayfinder changes which tokens attend to which — quality impact is under measurement but not yet validated at scale.
+- **Approximation.** BNA changes which tokens attend to which — quality impact is under measurement but not yet validated at scale.
 - **Prefill only.** Decode uses dense attention by default — at q_len=1, dense is already fast.
 - **Hybrid models: only full-attention layers.** On Qwen 3.5, only 8 of 32 layers are swapped. End-to-end speedup is bounded by Amdahl's law.
 
 ## Related work
 
-Wayfinder is **training-free** — it works on existing models at inference time, complementary to training-time methods.
+BNA is **training-free** — it works on existing models at inference time, complementary to training-time methods.
 
-**Block-sparse attention:** [BigBird](https://arxiv.org/abs/2007.14062) (Google) — random + window + global tokens; Wayfinder replaces the random blocks with a deterministic butterfly schedule. [Longformer](https://arxiv.org/abs/2004.05150) (AI2) — sliding window + global attention.
+**Block-sparse attention:** [BigBird](https://arxiv.org/abs/2007.14062) (Google) — random + window + global tokens; BNA replaces the random blocks with a deterministic butterfly schedule. [Longformer](https://arxiv.org/abs/2004.05150) (AI2) — sliding window + global attention.
 
-**Butterfly structure in ML:** [Monarch](https://arxiv.org/abs/2204.00595) (Dao et al.) — uses butterfly matrices for efficient structured computation. Wayfinder applies the same network topology to attention routing across layers.
+**Butterfly structure in ML:** [Monarch](https://arxiv.org/abs/2204.00595) (Dao et al.) — uses butterfly matrices for efficient structured computation. BNA applies the same network topology to attention routing across layers.
 
 **Training-free sparse:** [FlexPrefill](https://arxiv.org/abs/2502.20766) (ByteDance) — content-aware per-head sparsity budgets.
 
@@ -117,7 +117,7 @@ Wayfinder is **training-free** — it works on existing models at inference time
 ## Project structure
 
 ```
-hcsa/
+bna/
 ├── graph/abi.py      # Graph ABI: neigh_idx [T,D] int32, edge_type uint8
 ├── torch/            # PyTorch/CUDA backend (Triton block-sparse kernels)
 ├── integrations/     # Model wrappers (Qwen, GLM, Nemotron)

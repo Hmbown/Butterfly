@@ -23,7 +23,7 @@ import numpy as np
 # Add repo root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from hcsa.graph.expander import (  # noqa: E402
+from bna.graph.expander import (  # noqa: E402
     causal_diameter,
     causal_reachability,
     effective_diameter,

@@ -18,7 +18,7 @@ base:
   grad_clip: 1.0
 
 sweep:
-  attn: ["dense", "hcsa"]
+  attn: ["dense", "bna"]
   cycle: ["random", "greedy"]
   window: [16, 32, 64]
   landmark_stride: [16, 32, 64]

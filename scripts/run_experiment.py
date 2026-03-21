@@ -23,11 +23,11 @@ try:
 except ImportError:
     yaml = None  # type: ignore[assignment]
 
-from hcsa.model import GPT, GPTConfig
-from hcsa.data import build_datasets, get_batch, load_text
-from hcsa.tokenizers import build_tokenizer
-from hcsa.train import estimate_loss
-from hcsa.utils import (
+from bna.model import GPT, GPTConfig
+from bna.data import build_datasets, get_batch, load_text
+from bna.tokenizers import build_tokenizer
+from bna.train import estimate_loss
+from bna.utils import (
     auto_device,
     collect_run_metadata,
     ensure_dir,

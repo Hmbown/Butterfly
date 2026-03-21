@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
-from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.attention_wayfinder_permute import wayfinder_permute_window_attention
+from bna.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 def test_torch_sparse_masks_future_neighbors(device: torch.device) -> None:

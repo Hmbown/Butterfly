@@ -169,9 +169,9 @@ Large tier: `mlx-community/Qwen3-30B-A3B-4bit`
 - Question: Can a simpler Hamiltonian-local retro backfill maintain representational benefit with lower overhead?
 - Hypothesis: Replacing the complex multi-offset gated retro with a single `mx.roll()` operation reduces complexity from O(T×k) to O(T), eliminates temporary allocations, and maintains training-time representational flexibility because the Hamiltonian cycle already defines a natural local neighborhood.
 - Change set:
-  - `hcsa/mlx/attention.py`: Remove `retro_backfill_offsets` parameter
-  - `hcsa/mlx/attention.py`: Replace gated multi-offset loop with `mx.roll(y_pi, shift=-1, axis=2) * alpha`
-  - `hcsa/mlx/attention.py`: Keep `retro_backfill_training_only=True` as causal-safe default
+  - `bna/mlx/attention.py`: Remove `retro_backfill_offsets` parameter
+  - `bna/mlx/attention.py`: Replace gated multi-offset loop with `mx.roll(y_pi, shift=-1, axis=2) * alpha`
+  - `bna/mlx/attention.py`: Keep `retro_backfill_training_only=True` as causal-safe default
   - `tests/mlx/test_permute_retro_backfill.py`: Add tests for alpha=0 no-op, causality safety, multi-head perms
 - Implementation sketch:
   ```python
@@ -212,7 +212,7 @@ Large tier: `mlx-community/Qwen3-30B-A3B-4bit`
 ### EXP-20260207-GPT2-WAYFINDER-BASE (planned)
 - Question: Does GPT-2 show the same long-context memory trend as Qwen when swapped to Wayfinder permute path?
 - Hypothesis: GPT-2 should show neutral/negative gain at short T and clear memory reduction at longer T, validating GPT-2 as stepping stone.
-- Change set: new `hcsa/integrations/gpt2_mlx.py`, new `scripts/bench_gpt2_wayfinder_mlx.py`.
+- Change set: new `bna/integrations/gpt2_mlx.py`, new `scripts/bench_gpt2_wayfinder_mlx.py`.
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_gpt2_wayfinder_mlx.py --model-path openai-community/gpt2 --seq-lens 1024 2048 4096 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 64 --seed 42 --full-swap --out-dir benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_base`
 
@@ -227,10 +227,10 @@ Large tier: `mlx-community/Qwen3-30B-A3B-4bit`
 - Question: Can we extract graph construction into a first-class topology runtime without breaking MLX/Torch behavior?
 - Hypothesis: Replacing per-module strategy builders with shared `Topology` should preserve outputs/tests and make graph injection possible.
 - Change set:
-  - `hcsa/topology/core.py` and `hcsa/topology/__init__.py`
-  - `hcsa/mlx/attention.py` now uses `Topology` and accepts `topology_graph=` injection
-  - `hcsa/torch/attention_wayfinder_sparse.py` now uses `Topology` and accepts `topology_graph=` injection
-  - `hcsa/integrations/qwen_mlx.py` graph runtime now uses `Topology`
+  - `bna/topology/core.py` and `bna/topology/__init__.py`
+  - `bna/mlx/attention.py` now uses `Topology` and accepts `topology_graph=` injection
+  - `bna/torch/attention_wayfinder_sparse.py` now uses `Topology` and accepts `topology_graph=` injection
+  - `bna/integrations/qwen_mlx.py` graph runtime now uses `Topology`
   - Added `tests/mlx/test_topology_first_class.py`
 - Validation commands:
   - `python3 -m pytest tests/mlx/ -v`
@@ -262,8 +262,8 @@ Large tier: `mlx-community/Qwen3-30B-A3B-4bit`
 - Question: Does routing Tiny `wayfinder_permute` through chunked batched permute restore/beat historical long-context throughput without regressing memory?
 - Hypothesis: Batched path removes per-head Python-loop overhead and should increase T=2048/4096 throughput while preserving memory reduction.
 - Change set:
-  - `hcsa/mlx/attention.py`: `WayfinderAttentionMLX` permute path uses batched kernel
-  - `hcsa/mlx/model.py`: add first-class retro config fields and wire to attention
+  - `bna/mlx/attention.py`: `WayfinderAttentionMLX` permute path uses batched kernel
+  - `bna/mlx/model.py`: add first-class retro config fields and wire to attention
   - tests: add model-path retro routing coverage
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 256 512 1024 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 6 --out-dir benchmarks/mlx/tiny_wayfinder/20260207_tiny_batched_gate`
@@ -299,9 +299,9 @@ Environment:
 ### EXP-20260207-TINY-BATCHED-PERMUTE-GATE
 - Question: Does routing Tiny `wayfinder_permute` through chunked batched permute restore/beat historical long-context throughput without regressing memory?
 - Change set:
-  - `hcsa/mlx/attention.py`: `WayfinderAttentionMLX` permute path now calls batched kernel
-  - `hcsa/mlx/attention.py`: cache now stores stacked `all_perms` / `all_inv_perms`
-  - `hcsa/mlx/model.py`: config-level retro controls wired into attention
+  - `bna/mlx/attention.py`: `WayfinderAttentionMLX` permute path now calls batched kernel
+  - `bna/mlx/attention.py`: cache now stores stacked `all_perms` / `all_inv_perms`
+  - `bna/mlx/model.py`: config-level retro controls wired into attention
   - `tests/mlx/test_wayfinder_attention_retro_path.py`: model-path retro coverage
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 256 512 1024 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 6 --out-dir benchmarks/mlx/tiny_wayfinder/20260207_tiny_batched_gate_mlx306`
@@ -344,7 +344,7 @@ Environment:
 - Question: After switching dense baseline to fused SDPA/Flash-style kernel, how do Tiny gate metrics change?
 - Hypothesis: Throughput ratio and memory reduction percentages will drop relative to naive dense baseline, but long-context throughput should remain >1x.
 - Change set:
-  - `hcsa/mlx/attention.py`: dense path uses `mx.fast.scaled_dot_product_attention` when weights are not requested
+  - `bna/mlx/attention.py`: dense path uses `mx.fast.scaled_dot_product_attention` when weights are not requested
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 256 512 1024 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 6 --out-dir benchmarks/mlx/tiny_wayfinder/20260207_tiny_batched_gate_mlx306_sdpa_dense`
 
@@ -366,7 +366,7 @@ Execution order confirmed:
 ### EXP-20260207-TINY-GATE-SDPA-DENSE
 - Question: After switching dense baseline to fused SDPA/Flash-style kernel, how do Tiny gate metrics change?
 - Change set:
-  - `hcsa/mlx/attention.py`: `dense_causal_attention` now uses `mx.fast.scaled_dot_product_attention(..., mask="causal")` when `return_weights=False`
+  - `bna/mlx/attention.py`: `dense_causal_attention` now uses `mx.fast.scaled_dot_product_attention(..., mask="causal")` when `return_weights=False`
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_mlx_wayfinder_scale.py --seq-lens 256 512 1024 2048 4096 --batch 2 --heads 4 --embd 128 --window 32 --landmark-stride 32 --warmup 2 --iters 6 --out-dir benchmarks/mlx/tiny_wayfinder/20260207_tiny_batched_gate_mlx306_sdpa_dense`
 - Result:
@@ -386,12 +386,12 @@ Execution order confirmed:
 - Question: Can we prepare K1-K5 fused-kernel discovery scaffolding and readiness checks without running model loading, inference, or attention benchmarks?
 - Hypothesis: A setup-only workflow should generate target metadata, seed kernel placeholders, and session stubs while preserving retro defaults and avoiding model execution paths.
 - Change set:
-  - Add `hcsa/discover/{targets,readiness,session}.py` and package exports.
+  - Add `bna/discover/{targets,readiness,session}.py` and package exports.
   - Extend `scripts/wayc.py` with `discover-targets`, `discover-setup`, `discover-status`.
   - Add docs for setup-only workflow and README quickstart pointer.
   - Add setup-focused tests for metadata, session generation, and CLI behavior.
 - Command:
-  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root hcsa/mlx/kernels/metal --dry-run`
+  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root bna/mlx/kernels/metal --dry-run`
   - `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
 - Controls:
   - No model loading.
@@ -406,12 +406,12 @@ Execution order confirmed:
 - Question: Can we prepare K1-K5 fused-kernel discovery scaffolding and readiness checks without running model loading, inference, or attention benchmarks?
 - Hypothesis: A setup-only workflow should generate target metadata, seed kernel placeholders, and session stubs while preserving retro defaults and avoiding model execution paths.
 - Change set:
-  - Added `hcsa/discover/targets.py`, `hcsa/discover/readiness.py`, `hcsa/discover/session.py`, and package exports.
+  - Added `bna/discover/targets.py`, `bna/discover/readiness.py`, `bna/discover/session.py`, and package exports.
   - Added `discover-*` setup commands to `scripts/wayc.py`.
   - Added setup docs and README quickstart integration.
   - Added tests for target registry, setup workspace generation, and CLI.
 - Command:
-  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root hcsa/mlx/kernels/metal --strict --overwrite --json-out runs/mlx/discover_setup_20260208_setup.json`
+  - `python3 scripts/wayc.py discover-setup --targets all --zmlx-root /Volumes/VIXinSSD/ZMLX --sessions-root discover_sessions --kernel-out-root bna/mlx/kernels/metal --strict --overwrite --json-out runs/mlx/discover_setup_20260208_setup.json`
   - `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`
   - `python3 scripts/wayc.py discover-status --manifest discover_sessions/manifest.json`
 - Controls:
@@ -421,7 +421,7 @@ Execution order confirmed:
   - Retro defaults verified off in MLX model + GLM/Qwen integrations.
 - Key result:
   - Setup manifest generated at `discover_sessions/manifest.json`, status `setup_only`, `ready=true`, `targets=5`.
-  - Wrote 10 setup artifacts: 5 seed kernels in `hcsa/mlx/kernels/metal/seeds/` and 5 session stubs in `discover_sessions/`.
+  - Wrote 10 setup artifacts: 5 seed kernels in `bna/mlx/kernels/metal/seeds/` and 5 session stubs in `discover_sessions/`.
   - Required checks: `12/12` pass (repo + ZMLX paths).
   - Validation tests: `7 passed`.
 - Decision: keep.
@@ -461,8 +461,8 @@ Execution order confirmed:
 - Question: Can we improve GPT-2 Wayfinder throughput (T=2048/4096/8192) without adding model-specific hacks by using a core adaptive pre-permute path in batched permute attention?
 - Hypothesis: If we pre-permute Q/K/V once per head-chunk (instead of gather-per-chunk), we reduce gather overhead enough to materially raise throughput, while keeping memory bounded via head chunking.
 - Change set:
-  - `hcsa/mlx/attention.py`: add adaptive pre-permute mode to `wayfinder_permute_window_attention_batched`
-  - `hcsa/integrations/gpt2_mlx.py`: expose pre-permute mode via config and pass through
+  - `bna/mlx/attention.py`: add adaptive pre-permute mode to `wayfinder_permute_window_attention_batched`
+  - `bna/integrations/gpt2_mlx.py`: expose pre-permute mode via config and pass through
   - `scripts/bench_gpt2_wayfinder_mlx.py`: add CLI flags for chunk and pre-permute controls
 - Baseline artifacts:
   - `benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_base_sdpa_steady_v4/results.json`
@@ -474,8 +474,8 @@ Execution order confirmed:
 - Question: Can we keep most of the throughput gain while reducing attention-path memory overhead by pre-permuting only K/V (not Q)?
 - Hypothesis: KV-only pre-permute should preserve long-context speedup from reduced repeated K/V gathers, while cutting peak memory relative to full QKV pre-permute.
 - Change set:
-  - `hcsa/mlx/attention.py`: split pre-permute behavior into KV-only vs QKV
-  - `hcsa/integrations/gpt2_mlx.py`: allow pre-permute mode values `auto/off/kv/qkv`
+  - `bna/mlx/attention.py`: split pre-permute behavior into KV-only vs QKV
+  - `bna/integrations/gpt2_mlx.py`: allow pre-permute mode values `auto/off/kv/qkv`
   - `scripts/bench_gpt2_wayfinder_mlx.py`: expose `kv` and `qkv` choices
 - Baseline artifact:
   - `benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_preperm_adaptive_v1/results.json`
@@ -486,7 +486,7 @@ Execution order confirmed:
 - Question: Can we reduce GPT-2 Wayfinder peak memory without hardcoded model branches by forcing streaming y accumulation in inference for all permute plans?
 - Hypothesis: Eliminating chunk-list accumulation during inference removes avoidable peak buffers and improves memory while preserving current throughput trend.
 - Change set:
-  - `hcsa/mlx/attention.py`: inference path always uses streaming y accumulation (`y_pi.at[..., s:e].add`) even with pre-permute enabled
+  - `bna/mlx/attention.py`: inference path always uses streaming y accumulation (`y_pi.at[..., s:e].add`) even with pre-permute enabled
 - Baseline artifact:
   - `benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_preperm_kv_auto_v2/results.json`
 - Command (post-change):
@@ -496,8 +496,8 @@ Execution order confirmed:
 - Question: Can a non-hardcoded auto planner choose permute execution mode from math (movement + peak budget) and improve GPT-2 Pareto behavior?
 - Hypothesis: With budget tied to dense peak memory (multiplier=1.0), planner should avoid memory-heavy modes at shorter lengths while still selecting faster modes when feasible.
 - Change set:
-  - `hcsa/mlx/attention.py`: auto planner for pre-permute mode (`off/kv/qkv`) using closed-form movement and peak-byte estimates, optional budget constraint
-  - `hcsa/integrations/gpt2_mlx.py`: pass optional memory budget through runtime controls
+  - `bna/mlx/attention.py`: auto planner for pre-permute mode (`off/kv/qkv`) using closed-form movement and peak-byte estimates, optional budget constraint
+  - `bna/integrations/gpt2_mlx.py`: pass optional memory budget through runtime controls
   - `scripts/bench_gpt2_wayfinder_mlx.py`: set per-seq budget from measured dense memory (`--permute-memory-budget-multiplier`)
 - Baseline artifacts:
   - `benchmarks/mlx/gpt2_wayfinder/20260207_gpt2_preperm_kv_auto_v2/results.json`
@@ -616,9 +616,9 @@ Execution order confirmed:
 - Question: After removing all internal `mx.eval` syncs (keeping 1 per head chunk), does GPT-2 meet the North Star gate?
 - Hypothesis: Reducing sync count from ~66 to 2 should push T=4096 above 0.95x and T=8192 well above 1.0x.
 - Change set:
-  - `hcsa/mlx/attention.py`: remove `inference_fast_path` with per-chunk `mx.eval(y_pi)`
-  - `hcsa/mlx/attention.py`: remove prepermute `mx.eval(q_pi_buf/k_pi_buf/v_pi_buf)`
-  - `hcsa/mlx/attention.py`: remove retro `mx.eval(y_pi)`
+  - `bna/mlx/attention.py`: remove `inference_fast_path` with per-chunk `mx.eval(y_pi)`
+  - `bna/mlx/attention.py`: remove prepermute `mx.eval(q_pi_buf/k_pi_buf/v_pi_buf)`
+  - `bna/mlx/attention.py`: remove retro `mx.eval(y_pi)`
   - All paths now use lazy chunk-list accumulation with single `mx.eval(y_h)` per head chunk.
 - Command:
   - `PYTHONPATH=. python3 scripts/bench_gpt2_wayfinder_mlx.py --model-path openai-community/gpt2 --seq-lens 2048 4096 8192 --batch 1 --warmup 4 --iters 8 --path permute --window 64 --landmark-stride 64 --seed 42 --permute-prepermute-mode auto --permute-memory-budget-multiplier 1.0 --permute-head-chunk-size 8 --permute-query-chunk-size 256 --out-dir benchmarks/mlx/gpt2_wayfinder/20260207_northstar_after_v3_stable`
@@ -639,11 +639,11 @@ Execution order confirmed:
 - Next action: Update README.md with fairness correction, then prepare commit.
 
 ### EXP-20260207-185738-GLM-INTEGRATION-SMOKE (planned)
-- Question: Does a new GLM-4.7-Flash MLA integration (`hcsa/integrations/glm_mlx.py`) run correctly with Wayfinder swap while preserving retro-off inference defaults?
+- Question: Does a new GLM-4.7-Flash MLA integration (`bna/integrations/glm_mlx.py`) run correctly with Wayfinder swap while preserving retro-off inference defaults?
 - Hypothesis: Reusing the Qwen graph runtime and padding MLA value latent dim to q/k dim only inside Wayfinder kernels will produce valid forwards, pass MLX tests, and allow a GLM benchmark smoke run without touching MoE routing.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py` (new)
-  - `hcsa/integrations/__init__.py` (exports)
+  - `bna/integrations/glm_mlx.py` (new)
+  - `bna/integrations/__init__.py` (exports)
   - `scripts/bench_glm_wayfinder_mlx.py` (new)
 - Baseline: `benchmarks/mlx/gpt2_wayfinder/20260207_northstar_after_v3_stable/results.json` (current non-Qwen reference stage)
 - Command:
@@ -658,9 +658,9 @@ Execution order confirmed:
 - Question: On GLM-4.7-Flash MLA, does Wayfinder permute sustain throughput > dense at long context (T=8192) with retro disabled?
 - Hypothesis: At T=8192, Wayfinder attention and block throughput should exceed dense baseline (>1.0x) with reduced peak memory because compute scales with local window instead of full T².
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`
+  - `bna/integrations/glm_mlx.py`
   - `scripts/bench_glm_wayfinder_mlx.py`
-  - `hcsa/mlx/attention.py` (`v.itemsize` planner bugfix)
+  - `bna/mlx/attention.py` (`v.itemsize` planner bugfix)
 - Baseline run path:
   - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke/results.json`
 - Command:
@@ -716,7 +716,7 @@ Execution order confirmed:
 - Question: Can all GLM transformer `self_attn` layers be swapped to Wayfinder attention without model-forward breakage?
 - Hypothesis: `swap_glm_attention_with_wayfinder()` should replace all attention layers and a short-token full forward should succeed with retro disabled.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`
+  - `bna/integrations/glm_mlx.py`
   - `scripts/bench_glm_wayfinder_mlx.py`
 - Baseline run path:
   - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_glm_integration_smoke/results.json`
@@ -1088,7 +1088,7 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 
 ### EXP-20260207-DIAG02-CHUNK-LATENCY-PROFILE (result — ROOT CAUSE FOUND)
 - Question: Do later chunks get progressively slower (growing cache penalty) or is per-chunk overhead flat?
-- **ROOT CAUSE**: Line 259 of `hcsa/integrations/glm_mlx.py`:
+- **ROOT CAUSE**: Line 259 of `bna/integrations/glm_mlx.py`:
   ```python
   if queries.shape[2] != keys.shape[2]:
       out = self._dense_fallback(queries, keys, values, mask, cache)
@@ -1103,7 +1103,7 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 
 ### CONCLUSION: GLM Chunked Prefill Latency Regression (2026-02-08)
 
-**Root Cause**: The entire 6.9x latency regression is caused by a single code path bug — `hcsa/integrations/glm_mlx.py:259` falls back to O(T²) dense MLA attention whenever `Q_len != K_len`, which is the case for all chunks after the first during chunked prefill.
+**Root Cause**: The entire 6.9x latency regression is caused by a single code path bug — `bna/integrations/glm_mlx.py:259` falls back to O(T²) dense MLA attention whenever `Q_len != K_len`, which is the case for all chunks after the first during chunked prefill.
 
 **Impact**:
 - Memory reduction (26.12% at T=65536) IS REAL — chunking works for memory
@@ -1132,8 +1132,8 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 - Question: Does an active-query Hamiltonian permute path (Q_len < K_len) eliminate dense fallback in chunked prefill and recover positive latency while preserving memory reduction?
 - Hypothesis: Routing chunked prefill through active-query windowed attention will remove the O(chunk*cache) dense path for chunks >0, making per-chunk time flatter and improving prefill latency materially versus `EXP-20260208-001331-GLM-LENGTH-SWEEP-CHUNK4096-RESULT`, while keeping peak memory at or below prior chunked levels.
 - Change set:
-  - `hcsa/mlx/attention.py`: add `wayfinder_permute_window_attention_active_batched(...)` for active query rows
-  - `hcsa/integrations/glm_mlx.py`: use active-query permute path when `self.path=="permute"` and `Q_len < K_len` instead of dense fallback
+  - `bna/mlx/attention.py`: add `wayfinder_permute_window_attention_active_batched(...)` for active query rows
+  - `bna/integrations/glm_mlx.py`: use active-query permute path when `self.path=="permute"` and `Q_len < K_len` instead of dense fallback
 - Baseline run path:
   - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_001331_length_sweep_chunk4096/results.json`
 - Command:
@@ -1147,8 +1147,8 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 - Question: With active-row matmul + adaptive graph reuse in place, what dense/permute crossover threshold minimizes 32k chunked prefill latency while preserving memory reduction?
 - Hypothesis: A hybrid gate (`dense` for early low-K chunks, `permute` for later high-K chunks) will beat always-permute latency at 32k while keeping a meaningful memory reduction; expected best threshold in the `8k..24k` range.
 - Change set:
-  - `hcsa/mlx/attention.py`: active-row kernel uses batched `mx.matmul` for score/value aggregation
-  - `hcsa/integrations/glm_mlx.py`: configurable `active_dense_threshold` gate for active mode
+  - `bna/mlx/attention.py`: active-row kernel uses batched `mx.matmul` for score/value aggregation
+  - `bna/integrations/glm_mlx.py`: configurable `active_dense_threshold` gate for active mode
   - `scripts/bench_glm_chunked_prefill_mlx.py`: per-chunk profile sample includes mode/length fields
 - Baseline run paths:
   - Chunked always-permute (adaptive graph): `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_permute_adaptive_graph_matmul_32k/results.json`
@@ -1270,7 +1270,7 @@ Key observation from prior sweep: at T=65536 chunk=4096, chunked prefill achieve
 - Question: Does vectorizing active-query attention across head chunks reduce the constant-factor latency gap without breaking chunked prefill correctness?
 - Hypothesis: Removing per-head Python loops in `wayfinder_permute_window_attention_active_batched` will materially reduce chunk wall time at the same memory profile, especially for mixed thresholds.
 - Change set:
-  - `hcsa/mlx/attention.py`: vectorize active-row path over `hc` heads per chunk; keep profiling semantics unchanged.
+  - `bna/mlx/attention.py`: vectorize active-row path over `hc` heads per chunk; keep profiling semantics unchanged.
 - Command (smoke):
   - `PYTHONPATH=. python3 scripts/bench_glm_chunked_prefill_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --cache-modes normal --path permute --window 64 --landmark-stride 0 --active-dense-threshold 0 --kv-step 4096 --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260207_201347_fullmodel_prefill_kv_checkpoint/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260208_glm_active_vec_heads_smoke_8k`
 - Controls:
@@ -1814,7 +1814,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Do random-cycle + local-window graphs in HCSA satisfy strong expansion proxies (`d/λ`) at small sequence lengths?
 - Hypothesis: Random cycles with window augmentation will produce expansion ratios above the acceptance threshold, and poor/structured cycles will fail this check.
 - Change set:
-  - `hcsa/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
+  - `bna/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
   - Graph runtime verification toggle wiring in MLX integrations
   - `tests/test_spectral.py` (new)
 - Command:
@@ -1831,9 +1831,9 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Can we enforce edge-disjoint multi-cycle packing and correctly consume all cycles in permute attention?
 - Hypothesis: Enforcing edge-disjoint cycles will eliminate wasted overlap and produce valid multi-cycle outputs with expected ~linear compute scaling in cycle count.
 - Change set:
-  - `hcsa/cycles.py`: edge-disjoint cycle generator and verifier
-  - `hcsa/graph_strategies.py`, `hcsa/graph/abi.py`: all-cycle ABI metadata
-  - `hcsa/mlx/attention.py` + integrations: multi-cycle permute averaging
+  - `bna/cycles.py`: edge-disjoint cycle generator and verifier
+  - `bna/graph_strategies.py`, `bna/graph/abi.py`: all-cycle ABI metadata
+  - `bna/mlx/attention.py` + integrations: multi-cycle permute averaging
   - `tests/test_edge_disjoint_cycles.py` (new)
 - Commands:
   - `python3 -m pytest`
@@ -1851,14 +1851,14 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Under window-drop, does the cycle+window graph maintain resilience signals at practical drop rates?
 - Hypothesis: At moderate drop (`~0.3`) survival remains high; at aggressive drop (`~0.8`) resilience collapses.
 - Change set:
-  - `hcsa/graph/analysis.py`: `check_resilience`
+  - `bna/graph/analysis.py`: `check_resilience`
   - `docs/resilience.md` (new)
   - attention comments referencing theorem-backed safe regime
   - `tests/test_resilience.py` (new)
 - Commands:
   - `python3 -m pytest`
-  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100))"`
-  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100))"`
+  - `python3 -c "from bna.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100))"`
+  - `python3 -c "from bna.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100))"`
 - Controls:
   - T=128, window=32, fixed permutation seed.
 - Metrics:
@@ -1870,8 +1870,8 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Can a regular-partition cycle strategy improve cluster regularity while preserving runtime feasibility?
 - Hypothesis: Regular-partition cycles should reduce inter-cluster deviation versus random/identity baselines, with comparable runtime complexity.
 - Change set:
-  - `hcsa/cycles.py`: `regular_partition_cycle`
-  - `hcsa/graph/analysis.py`: `check_regularity`
+  - `bna/cycles.py`: `regular_partition_cycle`
+  - `bna/graph/analysis.py`: `check_regularity`
   - strategy/config wiring for `regular_partition`
   - `tests/test_regularity.py` (new)
 - Commands:
@@ -1890,9 +1890,9 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Do additional covering cycles move permute outputs closer to dense attention in small-T regimes?
 - Hypothesis: Increasing covering cycle count (1→4→8) improves approximation quality to dense outputs (lower L2 distance), while increasing compute roughly linearly.
 - Change set:
-  - `hcsa/cycles.py`: `covering_cycles`
-  - `hcsa/graph/analysis.py`: `compute_edge_coverage`
-  - `hcsa/mlx/attention.py`: `wayfinder_covering_attention`
+  - `bna/cycles.py`: `covering_cycles`
+  - `bna/graph/analysis.py`: `compute_edge_coverage`
+  - `bna/mlx/attention.py`: `wayfinder_covering_attention`
   - `tests/test_covering.py` (new)
 - Commands:
   - `python3 -m pytest`
@@ -1908,9 +1908,9 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Do random-cycle + local-window graphs in HCSA satisfy strong expansion proxies (`d/λ`) at small sequence lengths?
 - Hypothesis: Random cycles with window augmentation will produce expansion ratios above the acceptance threshold, and poor/structured cycles will fail this check.
 - Change set:
-  - `hcsa/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
-  - `hcsa/graph/__init__.py`: export analysis APIs
-  - `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`, `hcsa/mlx/attention.py`, `hcsa/mlx/model.py`: add opt-in spectral verification config/wiring (default off)
+  - `bna/graph/analysis.py` (new): `spectral_gap`, `expansion_proxy`
+  - `bna/graph/__init__.py`: export analysis APIs
+  - `bna/integrations/qwen_mlx.py`, `bna/integrations/glm_mlx.py`, `bna/integrations/gpt2_mlx.py`, `bna/mlx/attention.py`, `bna/mlx/model.py`: add opt-in spectral verification config/wiring (default off)
   - `tests/test_spectral.py` (new)
 - Commands:
   - `python3 -m pytest tests/test_spectral.py -q`
@@ -1958,13 +1958,13 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Can we enforce edge-disjoint multi-cycle packing and correctly consume all cycles in permute attention?
 - Hypothesis: Enforcing edge-disjoint cycles will eliminate overlap waste and produce valid multi-cycle outputs with expected ~linear compute scaling in cycle count.
 - Change set:
-  - `hcsa/cycles.py`: `edge_disjoint_random_cycles`, `verify_edge_disjoint`
-  - `hcsa/graph_strategies.py`: `RandomCycleStrategy(edge_disjoint=True)` and `all_cycle_perms` propagation
-  - `hcsa/graph/abi.py`: support/store `all_cycle_perms`; stack per-head metadata
-  - `hcsa/topology/core.py`: `edge_disjoint` topology knob forwarded to random strategy
-  - `hcsa/mlx/attention.py`: accept `[H,d,T]` perms in batched/active permute paths and average multi-cycle passes
-  - `hcsa/integrations/qwen_mlx.py`: cache support for stacked multi-cycle perms
-  - `hcsa/mlx/model.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`: config wiring for `edge_disjoint`
+  - `bna/cycles.py`: `edge_disjoint_random_cycles`, `verify_edge_disjoint`
+  - `bna/graph_strategies.py`: `RandomCycleStrategy(edge_disjoint=True)` and `all_cycle_perms` propagation
+  - `bna/graph/abi.py`: support/store `all_cycle_perms`; stack per-head metadata
+  - `bna/topology/core.py`: `edge_disjoint` topology knob forwarded to random strategy
+  - `bna/mlx/attention.py`: accept `[H,d,T]` perms in batched/active permute paths and average multi-cycle passes
+  - `bna/integrations/qwen_mlx.py`: cache support for stacked multi-cycle perms
+  - `bna/mlx/model.py`, `bna/integrations/glm_mlx.py`, `bna/integrations/gpt2_mlx.py`, `bna/integrations/qwen_mlx.py`: config wiring for `edge_disjoint`
   - `tests/test_edge_disjoint_cycles.py` (new)
 - Commands:
   - `python3 -m pytest tests/test_edge_disjoint_cycles.py -q`
@@ -1985,15 +1985,15 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Under window-drop, does the cycle+window graph maintain resilience signals at practical drop rates?
 - Hypothesis: At moderate drop (`~0.3`) survival remains high; at aggressive drop (`~0.8`) resilience collapses.
 - Change set:
-  - `hcsa/graph/analysis.py`: added `check_resilience`
-  - `hcsa/graph/__init__.py`: export resilience utility
-  - `hcsa/mlx/attention.py`: theorem-backed window-drop comments where drop mask is applied
+  - `bna/graph/analysis.py`: added `check_resilience`
+  - `bna/graph/__init__.py`: export resilience utility
+  - `bna/mlx/attention.py`: theorem-backed window-drop comments where drop mask is applied
   - `docs/resilience.md` (new): theorem/empirical guidance
   - `tests/test_resilience.py` (new)
 - Commands:
   - `python3 -m pytest tests/test_resilience.py -q`
   - `python3 -m pytest -q`
-  - `python3 -c "from hcsa.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100, rng=np.random.default_rng(1))); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100, rng=np.random.default_rng(1)))"`
+  - `python3 -c "from bna.graph.analysis import check_resilience; import numpy as np; p=np.random.default_rng(42).permutation(128); print(check_resilience(p, window=32, drop_rate=0.3, num_trials=100, rng=np.random.default_rng(1))); print(check_resilience(p, window=32, drop_rate=0.8, num_trials=100, rng=np.random.default_rng(1)))"`
 - Controls:
   - `T=128`, `window=32`, fixed permutation seed (`42`), fixed trial RNG (`1`).
   - Retro/backfill disabled.
@@ -2074,13 +2074,13 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Can regular-partition cycle construction improve cluster regularity while preserving runtime feasibility?
 - Hypothesis: `regular_partition` should reduce cluster-pair deviation relative to random cycles at similar runtime complexity.
 - Change set:
-  - `hcsa/cycles.py`: added `regular_partition_cycle`
-  - `hcsa/graph_strategies.py`: added `RegularPartitionStrategy` + registry wiring
-  - `hcsa/topology/core.py`: added `regular_num_clusters` and static cache-mode for regular partition
-  - `hcsa/graph/analysis.py`: added `check_regularity`
-  - `hcsa/graph/__init__.py`: exported `check_regularity`
+  - `bna/cycles.py`: added `regular_partition_cycle`
+  - `bna/graph_strategies.py`: added `RegularPartitionStrategy` + registry wiring
+  - `bna/topology/core.py`: added `regular_num_clusters` and static cache-mode for regular partition
+  - `bna/graph/analysis.py`: added `check_regularity`
+  - `bna/graph/__init__.py`: exported `check_regularity`
   - `scripts/bench_mlx_wayfinder_scale.py`: added `--regular-num-clusters` and `regular_partition` strategy support
-  - `hcsa/mlx/attention.py`, `hcsa/mlx/model.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/glm_mlx.py`, `hcsa/integrations/gpt2_mlx.py`: strategy/config wiring for `regular_partition`
+  - `bna/mlx/attention.py`, `bna/mlx/model.py`, `bna/integrations/qwen_mlx.py`, `bna/integrations/glm_mlx.py`, `bna/integrations/gpt2_mlx.py`: strategy/config wiring for `regular_partition`
   - `tests/test_regularity.py` (new)
 - Commands:
   - `python3 -m pytest tests/test_regularity.py -q`
@@ -2110,10 +2110,10 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Do additional covering cycles move permute outputs closer to dense attention in small-T regimes?
 - Hypothesis: Increasing covering cycles from 1 to 4 to 8 improves approximation quality to dense outputs (lower L2 distance), at near-linear extra compute.
 - Change set:
-  - `hcsa/cycles.py`: added `covering_cycles` (with deterministic Walecki seeding for even-T and greedy candidate selection)
-  - `hcsa/graph/analysis.py`: added `compute_edge_coverage`
-  - `hcsa/graph/__init__.py`: exported `compute_edge_coverage`
-  - `hcsa/mlx/attention.py`: added `wayfinder_covering_attention`
+  - `bna/cycles.py`: added `covering_cycles` (with deterministic Walecki seeding for even-T and greedy candidate selection)
+  - `bna/graph/analysis.py`: added `compute_edge_coverage`
+  - `bna/graph/__init__.py`: exported `compute_edge_coverage`
+  - `bna/mlx/attention.py`: added `wayfinder_covering_attention`
   - `tests/test_covering.py` (new)
 - Commands:
   - `python3 -m pytest tests/test_covering.py -q`
@@ -2139,7 +2139,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-HCY-IDEA4-SPECTRAL (result correction)
 - Note: Adds empirical measurement details for Idea 4 beyond unit tests.
 - Measurement command:
-  - `python3 -c "import numpy as np; from hcsa.graph.analysis import spectral_gap, expansion_proxy; ..."`
+  - `python3 -c "import numpy as np; from bna.graph.analysis import spectral_gap, expansion_proxy; ..."`
 - Measurement controls:
   - `T=128`, `window=8`, random perm seed `42`, identity baseline, proxy walks=`2000`, walk_len=`20`.
 - Measurement result:
@@ -2837,12 +2837,12 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-laplacian-diag
 - Question: Can Laplacian spectral gap and Fiedler bridge candidates correctly identify graph connectivity?
 - Hypothesis: Connected cycle graph has positive Fiedler value. More window edges increase Fiedler value. Bridge candidates cross the Fiedler vector sign boundary.
-- Change set: hcsa/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
+- Change set: bna/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
 
 ### EXP-20260208-K4-DISCOVER-SEARCH
 - Question: Can the ZMLX Discover search find an optimized Metal kernel for the K4 active-row microkernel (softmax(scores[W]) @ values[W,D] -> out[D]) that outperforms the naive baseline?
 - Hypothesis: PUCT tree search with claude-code backend should find a variant with >= 1.3x speedup over the naive seed kernel (one thread per feature dim, scalar loop over W). Optimizations may include SIMD reductions, shared memory for scores, or vectorized loads.
-- Change set: discover_sessions/hcsa_active_row_session.json (updated by search), hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal (exported winner), hcsa/mlx/kernels/metal/hcsa_active_row_fused_discovered.py (exported wrapper)
+- Change set: discover_sessions/hcsa_active_row_session.json (updated by search), bna/mlx/kernels/metal/hcsa_active_row_fused_discovered.metal (exported winner), bna/mlx/kernels/metal/hcsa_active_row_fused_discovered.py (exported wrapper)
 - Command: `cd /Volumes/VIXinSSD/ZMLX && source .venv/bin/activate && python -m zmlx.discover search hcsa_active_row --llm claude-code --steps 10 --candidates-per-step 8 --warmup 5 --iters 20 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
 - Controls: retro_backfill=off, D=128, W=65, baseline=naive seed kernel
 - Metrics:
@@ -2857,7 +2857,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-K1-DISCOVER-SEARCH-REAL
 - Question: Can ZMLX Discover find an optimized Metal kernel for K1 permute-window (mean over gathered neighbors) with a real LLM backend?
 - Hypothesis: PUCT search with claude-code should find >= 1.5x speedup over naive baseline.
-- Change set: discover_sessions/hcsa_permute_window_session.json, hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal, hcsa/mlx/kernels/metal/hcsa_permute_window_fused_discovered.py
+- Change set: discover_sessions/hcsa_permute_window_session.json, bna/mlx/kernels/metal/hcsa_permute_window_fused_discovered.metal, bna/mlx/kernels/metal/hcsa_permute_window_fused_discovered.py
 - Command: `cd /Volumes/VIXinSSD/ZMLX && python -m zmlx.discover search hcsa_permute_window --llm claude-code --steps 10 --session-dir /Volumes/VIXinSSD/wayfinder/discover_sessions -v`
 - Controls: retro_backfill=off, SEQ=256, D=128, W=65
 - Metrics:
@@ -2869,14 +2869,14 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-d-selection
 - Question: Does adding recommended_num_cycles(T) utility with O(log T) scaling provide correct theoretical values?
 - Hypothesis: For T=1024 with c=2, d=ceil(2*log2(1024))=20. For T=2, d=1. max_edge_disjoint for T=100 is 49.
-- Change set: hcsa/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
+- Change set: bna/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
 
 ## 2026-02-08 — Circular Windowing Fix
 
 ### EXP-20260208-circular-wrap
 - Question: Does replacing linear clamping with circular wrap-around correctly close the Hamiltonian cycle?
 - Hypothesis: With circular=True, boundary positions (perm[0] and perm[T-1]) will have full window degree instead of reduced degree. Output differs from linear at boundaries but causality is preserved. With circular=False, output is bit-for-bit identical to current code.
-- Change set: hcsa/mlx/attention.py (circular param in 3 functions), tests/mlx/test_circular_wrap.py
+- Change set: bna/mlx/attention.py (circular param in 3 functions), tests/mlx/test_circular_wrap.py
 - Command: `python3 -m pytest tests/mlx/test_circular_wrap.py -v`
 - Key result: 5/5 tests pass. Circular wrap-around correctly closes cycle, preserves causality, differs from linear at boundaries.
 - Decision: Keep.
@@ -2884,7 +2884,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-d-selection
 - Question: Does adding recommended_num_cycles(T) utility with O(log T) scaling provide correct theoretical values?
 - Hypothesis: For T=1024 with c=2, d=ceil(2*log2(1024))=20. For T=2, d=2. max_edge_disjoint for T=100 is 49.
-- Change set: hcsa/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
+- Change set: bna/cycles.py (add recommended_num_cycles, max_edge_disjoint_cycles), configs (num_cycles accepts "auto"), tests/test_d_selection.py
 - Command: `python3 -m pytest tests/test_d_selection.py -v`
 - Key result: 5/5 tests pass. All theoretical values correct.
 - Decision: Keep.
@@ -2892,7 +2892,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-laplacian-diag
 - Question: Can Laplacian spectral gap and Fiedler bridge candidates correctly identify graph connectivity?
 - Hypothesis: Connected cycle graph has positive Fiedler value. More window edges increase Fiedler value. Bridge candidates cross the Fiedler vector sign boundary.
-- Change set: hcsa/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
+- Change set: bna/graph/analysis.py (add laplacian_spectral_gap, fiedler_bridge_candidates), tests/test_laplacian_diagnostics.py
 - Command: `python3 -m pytest tests/test_laplacian_diagnostics.py -v`
 - Key result: 4/4 tests pass. Fiedler value correctly identifies connectivity, bridges improve it.
 - Decision: Keep.
@@ -2900,7 +2900,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 ### EXP-20260208-union-multigraph
 - Question: Can union multigraph mode replace multi-cycle averaging with a single-pass attention over the union graph?
 - Hypothesis: Union graph should have >= degree of single cycle, multiplicity correctly tracked for shared edges, output valid and different from average mode, attention weights sum to 1.
-- Change set: hcsa/mlx/attention.py (build_union_multigraph_index, _union_multigraph_attention, multi_cycle_mode param), hcsa/graph/abi.py (track_multiplicity), tests/mlx/test_union_multigraph.py
+- Change set: bna/mlx/attention.py (build_union_multigraph_index, _union_multigraph_attention, multi_cycle_mode param), bna/graph/abi.py (track_multiplicity), tests/mlx/test_union_multigraph.py
 - Command: `python3 -m pytest tests/mlx/test_union_multigraph.py -v`
 - Key result: 8/8 tests pass. Union mode produces valid non-NaN output, differs from average, maintains attention weight normalization.
 - Decision: Keep.
@@ -2915,7 +2915,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
   - **`wayfinder_covering_attention`**: Added `circular` and `multi_cycle_mode` params, forwarded to inner `wayfinder_permute_window_attention_batched`
   - **`_build_cache` in WayfinderAttentionMLX**: Fixed to respect `self.circular` flag (uses `% T` wrap instead of `clip(0, T-1)`)
   - **Type fixes**: `GLMWayfinderConfig.num_cycles` and `GPT2WayfinderConfig.num_cycles` changed from `int` to `int | str` (required for `"auto"` mode)
-  - **Exports**: `laplacian_spectral_gap` and `fiedler_bridge_candidates` added to `hcsa/graph/__init__.py`
+  - **Exports**: `laplacian_spectral_gap` and `fiedler_bridge_candidates` added to `bna/graph/__init__.py`
   - **New tests**: `tests/mlx/test_config_wiring.py` (9 tests: defaults, storage, propagation through GPTMLX, forward pass with circular, union, and combined)
 - Command: `python3 -m pytest tests/ -v`
 - Key result: 156/156 tests pass (147 original + 9 new config wiring tests). All 4 Hamiltonian features now accessible through every model config path.
@@ -2928,7 +2928,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
   - **Stage 1 — Circular windowing**: `permute_cycle_window_attention_single`, `wayfinder_permute_window_attention_batched`, `wayfinder_permute_window_attention_active_batched` all accept `circular: bool = False`, use `% T` wrap-around instead of `clip(0, T-1)` when enabled
   - **Stage 2 — Union multigraph**: `build_union_multigraph_index()` + `_union_multigraph_attention()` in `attention.py`; `multi_cycle_mode: "average" | "union"` param on batched + active-batched functions; single-pass attention with `log(multiplicity) * scale` bias replaces d-pass averaging
   - **Stage 3 — Principled d**: `recommended_num_cycles(T)` → `ceil(c * log2(T))`, `max_edge_disjoint_cycles(T)` → `(T-1)//2`, `num_cycles="auto"` resolution in topology runtime
-  - **Stage 4 — Laplacian diagnostics**: `laplacian_spectral_gap()`, `fiedler_bridge_candidates()` in `graph/analysis.py`, exported from `hcsa/graph/__init__.py`
+  - **Stage 4 — Laplacian diagnostics**: `laplacian_spectral_gap()`, `fiedler_bridge_candidates()` in `graph/analysis.py`, exported from `bna/graph/__init__.py`
   - **Config wiring**: `circular` + `multi_cycle_mode` on all 4 config dataclasses, 4 module `__init__`s, 5 `__call__` sites, `wayfinder_covering_attention`, `_build_cache`
   - **Type fixes**: `num_cycles: int | str` on GLM + GPT2 configs
   - **K4 kernel**: `hcsa_active_row_fused_discovered.{metal,py}` — 3.987x microkernel speedup (SIMD reduction + shared memory + FMA), enables O(T*W) chunked prefill instead of O(T^2) dense fallback
@@ -3079,7 +3079,7 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Baseline run path: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_ab_hcsa_with_decode/results.json`
   (scenario: `seq_len=8192`, `chunk_size=4096`, `prefill_only`).
 - Change set:
-  1. `hcsa/integrations/glm_mlx.py` default `GLMWayfinderConfig.permute_prepermute_mode` -> `kv`
+  1. `bna/integrations/glm_mlx.py` default `GLMWayfinderConfig.permute_prepermute_mode` -> `kv`
   2. `scripts/bench_glm_chunked_prefill_mlx.py` add CLI `--permute-prepermute-mode` and pass through
 - Command:
   `PYTHONPATH=/Volumes/VIXinSSD/wayfinder python3 scripts/bench_glm_chunked_prefill_mlx.py --seq-lens 8192 --chunk-sizes 4096 --decode-lens 0 --permute-prepermute-mode kv --baseline-path benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_ab_hcsa_with_decode/results.json --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260209_dispatch_kv_default`
@@ -3152,8 +3152,8 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Baseline run path: setup-only baseline (no runtime benchmark); reference test command:
   `python3 -m pytest tests/test_discover_targets.py tests/test_discover_setup.py tests/test_wayc_discover_cli.py -q`.
 - Change set:
-  1. `hcsa/discover/targets.py` add `k6` spec + alias
-  2. `hcsa/mlx/kernels/metal/seeds/hcsa_fused_attention.metal` add seed scaffold
+  1. `bna/discover/targets.py` add `k6` spec + alias
+  2. `bna/mlx/kernels/metal/seeds/hcsa_fused_attention.metal` add seed scaffold
   3. `tests/test_discover_targets.py` update expected target inventory and alias checks
   4. `scripts/wayc.py` help text update to `k1..k6`
   5. `NEXT_SESSION_PROMPT.md` target table update
@@ -3222,12 +3222,12 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 - Question: Does eliminating per-head-chunk `mx.eval()` barriers via a fused all-head dispatch improve throughput on GLM-4.7 prefill?
 - Hypothesis: Processing all heads in a single lazy MLX compute graph per query chunk will reduce GPU sync overhead. Expected 1.3-2x speedup on prefill attention for T=8192-32768 compared to head_chunk_size=2 (20 eval barriers per layer x 47 layers = 940 barriers/forward).
 - Change set:
-  - `hcsa/mlx/fused_attention.py` (NEW): fused all-head dispatch + eligibility guard
-  - `hcsa/mlx/attention.py`: wire fused guard before head-chunk loop
-  - `hcsa/integrations/glm_mlx.py`: `use_fused_dispatch` config + wiring
-  - `hcsa/integrations/qwen_mlx.py`: `use_fused_dispatch` config + wiring
-  - `hcsa/compiler/passes/specialize_fused_kernels_pass.py` (NEW): compiler pass
-  - `hcsa/mlx/kernels/metal/__init__.py`: `has_fused_dispatch()` gate
+  - `bna/mlx/fused_attention.py` (NEW): fused all-head dispatch + eligibility guard
+  - `bna/mlx/attention.py`: wire fused guard before head-chunk loop
+  - `bna/integrations/glm_mlx.py`: `use_fused_dispatch` config + wiring
+  - `bna/integrations/qwen_mlx.py`: `use_fused_dispatch` config + wiring
+  - `bna/compiler/passes/specialize_fused_kernels_pass.py` (NEW): compiler pass
+  - `bna/mlx/kernels/metal/__init__.py`: `has_fused_dispatch()` gate
   - `tests/mlx/test_fused_attention.py` (NEW): correctness tests
 - Controls:
   - Baseline: `use_fused_dispatch=False` (existing chunked path)
@@ -3274,9 +3274,9 @@ Roadmap alignment: Confirmed. This campaign is the verification/reproducibility 
 **Method**: New `wayfinder_fused_permute_window_attention_active()` in `fused_attention.py` vectorizes rank lookup, index mapping, K/V gather, and matmul across all heads per query chunk. Same eligibility guard as Step 1. Wired into `attention.py` and `glm_mlx.py`.
 
 **Change set**:
-- `hcsa/mlx/fused_attention.py` — add `wayfinder_fused_permute_window_attention_active`
-- `hcsa/mlx/attention.py` — add `use_fused_dispatch` param + guard to active function
-- `hcsa/integrations/glm_mlx.py` — wire `use_fused_dispatch` to active-row call
+- `bna/mlx/fused_attention.py` — add `wayfinder_fused_permute_window_attention_active`
+- `bna/mlx/attention.py` — add `use_fused_dispatch` param + guard to active function
+- `bna/integrations/glm_mlx.py` — wire `use_fused_dispatch` to active-row call
 - `tests/mlx/test_fused_attention.py` — add `TestFusedActiveRow*` test classes
 
 **Controls**:
@@ -3321,7 +3321,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 
 **Method**: `python3 scripts/finetune_sparse_gpt2_mlx.py --seq-len 128 --steps 5 --eval-every 5 --eval-batches 1 --batch-size 1 --out-dir results/finetune_sparse_comparison/smoke_20260209`
 
-**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/gpt2_mlx.py`
+**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `bna/integrations/qwen_mlx.py`, `bna/integrations/gpt2_mlx.py`
 
 **Controls**: model `openai-community/gpt2`, data `data/tinyshakespeare.txt`, window=64, max_degree=130, seed=42, same steps/seq_len for all configs.
 
@@ -3346,7 +3346,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 
 **Method**: `python3 scripts/finetune_sparse_gpt2_mlx.py`
 
-**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `hcsa/integrations/qwen_mlx.py`, `hcsa/integrations/gpt2_mlx.py`
+**Change set**: `scripts/finetune_sparse_gpt2_mlx.py`, `bna/integrations/qwen_mlx.py`, `bna/integrations/gpt2_mlx.py`
 
 **Controls**: model `openai-community/gpt2`, data `data/tinyshakespeare.txt`, seq_len=512, window=64, max_degree=130, seed=42, identical steps and batch size across configs.
 
@@ -3400,7 +3400,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 
 **Change set**:
 - `scripts/bench_qwen_wayfinder_mlx.py`
-- `hcsa/integrations/qwen_mlx.py`
+- `bna/integrations/qwen_mlx.py`
 
 **Method**:
 - `STAMP="$(date -u +%Y%m%d_%H%M%S)" ; BASE="benchmarks/mlx" ; PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 0 --allow-non-hamiltonian --out-dir "${BASE}/qwen3_1.7b_sparse_landmarks_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 1 --out-dir "${BASE}/qwen3_1.7b_sparse_cycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path sparse --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --out-dir "${BASE}/qwen3_1.7b_sparse_multicycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 0 --allow-non-hamiltonian --out-dir "${BASE}/qwen3_1.7b_permute_landmarks_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --max-degree 130 --landmark-stride-from-max-degree --num-cycles 1 --out-dir "${BASE}/qwen3_1.7b_permute_cycle_${STAMP}" && PYTHONPATH=. python3 scripts/bench_qwen_wayfinder_mlx.py --model-path mlx-community/Qwen3-1.7B-4bit --seq-lens 2048 4096 8192 16384 32768 --batch 1 --warmup 1 --iters 1 --path permute --window 64 --landmark-stride 0 --num-cycles auto --no-edge-disjoint --out-dir "${BASE}/qwen3_1.7b_permute_multicycle_${STAMP}"`
@@ -3491,7 +3491,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 
 **Change set**:
 - `scripts/bench_glm_wayfinder_mlx.py` (adds `num_cycles=auto`, edge-disjoint/non-Hamiltonian toggles, graph stats collection)
-- `hcsa/integrations/glm_mlx.py` (adds `enforce_hamiltonian` wiring)
+- `bna/integrations/glm_mlx.py` (adds `enforce_hamiltonian` wiring)
 
 **Method**:
 - `PYTHONPATH=. python3 scripts/bench_glm_wayfinder_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --seq-lens 2048 8192 32768 --batch 1 --warmup 1 --iters 1 --dtype bfloat16 --path sparse --window 64 --landmark-stride 64 --num-cycles 0 --allow-non-hamiltonian --collect-graph-stats --out-dir benchmarks/mlx/glm4_7_flash_sparse_landmarks_20260209_185519`
@@ -3710,7 +3710,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Change set**:
 - `scripts/bench_glm_wayfinder_mlx.py`
 - `scripts/bench_qwen_wayfinder_mlx.py`
-- `hcsa/integrations/qwen_mlx.py`
+- `bna/integrations/qwen_mlx.py`
 
 **Method**:
 - `python3 scripts/bench_glm_wayfinder_mlx.py --help`
@@ -3736,7 +3736,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Change set**:
 - `scripts/bench_glm_wayfinder_mlx.py`
 - `scripts/bench_qwen_wayfinder_mlx.py`
-- `hcsa/integrations/qwen_mlx.py`
+- `bna/integrations/qwen_mlx.py`
 
 **Command**:
 - `python3 scripts/bench_glm_wayfinder_mlx.py --help`
@@ -5403,7 +5403,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Current decode slowdown is dominated by active-permute q_len=1 overhead (full-length fused active-row prep and/or per-head chunk barriers). A decode-specialized dispatch/gating change will raise candidate median decode tok/s to at least 5% above dense.
 
 **Change set**:
-- Planned edits in `hcsa/integrations/glm_mlx.py` (decode-path gating/specialization).
+- Planned edits in `bna/integrations/glm_mlx.py` (decode-path gating/specialization).
 - Optional supporting kernel dispatch edits only if required by profiling evidence.
 
 **Planned runs (exact family)**:
@@ -5440,9 +5440,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Decode slowdown is dominated by q_len=1 active-permute overhead; rerouting decode away from full-prefill fused active path should recover throughput.
 
 **Change set**:
-- `hcsa/integrations/glm_mlx.py`: pass decode-specific `prefer_gather_for_small_tq` when `q_len == 1`.
-- `hcsa/mlx/attention.py`: plumb `prefer_gather_for_small_tq` through active fused dispatch path.
-- `hcsa/mlx/fused_attention.py`: add small-query gather specialization in `wayfinder_fused_permute_window_attention_active`.
+- `bna/integrations/glm_mlx.py`: pass decode-specific `prefer_gather_for_small_tq` when `q_len == 1`.
+- `bna/mlx/attention.py`: plumb `prefer_gather_for_small_tq` through active fused dispatch path.
+- `bna/mlx/fused_attention.py`: add small-query gather specialization in `wayfinder_fused_permute_window_attention_active`.
 
 **Profiling evidence (bottleneck proof)**:
 - Before patch (`profile_candidate_last4_t16384.prof`):
@@ -5505,7 +5505,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - `idx16` should keep quality drift near dense (`>= -0.05`), keep peak memory non-regressing (`<= dense`), and improve decode tok/s vs dense, but may still miss the strict `+5%` decode target.
 
 **Change set**:
-- `hcsa/integrations/glm_mlx.py`
+- `bna/integrations/glm_mlx.py`
   - decode horizon bucketing for q_len<=2 when cache.max_size is absent (graph-cache reuse)
   - dense fallback for large active prefill blocks
   - decode local-tail SDPA fast path for q_len=1
@@ -5553,7 +5553,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - `idx16` should preserve drift and near-non-regressing memory; decode may improve but could still miss the strict `+5%` gate.
 
 **Change set**:
-- `hcsa/integrations/glm_mlx.py`
+- `bna/integrations/glm_mlx.py`
   - q_len<=2 decode graph horizon bucketing (256-token bucket)
   - dense fallback for large active prefill blocks (`q_len > query_chunk_size`)
   - q_len=1 decode local-tail SDPA fast path
@@ -5702,7 +5702,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Disabling local-tail fastpath will shift decode path usage from `permute_decode_local_tail` to active HSA (`permute` active path), with lower decode tok/s and similar/slightly higher memory.
 
 **Change set**:
-- `hcsa/integrations/glm_mlx.py`
+- `bna/integrations/glm_mlx.py`
   - add `enable_decode_local_tail_fastpath` config toggle
   - guard `permute_decode_local_tail` branch with the new toggle
 - `scripts/bench_glm_consumer_mlx.py`
@@ -5738,7 +5738,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Disabling local-tail fastpath would move decode execution to active HSA paths and likely reduce decode tok/s.
 
 **Change set**:
-- `hcsa/integrations/glm_mlx.py`
+- `bna/integrations/glm_mlx.py`
   - add `enable_decode_local_tail_fastpath` toggle
   - guard `permute_decode_local_tail` path behind toggle
 - `scripts/bench_glm_consumer_mlx.py`
@@ -5807,9 +5807,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - canonical `--mode {dense,wayfinder,sparse}` selector
   - legacy `--path/--no-swap` hidden; primary UX mode-first
   - experimental knobs moved to explicit `--debug-*`
-- `hcsa/integrations/glm_mlx.py:51`
+- `bna/integrations/glm_mlx.py:51`
   - normalize config path labels (`wayfinder` alias -> internal `permute`)
-- `hcsa/integrations/glm_mlx.py:379`
+- `bna/integrations/glm_mlx.py:379`
   - report profile path labels as `wayfinder_*|sparse_*` for fallback visibility
 
 **Planned run matrix (exact controls)**:
@@ -5853,11 +5853,11 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - experimental routing knobs moved under explicit `--debug-*` namespace
 - `scripts/bench_glm_consumer_mlx.py:875`
   - results payload now records canonical `mode`
-- `hcsa/integrations/glm_mlx.py:53`
+- `bna/integrations/glm_mlx.py:53`
   - `GLMWayfinderConfig` accepts `wayfinder` alias and normalizes to internal `permute`
-- `hcsa/integrations/glm_mlx.py:177`
+- `bna/integrations/glm_mlx.py:177`
   - explicit internal path vs reported mode labeling (`wayfinder|sparse`)
-- `hcsa/integrations/glm_mlx.py:384`
+- `bna/integrations/glm_mlx.py:384`
   - fallback profile names report `wayfinder_*`/`sparse_*` labels
 
 **Run matrix (executed)**:
@@ -5935,7 +5935,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - Increase peak memory negligibly (decode-only change)
 
 **Change set (planned)**:
-- `hcsa/integrations/glm_mlx.py`:
+- `bna/integrations/glm_mlx.py`:
   - Add `wayfinder_decode_backend: Literal["active_permute", "dense"]` to `GLMWayfinderConfig` (default `"dense"`)
   - In `GLMWayfinderAttention.__call__`: add `force_dense_wayfinder_decode` condition for active-mode wayfinder, route to `_dense_fallback`
   - Update profile notes with `wayfinder_decode_dense_triggered` flag
@@ -5963,10 +5963,10 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Status**: complete
 
 **Change set (actual)**:
-- `hcsa/integrations/glm_mlx.py:84`: Added `wayfinder_decode_backend: Literal["active_permute", "dense"] = "dense"` to `GLMWayfinderConfig`
-- `hcsa/integrations/glm_mlx.py:208`: Store `wayfinder_decode_backend` in attention module
-- `hcsa/integrations/glm_mlx.py:374-383`: Added `force_dense_wayfinder_decode` condition: when wayfinder mode + active decode + backend="dense", route to `_dense_fallback`
-- `hcsa/integrations/glm_mlx.py:386-413`: Updated dense fallback dispatch and profile notes with `wayfinder_decode_dense_triggered` and `wayfinder_decode_backend`
+- `bna/integrations/glm_mlx.py:84`: Added `wayfinder_decode_backend: Literal["active_permute", "dense"] = "dense"` to `GLMWayfinderConfig`
+- `bna/integrations/glm_mlx.py:208`: Store `wayfinder_decode_backend` in attention module
+- `bna/integrations/glm_mlx.py:374-383`: Added `force_dense_wayfinder_decode` condition: when wayfinder mode + active decode + backend="dense", route to `_dense_fallback`
+- `bna/integrations/glm_mlx.py:386-413`: Updated dense fallback dispatch and profile notes with `wayfinder_decode_dense_triggered` and `wayfinder_decode_backend`
 - `scripts/bench_glm_consumer_mlx.py:730`: Added `--debug-wayfinder-decode-backend` CLI toggle (choices: active_permute, dense; default: dense)
 - `scripts/bench_glm_consumer_mlx.py:839`: Wire toggle through to `GLMWayfinderConfig`
 
@@ -6025,9 +6025,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Adding an active sparse gather path keyed by query positions will eliminate dense fallback for sparse decode/prefill-active in GLM and Qwen. Qwen `sparse` and `wayfinder` (permute) prefill smoke runs should complete with valid metrics, and sparse decode-path checks should report `path="sparse"` with `sparse_active_mode=true`.
 
 **Change set (planned)**:
-- `hcsa/mlx/attention.py`: add `sparse_gather_attention_active(...)` for active-row sparse gather.
-- `hcsa/integrations/glm_mlx.py`: route sparse `q_len < k_len` calls to active sparse gather; keep dense/wayfinder semantics unchanged.
-- `hcsa/integrations/qwen_mlx.py`: same sparse active routing as GLM.
+- `bna/mlx/attention.py`: add `sparse_gather_attention_active(...)` for active-row sparse gather.
+- `bna/integrations/glm_mlx.py`: route sparse `q_len < k_len` calls to active sparse gather; keep dense/wayfinder semantics unchanged.
+- `bna/integrations/qwen_mlx.py`: same sparse active routing as GLM.
 - `tests/mlx/test_glm_hamiltonian_e2e.py`: add sparse chunked-prefill+decode no-dense-fallback coverage.
 - `tests/mlx/test_qwen_sparse_decode.py`: add Qwen sparse chunked-prefill+decode no-dense-fallback coverage.
 
@@ -6060,9 +6060,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Status**: complete
 
 **Change set (actual)**:
-- `hcsa/mlx/attention.py:408` added `sparse_gather_attention_active(...)` for active sparse rows (`query_positions`) with causal + availability masking.
-- `hcsa/integrations/glm_mlx.py:356-390,547-723` introduced `sparse_active_mode` and routed sparse `q_len < k_len` through `sparse_gather_attention_active(...)` instead of dense fallback.
-- `hcsa/integrations/qwen_mlx.py:794-798,871-987` introduced `sparse_active_mode` and routed sparse `q_len < k_len` through `sparse_gather_attention_active(...)` instead of dense fallback.
+- `bna/mlx/attention.py:408` added `sparse_gather_attention_active(...)` for active sparse rows (`query_positions`) with causal + availability masking.
+- `bna/integrations/glm_mlx.py:356-390,547-723` introduced `sparse_active_mode` and routed sparse `q_len < k_len` through `sparse_gather_attention_active(...)` instead of dense fallback.
+- `bna/integrations/qwen_mlx.py:794-798,871-987` introduced `sparse_active_mode` and routed sparse `q_len < k_len` through `sparse_gather_attention_active(...)` instead of dense fallback.
 - `tests/mlx/test_glm_hamiltonian_e2e.py:262-295` added sparse chunked-prefill/decode assertions ensuring `path="sparse"` and `sparse_active_mode=true` for active calls.
 - `tests/mlx/test_qwen_sparse_decode.py:77-104` added Qwen sparse chunked-prefill/decode assertions ensuring `path="sparse"` and `sparse_active_mode=true` for active calls.
 
@@ -6351,7 +6351,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Routing permute active decode through `wayfinder_permute_window_attention_active_batched(...)` plus adaptive graph horizon reuse will reduce fallback share to `<=10%` and preserve decode throughput at `>=0.9x` dense in seed-42 gate runs, with non-inferior main/heldout quality.
 
 **Change set (planned)**:
-- `hcsa/integrations/qwen_mlx.py`
+- `bna/integrations/qwen_mlx.py`
 - `scripts/bench_qwen_consumer_mlx.py`
 - `tests/mlx/test_qwen_sparse_decode.py`
 - `tests/mlx/test_qwen_wayfinder_active_decode.py` (new)
@@ -6400,7 +6400,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 **Status**: complete
 
 **Change set (actual)**:
-- `hcsa/integrations/qwen_mlx.py`
+- `bna/integrations/qwen_mlx.py`
   - added active permute decode mode (`q_len < k_len`) routed through `wayfinder_permute_window_attention_active_batched(...)`
   - added `_active_graph_seq_len` + `_adaptive_graph_seq_len(...)`
   - added dense fallback observability fields: `dense_fallback_reason`, `graph_seq_len`, `active_dense_triggered`, `active_large_q_dense_triggered`, `adaptive_graph_reuse` with `cache_source="dense_fallback"`
@@ -6675,9 +6675,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   3. **Scale forwarding in multi-cycle average mode** (latent): `wayfinder_permute_window_attention_active_batched` didn't forward `scale=scale` in the 3D-perms recursive loop. Not in GLM hot path (num_cycles=1) but would break Qwen with multi-cycle.
   4. **Scale forwarding to Metal kernel wrapper** (latent): Added `scale` param to `wayfinder_fused_permute_window_attention_active_metal` with pre-scaling Q when scale differs from default.
 - **Files modified**:
-  - `hcsa/integrations/glm_mlx.py`: Reordered `_adaptive_graph_seq_len` to prioritize fast graph build over decode bucketing
-  - `hcsa/mlx/attention.py`: Added `scale=scale` to 3D-perms recursive call + Metal kernel call
-  - `hcsa/mlx/fused_attention.py`: Added `scale` parameter to Metal kernel wrapper with Q pre-scaling
+  - `bna/integrations/glm_mlx.py`: Reordered `_adaptive_graph_seq_len` to prioritize fast graph build over decode bucketing
+  - `bna/mlx/attention.py`: Added `scale=scale` to 3D-perms recursive call + Metal kernel call
+  - `bna/mlx/fused_attention.py`: Added `scale` parameter to Metal kernel wrapper with Q pre-scaling
 - **Smoke test** (greedy decode 50 tokens, "The capital of France is"):
   - Before fix: gibberish (`;\n;\n;\nphpiozu` etc)
   - After fix, window=64: **46/50 tokens match dense** ("Paris, and the capital of the United States is Washington, D.C...")
@@ -6702,7 +6702,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - Adding `_fast_graph_build` and prioritizing it in `_adaptive_graph_seq_len` should eliminate Tg> Tk decode oversizing in fast-permute mode without regressing existing tests.
 - Change set:
-  - `hcsa/integrations/qwen_mlx.py`
+  - `bna/integrations/qwen_mlx.py`
 - Commands executed:
   - `python3 -m pytest tests/ -x -q`
 - Metrics:
@@ -6955,7 +6955,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - The main bottleneck is routing, not sparse math: current trace shows ~98% dense fallback observations. Allowing active prefill to stay on permute path should reduce prefill latency materially at `T=65536`.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`: relax `force_dense_large_active` gating for fast-permute builds.
+  - `bna/integrations/glm_mlx.py`: relax `force_dense_large_active` gating for fast-permute builds.
 - Command (planned):
   - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_regression_wayfinder_trace_fix_active_largeq`
 - Controls:
@@ -6980,7 +6980,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - Current decode gating applies whenever `active_mode` is true, including prefill chunks (`q_len=4096`). Restricting this gate to `q_len<=2` should eliminate prefill dense fallback due decode policy, increasing non-fallback path usage and reducing prefill latency.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`: make `force_dense_wayfinder_decode` decode-only (`q_len<=2`).
+  - `bna/integrations/glm_mlx.py`: make `force_dense_wayfinder_decode` decode-only (`q_len<=2`).
 - Command (planned):
   - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_regression_wayfinder_trace_fix_decode_gate`
 - Controls:
@@ -7004,7 +7004,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - Current active gather path can exceed memory due explicit broadcast of gather indices across `dh`. Switching to `mx.take(..., axis=1)` with 1-D indices should reduce peak transient memory and allow 65k active prefill to complete.
 - Change set:
-  - `hcsa/mlx/fused_attention.py`: replace `mx.take_along_axis` + broadcasted index tensor with `mx.take` along axis 1 for K/V gathers.
+  - `bna/mlx/fused_attention.py`: replace `mx.take_along_axis` + broadcasted index tensor with `mx.take` along axis 1 for K/V gathers.
 - Command (planned):
   - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_regression_wayfinder_trace_fix_decode_gate_gathermem`
 - Controls:
@@ -7027,7 +7027,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - `_active_via_full_prefill` is over-expensive for large `Tq` because it runs full-length windowed attention over padded `Q`. Routing large active blocks to `_active_via_gather` should reduce prefill latency.
 - Change set:
-  - `hcsa/mlx/fused_attention.py`: restrict full-prefill active path to small `Tq` (`Tq <= query_chunk_size`); use gather path for larger active blocks.
+  - `bna/mlx/fused_attention.py`: restrict full-prefill active path to small `Tq` (`Tq <= query_chunk_size`); use gather path for larger active blocks.
 - Command (planned):
   - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 32 --repeats 1 --skip-multi-turn --skip-quality --hsa-trace --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_regression_wayfinder_trace_fix_largeq_gather_policy`
 - Controls:
@@ -7049,7 +7049,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - If dense-fallback overuse was the root cause, post-patch wayfinder should narrow or remove the 65k decode256 slowdown.
 - Change set:
-  - Existing in-tree patches in `hcsa/integrations/glm_mlx.py` and `hcsa/mlx/fused_attention.py`.
+  - Existing in-tree patches in `bna/integrations/glm_mlx.py` and `bna/mlx/fused_attention.py`.
 - Command (planned):
   - `python3 scripts/bench_glm_consumer_mlx.py --model-path mlx-community/GLM-4.7-Flash-4bit --mode wayfinder --seq-lens 65536 --decode-len 256 --repeats 1 --skip-multi-turn --skip-quality --out-dir benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260215_glm65k_decode256_wayfinder_postpatch`
 - Controls:
@@ -7316,7 +7316,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis:
   - The 8k slowdown is driven by over-fragmented active gather chunks; increasing `q_chunk` at 8k will reduce prefill overhead while preserving long-context behavior (`T>=32768` unchanged).
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`: `_effective_permute_chunking` now uses:
+  - `bna/integrations/glm_mlx.py`: `_effective_permute_chunking` now uses:
     - `T>=32768`: `q_chunk<=192` (unchanged long-context cap)
     - `8192<=T<32768`: `q_chunk<=384` (new 8k policy)
 - Commands (planned, sequential):
@@ -7510,11 +7510,11 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a scale-invariant crossover formula route 8k to dense fallback and eliminate the +18.89% regression?
 - Hypothesis: The crossover where sparse active attention breaks even with dense is `T_cross = W_eff²` where `W_eff = 2 * window + 1`. For `W=64`: `T_cross = 129² = 16641`. At `k_len=8192 < 16641`, dense should be faster; at `k_len=32768 > 16641`, sparse should win.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`:
+  - `bna/integrations/glm_mlx.py`:
     - `GLMWayfinderConfig.active_dense_threshold: Optional[int | str] = "auto"`
     - `GLMWayfinderAttention.__init__`: compute `(2 * cfg.window + 1) ** 2` when `"auto"`
     - `GLMWayfinderAttention.__call__`: remove `(not discovered_active_available)` guard; add `q_len > 2` to avoid affecting decode
-  - `hcsa/integrations/qwen_mlx.py`:
+  - `bna/integrations/qwen_mlx.py`:
     - Add same `active_dense_threshold` field to `QwenWayfinderConfig`
     - Add same handling in `QwenWayfinderAttention.__init__` and `__call__`
   - `tests/mlx/test_w2_crossover_gate.py`: new unit tests verifying formula and routing logic
@@ -7546,10 +7546,10 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Does the 8W active contiguous-path fix remove the 8k regression while preserving wins at 2k/32k/65k?
 - Hypothesis: Wayfinder becomes faster than dense at all tested scales for decode32 and decode256, with 8k regression eliminated.
 - Change set under test:
-  - `hcsa/mlx/fused_attention.py`: active contiguous gate `Tq <= query_chunk_size` -> `2 * Tq >= Tk`
-  - `hcsa/mlx/fused_attention.py`: active chunk formula `min(query_chunk_size, T)` -> `max(256, min(8 * window, T))`
-  - `hcsa/integrations/glm_mlx.py`: `active_dense_threshold` default `"auto"` -> `None`
-  - `hcsa/integrations/qwen_mlx.py`: `active_dense_threshold` default `"auto"` -> `None`
+  - `bna/mlx/fused_attention.py`: active contiguous gate `Tq <= query_chunk_size` -> `2 * Tq >= Tk`
+  - `bna/mlx/fused_attention.py`: active chunk formula `min(query_chunk_size, T)` -> `max(256, min(8 * window, T))`
+  - `bna/integrations/glm_mlx.py`: `active_dense_threshold` default `"auto"` -> `None`
+  - `bna/integrations/qwen_mlx.py`: `active_dense_threshold` default `"auto"` -> `None`
 - Baseline reference:
   - `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/20260216_glm_prefill_matrix_summary.json`
   - `README.md` GLM table (Feb 16, 2026 pre-fix values)
@@ -7607,7 +7607,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a continuous, non-piecewise chunk formula recover 65k performance while keeping the 8k fix?
 - Hypothesis: Replacing fixed `8W` contiguous chunking with a harmonic blend of `query_chunk_size` and `8W` will preserve 8k gains and reduce 65k regression.
 - Change set:
-  - `hcsa/mlx/fused_attention.py` `_active_via_full_prefill`: `q_chunk = harmonic_mean(min(query_chunk_size, T), min(8*window, T))`
+  - `bna/mlx/fused_attention.py` `_active_via_full_prefill`: `q_chunk = harmonic_mean(min(query_chunk_size, T), min(8*window, T))`
 - Baseline comparison targets:
   - 8k decode32: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/8w_fix_wayfinder32/results.json`
   - 65k decode32: `benchmarks/mlx/glm_4_7_flash_4bit_wayfinder/8w_fix_wayfinder32/results.json`
@@ -7649,7 +7649,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Does the current harmonic active-contiguous chunking policy generalize from larger/MoE models to a smaller non-MoE Nanbeige model under MLX Qwen-family consumer benchmarking?
 - Hypothesis: With `window=64`, `head_chunk_size=2`, and `query_chunk_size=384`, Wayfinder should beat dense at medium/long contexts and may extend successful max context relative to dense due to lower prefill memory/compute pressure.
 - Change set under test:
-  - `hcsa/integrations/qwen_mlx.py`: allow Wayfinder swap on Qwen-family attention modules that omit `q_norm`/`k_norm` by using identity fallback.
+  - `bna/integrations/qwen_mlx.py`: allow Wayfinder swap on Qwen-family attention modules that omit `q_norm`/`k_norm` by using identity fallback.
 - Baseline reference:
   - Dense companion runs for every tested context/decode setting in this campaign.
 - Commands:
@@ -8324,7 +8324,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: After explicit fallback-reason labeling, do wayfinder decode fallback traces remain OOM-safe and become fully informative (no `unspecified`) at both `T=8192` and `T=32768`?
 - Hypothesis: Adding `dense_fallback_reason` labels in GLM wayfinder dense-fallback paths will remove `unspecified` counts while preserving the prior OOM-safe memory profile and decode-fallback behavior.
 - Change set:
-  - `hcsa/integrations/glm_mlx.py`: emit explicit `dense_fallback_reason` for dense fallback routes (`active_dense_threshold`, `active_large_q`, `wayfinder_decode_dense`, `q_len_mismatch`).
+  - `bna/integrations/glm_mlx.py`: emit explicit `dense_fallback_reason` for dense fallback routes (`active_dense_threshold`, `active_large_q`, `wayfinder_decode_dense`, `q_len_mismatch`).
 - Baseline:
   - `benchmarks/mlx/first_release/EXP-20260219T032934Z-GLM47-FALSIFY-VALIDATE/falsification_summary.json`
 - Command queue (sequential, one process at a time):
@@ -8492,7 +8492,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can Qwen3-30B-A3B Wayfinder close the current gap to GLM-style behavior by using GLM-like decode policy while forcing model load from VIXinSSD HF cache?
 - Hypothesis: With `wayfinder_decode_backend=dense`, Qwen Wayfinder should materially improve decode/e2e versus active-permute decode while preserving prefill behavior and memory profile close to dense baseline.
 - Change set:
-  - `hcsa/integrations/qwen_mlx.py`: add `wayfinder_decode_backend` config + fallback reason wiring.
+  - `bna/integrations/qwen_mlx.py`: add `wayfinder_decode_backend` config + fallback reason wiring.
   - `scripts/bench_qwen_consumer_mlx.py`: add HF cache controls (`--hf-home`, `--hf-hub-cache`, `--hf-offline`) and decode-backend CLI.
   - `scripts/bench_qwen_wayfinder_mlx.py`: add HF cache controls and decode-backend pass-through.
   - `tests/mlx/test_qwen_wayfinder_active_decode.py`: add decode-dense fallback test.
@@ -8630,12 +8630,12 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: After upgrading `mlx-lm`, does Wayfinder now run on `Qwen3.5-35B-A3B` with the patched Qwen attention integration under single-process inference controls?
 - Hypothesis: Adding Qwen3.5-compatible head/scale attribute resolution plus gated-query handling (`query + gate`) will remove the prior `n_heads` error and allow sequential dense+wayfinder queue stages to execute.
 - Change set:
-  - `hcsa/integrations/qwen_mlx.py`
+  - `bna/integrations/qwen_mlx.py`
   - `scripts/bench_qwen_wayfinder_mlx.py`
 - Baseline:
   - prior failed stage: `benchmarks/mlx/qwen3_5_35b_a3b_wayfinder/EXP-20260225T171900Z-QWEN35A3B-CONSUMER-QUEUE/t2048/wayfinder/` (`AttributeError: Qwen3NextAttention.n_heads`)
 - Command queue:
-  - `python3 -m py_compile hcsa/integrations/qwen_mlx.py scripts/bench_qwen_wayfinder_mlx.py`
+  - `python3 -m py_compile bna/integrations/qwen_mlx.py scripts/bench_qwen_wayfinder_mlx.py`
   - `python3 -m pytest -q tests/mlx/test_qwen_wayfinder_active_decode.py`
   - `bash scripts/queue_qwen35_a3b_wayfinder.sh --execute --run-id EXP-20260225T182700Z-QWEN35A3B-COMPAT-RERUN`
 - Controls (held fixed):
@@ -9267,14 +9267,14 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Do engine-specific graph-cache trimming plus explicit long-context guardrails harden the Qwen CUDA path enough to safely re-run a bounded `T=16384` smoke after today’s reboot?
 - Hypothesis: Trimming the `flex` cache to the tensors it actually uses, capping retained graph-cache entries to `1`, defaulting the benchmark back to `forward_target=backbone`, and rejecting unsafe long `causal_lm` runs without opt-in should remove the main avoidable memory amplifiers while preserving the successful `16k` backbone path.
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
+  - `bna/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_permute.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
 - Baseline:
   - named baseline run path: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T175055Z-QWEN35CUDA-BACKBONE-16K32K.ndjson`
 - Command queue (sequential, one inference process at a time):
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 16384 --engine flex --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T180911Z-QWEN35CUDA-CACHE-GUARD-SMOKE.ndjson`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 16384 --engine flex --warmup 1 --repeats 1 --forward-target causal_lm --phases dense --skip-divergence --output /tmp/EXP-20260318T180911Z-should-not-run.ndjson`
 - Controls (held fixed):
@@ -9301,8 +9301,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: Do engine-specific graph-cache trimming plus explicit long-context guardrails harden the Qwen CUDA path enough to safely re-run a bounded `T=16384` smoke after today’s reboot?
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
+  - `bna/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_permute.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
   - `notes/LAB_NOTEBOOK.md`
@@ -9362,14 +9362,14 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can we make the Qwen3.5-9B CUDA path safer on this GB10 by refusing unsupported `flex` runs by default, while confirming the Wayfinder path still works on a low-token `batched` smoke and the current PyTorch test suite stays green?
 - Hypothesis: The current PyTorch build (`2.10.0+cu130`) advertises CUDA arch support only through `sm_120`, while the local GPU reports capability `12.1`; guarding explicit `flex` requests should prevent the driver-level illegal-instruction path we saw before the reboot, and a `batched` low-token smoke plus `tests/pytorch` should confirm that Wayfinder still functions on this machine without long-context inference.
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
 - Baseline:
   - crash evidence baseline: `journalctl -b -1 -k` entries from `2026-03-18 11:51:58 CDT` showing `NVRM Xid 13` on `python3`
   - latest successful smoke: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T180911Z-QWEN35CUDA-CACHE-GUARD-SMOKE.ndjson`
 - Command queue (sequential, one process at a time):
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
   - `.venv/bin/python -m pytest tests/pytorch -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 64 128 --engine batched --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T201433Z-QWEN35CUDA-LOWTOKEN-BATCHED.ndjson`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 64 --engine flex --warmup 1 --repeats 1 --forward-target backbone --phases dense --skip-divergence --output /tmp/EXP-20260318T201433Z-should-refuse.ndjson`
@@ -9398,7 +9398,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py`
   - `.venv/bin/python -m pytest tests/pytorch -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 64 128 --engine batched --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T201433Z-QWEN35CUDA-LOWTOKEN-BATCHED.ndjson`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 64 --engine flex --warmup 1 --repeats 1 --forward-target backbone --phases dense --skip-divergence --output /tmp/EXP-20260318T201433Z-should-refuse.ndjson`
@@ -9663,7 +9663,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - hardcoded bench swap site: `scripts/bench_qwen35_cuda_wayfinder.py`
   - serve default path: `scripts/serve_qwen_wayfinder_cuda.py`
 - Command queue (sequential):
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py hcsa/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py bna/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --help`
   - `.venv/bin/python scripts/serve_qwen_wayfinder_cuda.py --help`
   - `.venv/bin/python -m pytest tests/test_qwen_cuda_wayfinder_cli.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py -q`
@@ -9684,7 +9684,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py hcsa/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py bna/torch/attention_wayfinder_permute.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --help`
   - `.venv/bin/python scripts/serve_qwen_wayfinder_cuda.py --help`
   - `.venv/bin/python -m pytest tests/test_qwen_cuda_wayfinder_cli.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py -q`
@@ -10102,10 +10102,10 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can the Qwen CUDA sparse Wayfinder path be corrected so static graph work is shared once, graph metrics are no longer paid in the timed forward path, and sparse attention stops expanding grouped-query K/V into giant per-query-head gather tensors?
 - Hypothesis: Sharing static graph/cache objects across layers, computing graph metrics lazily outside the timed forward path, and switching the sparse path to grouped-query chunked execution should remove the `T=4096` pre-row stall, materially reduce sparse-path peak memory, and preserve small-shape correctness.
 - Change set:
-  - planned edits to `hcsa/integrations/qwen_torch.py`
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - planned edits to `scripts/bench_qwen35_cuda_wayfinder.py`
-  - planned edits to `hcsa/torch/__init__.py`
+  - planned edits to `bna/torch/__init__.py`
   - planned tests in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -10113,7 +10113,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - repeated per-layer graph-metric BFS diagnosis: `notes/LAB_NOTEBOOK.md`
   - interrupted `T=4096` sparse attempt: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T213717Z-QWEN35CUDA-SPARSE-4096.ndjson`
 - Command queue (sequential, no model inference):
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
 - Controls (held fixed):
   - no benchmark or generation inference in this experiment
@@ -10121,8 +10121,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - preserve current sparse Hamiltonian graph semantics (`path=sparse`, `strategy=random`, `window=64`, `landmark_stride=64`, `num_cycles=1`)
   - Bell Labs notebook discipline: PRERUN before edits, RESULT after validation
 - Expected artifacts:
-  - shared static graph/cache behavior in `hcsa/integrations/qwen_torch.py`
-  - grouped-query sparse attention path in `hcsa/torch/attention_wayfinder_sparse.py`
+  - shared static graph/cache behavior in `bna/integrations/qwen_torch.py`
+  - grouped-query sparse attention path in `bna/torch/attention_wayfinder_sparse.py`
   - benchmark cache-clear helper aware of shared caches
   - targeted PyTorch unit coverage for grouped-query sparse equivalence and shared graph metrics
 - Stop-gates:
@@ -10135,13 +10135,13 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
 - Artifacts:
-  - shared static sparse cache + lazy graph metrics: `hcsa/integrations/qwen_torch.py`
-  - grouped-query chunked sparse kernel: `hcsa/torch/attention_wayfinder_sparse.py`
+  - shared static sparse cache + lazy graph metrics: `bna/integrations/qwen_torch.py`
+  - grouped-query chunked sparse kernel: `bna/torch/attention_wayfinder_sparse.py`
   - benchmark lazy-metric/cache-clear wiring: `scripts/bench_qwen35_cuda_wayfinder.py`
-  - torch export surface: `hcsa/torch/__init__.py`
+  - torch export surface: `bna/torch/__init__.py`
   - targeted regression coverage: `tests/pytorch/test_torch_qwen_sparse_gqa.py`
 - Key outcomes:
   - static Qwen sparse caches are now shared across wrapped layers by cache key instead of rebuilt per layer
@@ -10164,8 +10164,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis: With shared static caches, lazy graph metrics, and grouped-query chunked sparse execution, the `T=4096` sparse run should emit a real Wayfinder row instead of stalling pre-row. Peak memory and wall time should improve materially versus the interrupted `EXP-20260318T213717Z-QWEN35CUDA-SPARSE-4096` attempt.
 - Change set:
   - measurement-only run on top of:
-    - `hcsa/integrations/qwen_torch.py`
-    - `hcsa/torch/attention_wayfinder_sparse.py`
+    - `bna/integrations/qwen_torch.py`
+    - `bna/torch/attention_wayfinder_sparse.py`
     - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -10305,18 +10305,18 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - crossover estimate from `T > kappa * (65 + T/128)`: `~32130` tokens
 - Dominant term to attack:
   - benchmark evidence: summed per-layer `attn_kernel_ms ~= 3907.52 ms` versus summed `graph_build_ms ~= 0.3043 ms` in the `T=4096` baseline artifact, so the Wayfinder/HCSA hot path is `~99.992%` kernel time after graph reuse
-  - code evidence: `hcsa/integrations/qwen_torch.py` routes the Qwen Wayfinder/HCSA prefill path into `sparse_row_attention_gqa_chunked(...)`
-  - code evidence: `hcsa/torch/attention_wayfinder_sparse.py` currently loops per KV head and per query chunk, then gathers both K and V from tensors expanded to `[B, groups, chunk, T, dh]`, repeating identical gather work across every query head in a KV group
+  - code evidence: `bna/integrations/qwen_torch.py` routes the Qwen Wayfinder/HCSA prefill path into `sparse_row_attention_gqa_chunked(...)`
+  - code evidence: `bna/torch/attention_wayfinder_sparse.py` currently loops per KV head and per query chunk, then gathers both K and V from tensors expanded to `[B, groups, chunk, T, dh]`, repeating identical gather work across every query head in a KV group
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
-  - possible small wiring-only edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
+  - possible small wiring-only edits to `bna/integrations/qwen_torch.py`
   - possible regression coverage updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
 - Baseline:
   - `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T222540Z-QWEN35CUDA-SPARSE-4096-NOMETRICS.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224711Z-QWEN35CUDA-HCSA-4096-KAPPA-GATHER.ndjson`
   - `journalctl -b -k --since '2026-03-18 17:49:06 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10344,12 +10344,12 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224711Z-QWEN35CUDA-HCSA-4096-KAPPA-GATHER.ndjson`
   - `journalctl -b -k --since '2026-03-18 17:55:00 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
 - Artifacts:
-  - kernel changes: `hcsa/torch/attention_wayfinder_sparse.py`
+  - kernel changes: `bna/torch/attention_wayfinder_sparse.py`
   - regression coverage: `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - guarded `T=4096` artifact: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224711Z-QWEN35CUDA-HCSA-4096-KAPPA-GATHER.ndjson`
 - Key outcomes:
@@ -10397,8 +10397,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis: For the current graph family, `D(8192) ~= 65 + 8192/128 = 129`. Holding `kappa ~= 65.69` predicts `L_hcsa / L_dense ~= kappa * D / T ~= 1.03`, so `T=8192` should be near the dense crossover and may beat dense if constant factors continue to improve. Memory should remain bounded and near-dense, active Wayfinder/HCSA layers should stay `8/8`, and any further `kappa` reduction would move crossover earlier than `~8772`.
 - Change set:
   - measurement-only run on top of:
-    - `hcsa/torch/attention_wayfinder_sparse.py`
-    - `hcsa/integrations/qwen_torch.py`
+    - `bna/torch/attention_wayfinder_sparse.py`
+    - `bna/integrations/qwen_torch.py`
     - `scripts/bench_qwen35_cuda_wayfinder.py`
     - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
@@ -10432,8 +10432,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can the Qwen CUDA Wayfinder/HCSA sparse kernel lower the current `kappa≈101.67` at `T=4096` by removing repeated grouped-query K/V gather traffic and using a more efficient score/value contraction, without changing the graph family or losing bounded memory?
 - Hypothesis: The graph/cache side is no longer the blocker. The dominant term is the grouped-query sparse realization still re-gathering identical KV-head neighborhoods once per query-group chunk and casting those temporaries to float in the hot loop. If the kernel gathers K/V once per KV head and query chunk, reuses those gathered tensors across all query heads in the group, and uses broadcast matmul/einsum-style contractions instead of per-group expanded gather tensors, then `attn_kernel_ms` should fall materially at fixed `D(T)`, Wayfinder `T=4096` latency should drop versus `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T222540Z-QWEN35CUDA-SPARSE-4096-NOMETRICS.ndjson`, and empirical `kappa` should move earlier than the current `~32.1k` crossover estimate.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
-  - possible wiring/config edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
+  - possible wiring/config edits to `bna/integrations/qwen_torch.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -10442,7 +10442,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - prior completed sparse step with graph metrics: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T213005Z-QWEN35CUDA-SPARSE-2048.ndjson`
   - current mathematical anchor at `T=4096`: `D(4096)≈97`, `kappa≈101.67`, crossover `≈32.1k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224737Z-QWEN35CUDA-SPARSE-4096-KAPPA.ndjson`
   - `journalctl -b -k --since '2026-03-18 17:51:13' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10453,8 +10453,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - compare against the named `T=4096` baseline artifact above and recompute `D(T)`, `kappa`, and implied crossover from the new result
   - Bell Labs notebook discipline: PRERUN before edits, RESULT after validation/run
 - Expected artifacts:
-  - reduced grouped-query sparse gather/materialization overhead in `hcsa/torch/attention_wayfinder_sparse.py`
-  - preserved sparse-path correctness and cache semantics in `hcsa/integrations/qwen_torch.py`
+  - reduced grouped-query sparse gather/materialization overhead in `bna/torch/attention_wayfinder_sparse.py`
+  - preserved sparse-path correctness and cache semantics in `bna/integrations/qwen_torch.py`
   - targeted regression coverage for the new sparse grouped-query realization
   - guarded `T=4096` artifact: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224737Z-QWEN35CUDA-SPARSE-4096-KAPPA.ndjson`
 - Stop-gates:
@@ -10471,12 +10471,12 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224737Z-QWEN35CUDA-SPARSE-4096-KAPPA.ndjson`
   - `journalctl -b -k --since '2026-03-18 17:51:13' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
 - Artifacts:
-  - optimized sparse grouped-query realization: `hcsa/torch/attention_wayfinder_sparse.py`
+  - optimized sparse grouped-query realization: `bna/torch/attention_wayfinder_sparse.py`
   - guarded `4096` benchmark artifact: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T224737Z-QWEN35CUDA-SPARSE-4096-KAPPA.ndjson`
 - Key outcomes:
   - the sparse grouped-query path now gathers each KV-head neighborhood once per chunk and reuses it across the whole query-head group instead of re-gathering identical neighborhoods per query head
@@ -10522,8 +10522,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Hypothesis: `T=8192` is still below the current crossover estimate, so Wayfinder may remain slower than dense, but the dense gap should be much smaller than under the old `kappa≈101.67` regime. The main win condition for this rung is that memory remains bounded, `8/8` Wayfinder layers stay active, and empirical `kappa` stays at or below the new `~77.57` anchor so the next `16384` rung is mathematically credible.
 - Change set:
   - measurement-only run on top of:
-    - `hcsa/torch/attention_wayfinder_sparse.py`
-    - `hcsa/integrations/qwen_torch.py`
+    - `bna/torch/attention_wayfinder_sparse.py`
+    - `bna/integrations/qwen_torch.py`
     - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -10595,8 +10595,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can adaptive sparse query chunking plus chunk-level observability lower the Qwen CUDA Wayfinder/HCSA kernel constant factor at `T=8192` without giving back the `4096` gain or violating bounded-memory behavior?
 - Hypothesis: The current Qwen sparse path still runs with a fixed `query_chunk_size=256` and `kv_head_chunk_size=4`, and it gathers K then V separately for every query chunk. At `T=8192`, that means `32` query chunks per active layer even though peak memory stayed close to dense (`18.49 GB` vs `18.38 GB`). An adaptive larger query chunk for long prefill, chosen from a bounded temporary-byte budget and surfaced in the profile, should reduce chunk-loop launch overhead while keeping the gather/materialization footprint bounded. Win condition: hold or improve `4096` while materially reducing `8192` `attn_kernel_ms`, empirical `kappa`, and crossover lateness.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
-  - planned edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/integrations/qwen_torch.py`
   - planned edits to `scripts/bench_qwen35_cuda_wayfinder.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
@@ -10608,7 +10608,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
     - `T=4096`: `D≈97`, `kappa≈77.57`, crossover `≈12.8k`
     - `T=8192`: `D≈129`, `kappa≈116.10`, crossover `≈81.1k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`
   - `journalctl -b -k --since '2026-03-18 18:11:05' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10618,7 +10618,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - no graph-family change in this experiment; only sparse-kernel chunk realization and observability work
   - compare the new `4096` and `8192` rows against the named baseline artifacts above and recompute `D(T)`, `kappa`, and implied crossover from the new results
 - Expected artifacts:
-  - adaptive sparse chunk sizing / chunk-profile fields in `hcsa/torch/attention_wayfinder_sparse.py` and `hcsa/integrations/qwen_torch.py`
+  - adaptive sparse chunk sizing / chunk-profile fields in `bna/torch/attention_wayfinder_sparse.py` and `bna/integrations/qwen_torch.py`
   - benchmark artifact with refreshed `4096` and `8192` rows: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`
 - Stop-gates:
   - syntax error in edited files
@@ -10635,14 +10635,14 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-18`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`
   - `journalctl -b -k --since '2026-03-18 18:11:05' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
 - Artifacts:
   - adaptive chunk policy and profile plumbing:
-    - `hcsa/torch/attention_wayfinder_sparse.py`
-    - `hcsa/integrations/qwen_torch.py`
+    - `bna/torch/attention_wayfinder_sparse.py`
+    - `bna/integrations/qwen_torch.py`
     - `scripts/bench_qwen35_cuda_wayfinder.py`
     - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
     - `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -10721,7 +10721,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a query-chunk-first Wayfinder/HCSA auto chunk objective lower long-context `kappa` enough to reopen the ladder toward `16k`, without regressing the current `4096` gain or violating bounded-memory behavior?
 - Hypothesis: The current auto chunk resolver is minimizing `num_query_chunks * num_head_blocks` using the padded neighborhood width `d = neigh.shape[-1]`, which overweights head-block consolidation and underweights the serial query-chunk loop that actually pays the repeated gather / score / softmax / value-materialization overhead. That is why the current `8192` checkpoint resolves to `query_chunk_size=192`, `kv_head_chunk_size=4`, `43` query chunks, `1` head block even though a query-first objective under the same `160 MiB` budget would prefer shapes like `768 x 1` at `8192`. If the auto sort is changed to minimize query chunks first, then head blocks, then secondary tile shape tie-breaks, Wayfinder/HCSA should keep the `4096` win, materially reduce `8192` `attn_kernel_ms` and `kappa`, and make a guarded `16384` rung mathematically credible.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - possible integration / CLI regression updates in:
     - `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -10746,7 +10746,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - under a representative long-context padded width (`d_pad≈193` at `8192`), the current objective prefers `192 x 4` (`43 x 1`) while a query-first objective would prefer `768 x 1` (`11 x 4`) under the same `160 MiB` budget
   - under a representative `16384` padded width (`d_pad≈321`), the current objective would prefer `96 x 4` (`171 x 1`) while a query-first objective would prefer `384 x 1` (`43 x 4`) under the same budget
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T040003Z-QWEN35CUDA-SPARSE-QCHUNK-FIRST.ndjson`
   - `journalctl -b -k --since '2026-03-18 22:00:03 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10757,7 +10757,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - compare the new `4096` and `8192` rows against the named adaptive-chunk baseline artifact above
   - recompute `D(T)`, empirical `kappa`, and implied crossover at each checkpoint before any `16384` continuation
 - Expected artifacts:
-  - query-chunk-first auto resolution in `hcsa/torch/attention_wayfinder_sparse.py`
+  - query-chunk-first auto resolution in `bna/torch/attention_wayfinder_sparse.py`
   - regression coverage for the new selection policy
   - guarded `4096/8192` artifact: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T040003Z-QWEN35CUDA-SPARSE-QCHUNK-FIRST.ndjson`
 - Stop-gates:
@@ -10775,7 +10775,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-19`
 - Question / hypothesis: copied from PRERUN.
 - Commands:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T040003Z-QWEN35CUDA-SPARSE-QCHUNK-FIRST.ndjson`
   - `journalctl -b -k --since '2026-03-18 22:00:03 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10817,10 +10817,10 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 ### EXP-20260319T035802Z-QWEN35CUDA-SPARSE-QK-DOWNCAST-16K-PRERUN
 - Date (UTC): `2026-03-19`
 - Question: Can downcasting Wayfinder/HCSA sparse Q/K compute states back to the model compute dtype before the sparse kernel lower the long-context constant factor enough to recover the `8192` stop-gate and make the `16384` rung mathematically credible?
-- Hypothesis: The current `8192` stop is being driven by per-tile byte cost, not by the existence of variable chunking itself. In `hcsa/integrations/qwen_torch.py`, Q/K are normalized and then passed through `apply_rotary_pos_emb` before entering the sparse kernel. That path can promote Q/K into a wider dtype than the model compute path, which in turn makes the current chunk-budget model choose `query_chunk_size=192`, `kv_head_chunk_size=4`, and `43` query chunks at `T=8192` (`benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`). If the sparse path explicitly casts Wayfinder/HCSA Q/K/V back to the model compute dtype before the grouped-query sparse kernel, the temporary K/V gather bytes should drop, larger chunk shapes should fit under the same budget, tile count should fall at `8192+`, and empirical `kappa` should improve enough to reopen the path to `16384`.
+- Hypothesis: The current `8192` stop is being driven by per-tile byte cost, not by the existence of variable chunking itself. In `bna/integrations/qwen_torch.py`, Q/K are normalized and then passed through `apply_rotary_pos_emb` before entering the sparse kernel. That path can promote Q/K into a wider dtype than the model compute path, which in turn makes the current chunk-budget model choose `query_chunk_size=192`, `kv_head_chunk_size=4`, and `43` query chunks at `T=8192` (`benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`). If the sparse path explicitly casts Wayfinder/HCSA Q/K/V back to the model compute dtype before the grouped-query sparse kernel, the temporary K/V gather bytes should drop, larger chunk shapes should fit under the same budget, tile count should fall at `8192+`, and empirical `kappa` should improve enough to reopen the path to `16384`.
 - Change set:
-  - planned edits to `hcsa/integrations/qwen_torch.py`
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - possible benchmark/profile wiring updates in `scripts/bench_qwen35_cuda_wayfinder.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
@@ -10831,7 +10831,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
     - `T=4096`: `D≈97`, `kappa≈65.93`, crossover `≈8.8k`
     - `T=8192`: `D≈129`, `kappa≈116.19`, crossover `≈81.8k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T035802Z-QWEN35CUDA-SPARSE-QK-DOWNCAST-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 22:58:02' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10876,7 +10876,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
     - `T=4096`: `D≈97`, `kappa≈65.93`, crossover `≈8.8k`
     - `T=8192`: `D≈129`, `kappa≈116.19`, crossover `≈81.8k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T041705Z-QWEN35CUDA-BACKBONE-RESIDENCY-GUARD-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 23:17:05 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -10980,7 +10980,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
     - `T=4096`: dense `2141.41 ms`, Wayfinder/HCSA `3343.39 ms`, `D≈97`, `kappa≈65.93`, crossover `≈8.8k`
     - `T=8192`: dense `4349.72 ms`, Wayfinder/HCSA `7958.37 ms`, `D≈129`, `kappa≈116.19`, crossover `≈81.8k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T041640Z-QWEN35CUDA-BACKBONE-RESIDENCY-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 23:16:40 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11165,14 +11165,14 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 ### EXP-20260319T045153Z-QWEN35CUDA-SPARSE-STREAMED-DEGREE-PRERUN
 - Date (UTC): `2026-03-19`
 - Question: Can a streamed-neighbor Wayfinder/HCSA fast path lower long-context `attn_kernel_ms` and reopen the `16k` ladder by eliminating the current full-neighborhood K/V and weight materialization hot spots?
-- Hypothesis: The current torch Wayfinder/HCSA kernel still pays a large constant factor because `sparse_row_attention_gqa_chunked()` in `hcsa/torch/attention_wayfinder_sparse.py` gathers full `K_g` and full `V_g` tensors for every query chunk over the entire neighborhood degree, then materializes a full `[groups, query_chunk, degree]` weight tensor before the V contraction. That makes the realized cost scale with large gather/materialization traffic, not just useful graph degree. The older Qwen3.5 custom op in `/home/hmbown/Projects/qwen/wayfinder-qwen3.5-9b/patches/sparse_attn_impl.cpp` streamed neighbor rows, computed softmax over the streamed logits, and accumulated V directly without building full gathered K/V blocks. If the torch path adds a no-weights fast path that streams degree blocks with online softmax accumulation, and the auto chunk resolver budgets against streamed degree blocks instead of full degree, then:
+- Hypothesis: The current torch Wayfinder/HCSA kernel still pays a large constant factor because `sparse_row_attention_gqa_chunked()` in `bna/torch/attention_wayfinder_sparse.py` gathers full `K_g` and full `V_g` tensors for every query chunk over the entire neighborhood degree, then materializes a full `[groups, query_chunk, degree]` weight tensor before the V contraction. That makes the realized cost scale with large gather/materialization traffic, not just useful graph degree. The older Qwen3.5 custom op in `/home/hmbown/Projects/qwen/wayfinder-qwen3.5-9b/patches/sparse_attn_impl.cpp` streamed neighbor rows, computed softmax over the streamed logits, and accumulated V directly without building full gathered K/V blocks. If the torch path adds a no-weights fast path that streams degree blocks with online softmax accumulation, and the auto chunk resolver budgets against streamed degree blocks instead of full degree, then:
   - per-tile temporary bytes should drop materially
   - the resolver should be able to choose less pathological long-context chunking
   - Wayfinder/HCSA `attn_kernel_ms` should fall at `4096` and `8192`
   - empirical `kappa` should improve versus the current tie-break anchor, reopening `16384` only if the math really moves
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
-  - planned wiring edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
+  - planned wiring edits to `bna/integrations/qwen_torch.py`
   - planned wiring edits to `scripts/bench_qwen35_cuda_wayfinder.py`
   - planned regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - planned regression updates in `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11183,7 +11183,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - contingent `16384` comparison point: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T041640Z-QWEN35CUDA-BACKBONE-RESIDENCY-16384.ndjson`
   - older adaptive-chunk anchor for context: `benchmarks/cuda/qwen35_wayfinder/EXP-20260318T231105Z-QWEN35CUDA-SPARSE-ADAPTIVE-CHUNK.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T045153Z-QWEN35CUDA-SPARSE-STREAMED-DEGREE-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 23:51:53 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11215,9 +11215,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 ### EXP-20260319T045110Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-GATHER-16K-PRERUN
 - Date (UTC): `2026-03-19`
 - Question: Can the Wayfinder/HCSA grouped-query kernel lower long-context `attn_kernel_ms` enough to make `8192` meaningfully better than the current anchor and reopen a credible `16384` rung by fixing two kernel-side constant factors: an over-conservative chunk-budget model and an inefficient per-chunk gather path?
-- Hypothesis: In `hcsa/torch/attention_wayfinder_sparse.py`, the current auto chunk budget counts K and V gather bytes simultaneously even though the kernel gathers K, computes scores/weights, deletes K, and only then gathers V. That overstates peak live bytes and forces too many query chunks at long prefill. Under the current controls (`window=64`, `landmark_stride=64`, `num_cycles=1`, `160 MiB` temp budget), a peak-live-byte model should allow much larger query chunks, approximately moving from `768 -> 2048` at `T=8192` and from `384 -> 1536` at `T=16384`, which directly lowers the serial query-chunk loop count. Separately, `_gather_kv_head_block_chunk` currently expands the full source tensor across the query-chunk axis for every K and V gather. Replacing that with a flattened batch-head gather should reduce repeated transport/materialization overhead per chunk. Together these should lower the realized constant factor `b`, improve `kappa` at `8192`, and give `16384` a real chance under the same graph family.
+- Hypothesis: In `bna/torch/attention_wayfinder_sparse.py`, the current auto chunk budget counts K and V gather bytes simultaneously even though the kernel gathers K, computes scores/weights, deletes K, and only then gathers V. That overstates peak live bytes and forces too many query chunks at long prefill. Under the current controls (`window=64`, `landmark_stride=64`, `num_cycles=1`, `160 MiB` temp budget), a peak-live-byte model should allow much larger query chunks, approximately moving from `768 -> 2048` at `T=8192` and from `384 -> 1536` at `T=16384`, which directly lowers the serial query-chunk loop count. Separately, `_gather_kv_head_block_chunk` currently expands the full source tensor across the query-chunk axis for every K and V gather. Replacing that with a flattened batch-head gather should reduce repeated transport/materialization overhead per chunk. Together these should lower the realized constant factor `b`, improve `kappa` at `8192`, and give `16384` a real chance under the same graph family.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11230,7 +11230,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
     - `T=4096`: Wayfinder/HCSA `4103.43 ms`, `998.2 tok/s`, `17.57 GB`, `D≈97`, `kappa≈64.26`, crossover `≈8.4k`
     - `T=8192`: Wayfinder/HCSA `9918.92 ms`, `825.9 tok/s`, `18.49 GB`, `D≈129`, `kappa≈116.43`, crossover `≈83.7k`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T045110Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-GATHER-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 23:51:10 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11264,7 +11264,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can the Wayfinder/HCSA grouped-query kernel lower long-context `attn_kernel_ms` enough to make `8192` meaningfully better than the current anchor and reopen a credible `16384` rung by fixing an over-conservative chunk-budget model and an inefficient per-chunk gather path?
 - Hypothesis recap: A peak-live-byte chunk budget should reduce serial query chunks at long prefill, and a flattened batch-head gather should lower per-chunk transport overhead.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11313,14 +11313,14 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If we keep the peak-live-byte chunk budget but revert the flattened batch-head gather path, does the Wayfinder/HCSA kernel recover the chunk-count win without paying the new per-chunk gather penalty, and is that enough to reopen `16384`?
 - Hypothesis: The failed combo experiment showed the tile math was directionally right but the new gather path was not. The larger query chunks (`2048` at `4096`, `1536` at `8192`) should reduce serial loop count, but the advanced-index gather likely regressed transport overhead versus the original `torch.gather` path. Reverting only `_gather_kv_head_block_chunk` while preserving the peak-live-byte budget should keep the reduced query-chunk counts and lower `attn_kernel_ms` enough to improve `8192` `kappa` versus the current anchor `~116.43`.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
 - Baselines:
   - current tie-break anchor: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T043357Z-QWEN35CUDA-BACKBONE-RESIDENCY-TIEBREAK-4096-8192.ndjson`
   - failed combo patch: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T045110Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-GATHER-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T045850Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-ONLY-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-18 23:58:50 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11350,7 +11350,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If auto mode keeps the peak-live-byte chunk budget and query-first sorting but stops streaming degree blocks by default, does the Wayfinder/HCSA kernel recover enough realized efficiency to lower `8192` `kappa` and reopen a credible `16384` rung?
 - Hypothesis: The streamed-degree experiment proved the live-set math can open `1` query chunk at long prefill, but it also showed that serial degree-block gather plus online-softmax loops in Python/Torch raised the realized constant factor enough to make `kappa` worse than the repaired-loader anchor and even push it above `128`. The next minimal correction is to preserve the improved peak-live-byte budget and query-first chunk selection while reverting default execution to the old full-degree score/softmax/V contraction whenever auto mode is used. That should keep larger query chunks than the original tie-break anchor, remove the extra serial degree-block loop, lower `attn_kernel_ms`, and improve `8192` `kappa` versus both the tie-break anchor (`~116.43`) and the failed streamed-degree run (`~159.54`).
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - planned regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11358,7 +11358,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - repaired-loader tie-break anchor: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T043357Z-QWEN35CUDA-BACKBONE-RESIDENCY-TIEBREAK-4096-8192.ndjson`
   - failed streamed-degree run: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T045153Z-QWEN35CUDA-SPARSE-STREAMED-DEGREE-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T051254Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-FULLDEGREE-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-19 00:12:54 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11388,8 +11388,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a streamed-neighbor Wayfinder/HCSA fast path lower long-context `attn_kernel_ms` and reopen the `16k` ladder by eliminating the current full-neighborhood K/V and weight materialization hot spots?
 - Hypothesis recap: A no-weights streamed degree-block path with online softmax accumulation should lower temporary materialization, permit less pathological long-context chunking, and improve `kappa` versus the repaired-loader tie-break anchor.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11440,8 +11440,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If auto mode keeps the peak-live-byte chunk budget and query-first sorting but stops streaming degree blocks by default, does the Wayfinder/HCSA kernel recover enough realized efficiency to lower `8192` `kappa` and reopen a credible `16384` rung?
 - Hypothesis recap: Preserving the improved peak-live-byte budget and query-first chunk selection while reverting default execution to the old full-degree score/softmax/V contraction should keep larger query chunks than the original tie-break anchor, remove the extra serial degree-block loop, lower `attn_kernel_ms`, and improve `8192` `kappa`.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11493,7 +11493,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If the remaining hot spot is the current 5D query-axis-expanded gather in `_gather_kv_head_block_chunk`, can a flatter 3D gather over `[B*H, T, dh]` lower per-chunk transport overhead enough to improve `8192` `kappa` without reintroducing streamed degree blocks?
 - Hypothesis: The full-degree branch proved the larger query chunks are directionally right and recovered absolute Wayfinder/HCSA latency, but `kappa` still missed because the kernel still pays two expensive full-degree gathers whose current implementation expands the source across the query-chunk axis for every K and V block. Replacing that helper with a flatter 3D `torch.gather` path that keeps the peak-live-byte budget and full-degree auto mode intact should reduce per-chunk gather overhead, lower `attn_kernel_ms`, and improve `8192` `kappa` versus both the repaired-loader anchor (`~116.43`) and the just-completed full-degree branch (`~118.79`).
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11501,7 +11501,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - repaired-loader tie-break anchor: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T043357Z-QWEN35CUDA-BACKBONE-RESIDENCY-TIEBREAK-4096-8192.ndjson`
   - latest full-degree branch: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T051254Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-FULLDEGREE-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T054523Z-QWEN35CUDA-KERNEL-FLAT3D-GATHER-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-19 00:46:13 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11532,7 +11532,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If the remaining hot spot is the current 5D query-axis-expanded gather in `_gather_kv_head_block_chunk`, can a flatter 3D gather over `[B*H, T, dh]` lower per-chunk transport overhead enough to improve `8192` `kappa` without reintroducing streamed degree blocks?
 - Hypothesis recap: Replacing the query-axis-expanded gather helper with a flatter 3D `torch.gather` path should reduce per-chunk gather overhead while keeping the same peak-live-byte budget and full-degree auto mode.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11582,7 +11582,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If gather-helper changes are no longer moving `8192`, can a batched SDPA contraction over fixed-degree neighborhoods lower the remaining `scores -> softmax -> V` constant factor enough to improve `kappa`?
 - Hypothesis: The flat3D-gather result showed the helper itself is not the dominant cost. The remaining full-degree path still materializes explicit score and weight tensors before the V contraction. Reshaping each `(batch, kv_head, token)` neighborhood into an SDPA batch with `enable_gqa=True` and a broadcast float mask/bias should let PyTorch fuse score, normalization, and V accumulation, remove explicit weight tensor materialization from the benchmark path, and lower `attn_kernel_ms` enough to improve `8192` `kappa` versus the repaired-loader anchor (`~116.43`), the latest full-degree branch (`~118.79`), and the flat3D-gather branch (`~118.11`).
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11591,7 +11591,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - latest full-degree branch: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T051254Z-QWEN35CUDA-KERNEL-PEAK-BUDGET-FULLDEGREE-4096-8192.ndjson`
   - flat3D-gather branch: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T054523Z-QWEN35CUDA-KERNEL-FLAT3D-GATHER-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T055559Z-QWEN35CUDA-KERNEL-SDPA-CONTRACTION-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-19 00:55:59 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11624,8 +11624,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: If gather-helper changes are no longer moving `8192`, can a batched SDPA contraction over fixed-degree neighborhoods lower the remaining `scores -> softmax -> V` constant factor enough to improve `kappa`?
 - Hypothesis recap: Replacing the explicit score/softmax/V contraction with an SDPA-backed full-degree contraction should remove explicit weight materialization and lower the realized Wayfinder/HCSA kernel constant.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
+  - `bna/integrations/qwen_torch.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -11672,7 +11672,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Are the current sparse profile fields understating the realized Wayfinder/HCSA contraction cost on CUDA and dropping backend attribution, making the SDPA branch and future kernel comparisons uninterpretable?
 - Hypothesis: The current sparse `attn_kernel_ms` field is a host-side async timer, so it can undercount queued CUDA work, and the benchmark collector currently drops `sparse_contraction_backend`. If the sparse path records CUDA events around the realized contraction and the benchmark artifact preserves the backend field, the rerun should expose the true sparse contraction backend (`sdpa` on the current branch) and a materially larger, more believable sparse contraction timing signal without changing the graph family. This step attacks measurement error in the realized-kernel term `b` so the next fused-contract branch can be judged honestly against `kappa`.
 - Change set:
-  - planned edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/integrations/qwen_torch.py`
   - planned edits to `scripts/bench_qwen35_cuda_wayfinder.py`
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - possible regression updates in `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11682,7 +11682,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - repaired-loader tie-break anchor: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T043357Z-QWEN35CUDA-BACKBONE-RESIDENCY-TIEBREAK-4096-8192.ndjson`
   - dead SDPA branch with dishonest profile attribution: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T055559Z-QWEN35CUDA-KERNEL-SDPA-CONTRACTION-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T064808Z-QWEN35CUDA-KERNEL-PROFILE-ATTRIBUTION-HONESTY-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-19 01:48:08 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11710,7 +11710,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Are the current sparse profile fields understating the realized Wayfinder/HCSA contraction cost on CUDA and dropping backend attribution, making the SDPA branch and future kernel comparisons uninterpretable?
 - Hypothesis recap: CUDA-event timing around the sparse contraction plus preserved backend attribution should expose the real contraction cost on the current SDPA branch without changing the graph family.
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11764,8 +11764,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a benchmark-only fused fixed-degree Wayfinder/HCSA contraction lower the realized sparse kernel constant enough to improve `8192` `kappa` by removing explicit neighborhood realization from the contraction path?
 - Hypothesis: The repaired observability run confirmed that the dominant `b` term is the realized SDPA contraction over materialized neighborhoods, not graph build or loader residency. A benchmark-only fused fixed-degree no-weights backend over `q`, base `k`, base `v`, `neigh_idx`, `neigh_mask`, `gqa_ratio`, and fixed padded `D`, with online softmax and direct `V` accumulation, should attack the dominant constant factor directly. The smallest honest step is to add this backend behind `sparse_row_attention_gqa_chunked` for `return_weights=False` while leaving the reference path untouched; if it works, `8192` `kappa` should improve versus the honest anchor `~116.43` and the repaired-observability SDPA rerun `~177.32`.
 - Change set:
-  - planned edits to `hcsa/torch/attention_wayfinder_sparse.py`
-  - planned edits to `hcsa/integrations/qwen_torch.py`
+  - planned edits to `bna/torch/attention_wayfinder_sparse.py`
+  - planned edits to `bna/integrations/qwen_torch.py`
   - possible new kernel helper files if the fused backend needs a Triton entry point
   - possible regression updates in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - possible regression updates in `tests/test_qwen_cuda_wayfinder_cli.py`
@@ -11775,7 +11775,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - repaired-loader tie-break anchor: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T043357Z-QWEN35CUDA-BACKBONE-RESIDENCY-TIEBREAK-4096-8192.ndjson`
   - observability-repaired SDPA branch: `benchmarks/cuda/qwen35_wayfinder/EXP-20260319T064808Z-QWEN35CUDA-KERNEL-PROFILE-ATTRIBUTION-HONESTY-4096-8192.ndjson`
 - Command queue:
-  - `.venv/bin/python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `.venv/bin/python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `.venv/bin/python -m pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/pytorch/test_torch_causality.py tests/pytorch/test_torch_dense_limit_equivalence.py tests/pytorch/test_torch_matches_mlx_reference_small.py tests/test_qwen_cuda_wayfinder_cli.py -q`
   - `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 4096 8192 --path sparse --strategy random --engine auto --warmup 1 --repeats 1 --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/EXP-20260319T070017Z-QWEN35CUDA-FUSED-FIXEDDEGREE-NOWEIGHTS-4096-8192.ndjson`
   - `journalctl -b -k --since '2026-03-19 02:00:17 CDT' | rg -n 'NVRM|Xid|Out of memory|hung task|BUG:|Call Trace'`
@@ -11808,8 +11808,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a benchmark-only fused fixed-degree Wayfinder/HCSA contraction lower the realized sparse kernel constant enough to improve `8192` `kappa` by removing explicit neighborhood realization from the contraction path?
 - Hypothesis recap: A Triton-based fused fixed-degree no-weights backend over `q`, base `k`, base `v`, `neigh_idx`, `neigh_mask`, `gqa_ratio`, and fixed padded `D`, with online softmax and direct `V` accumulation, should attack the dominant constant factor directly by eliminating all gathered K/V materialization in global memory.
 - Change set:
-  - new file `hcsa/torch/triton_fused_sparse_attn.py` — Triton kernel with fused gather+score+online-softmax+V-accumulation
-  - `hcsa/torch/attention_wayfinder_sparse.py` — added `triton_fused` contraction backend, auto-selected when Triton is available and `return_weights=False` on CUDA
+  - new file `bna/torch/triton_fused_sparse_attn.py` — Triton kernel with fused gather+score+online-softmax+V-accumulation
+  - `bna/torch/attention_wayfinder_sparse.py` — added `triton_fused` contraction backend, auto-selected when Triton is available and `return_weights=False` on CUDA
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py` — added `test_sparse_gqa_triton_fused_matches_repeated_kv_reference`, updated backend assertion
   - `notes/LAB_NOTEBOOK.md`
   - `notes/experiments.ndjson`
@@ -12247,7 +12247,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 ### EXP-20260319T184405Z-QWEN35-SPARSE-TRACE-DUMPER-PRERUN
 - Date (UTC): `2026-03-19`
 - Question: Can we dump a replayable sparse Qwen 3.5 attention trace from the live Wayfinder Torch integration and feed it directly into the `triton-rlm` sparse GQA task?
-- Hypothesis: Adding a sparse-trace dump hook to `hcsa.integrations.qwen_torch` plus trace-aware loading in `triton_rlm.tasks.wayfinder_sparse_gqa` should let us 1) capture at least one real layer-0 sparse trace from a small Qwen 3.5 backbone run and 2) replay that trace through the static `triton-rlm` harness with a valid summary artifact.
+- Hypothesis: Adding a sparse-trace dump hook to `bna.integrations.qwen_torch` plus trace-aware loading in `triton_rlm.tasks.wayfinder_sparse_gqa` should let us 1) capture at least one real layer-0 sparse trace from a small Qwen 3.5 backbone run and 2) replay that trace through the static `triton-rlm` harness with a valid summary artifact.
 - Change set:
   - `/home/hmbown/Projects/Wayfinder/hcsa/torch/attention_wayfinder_sparse.py`
   - `/home/hmbown/Projects/Wayfinder/hcsa/integrations/qwen_torch.py`
@@ -12407,7 +12407,7 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Does fixing the Triton fused sparse GQA kernel's all-masked-row normalization make the static replay pass against real Qwen 3.5 traces?
 - Hypothesis: Replacing `acc / max(l_i, 1e-6)` with `where(l_i > 0, acc / l_i, 0)` should zero output for fully-masked rows, matching the reference function's behavior. The static replay should then pass with `ok: true` and `max_abs_error < 0.02`.
 - Change set:
-  - `hcsa/torch/triton_fused_sparse_attn.py` line 193: `acc = tl.where(l_i > 0.0, acc / l_i, 0.0)`
+  - `bna/torch/triton_fused_sparse_attn.py` line 193: `acc = tl.where(l_i > 0.0, acc / l_i, 0.0)`
   - `triton-rlm/.../wayfinder_sparse_gqa_candidate.py` line 150: same fix
 - Baseline: `EXP-20260319T183847Z-QWEN35-SPARSE-TRACE-BRIDGE-RESULT` (max_abs=0.09375, ok=false)
 - Command:
@@ -12647,9 +12647,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Can a first block-Hamiltonian prototype be wired into the Torch/Qwen path using `flex_attention` block masks, so the repo can execute a contiguous-tile validation path instead of the existing gather-based sparse path?
 - Hypothesis: Replacing per-token `neigh_idx` gathers with a block-level Hamiltonian mask over `block_size=128` should be implementable with the existing flex-attention path and should validate cleanly under targeted compile/tests without touching the gather kernel.
 - Change set:
-  - `hcsa/cycles.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/cycles.py`
+  - `bna/torch/attention_wayfinder_permute.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
@@ -12660,9 +12660,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Command:
   ```bash
   .venv/bin/python -m py_compile \
-    hcsa/cycles.py \
-    hcsa/torch/attention_wayfinder_permute.py \
-    hcsa/integrations/qwen_torch.py \
+    bna/cycles.py \
+    bna/torch/attention_wayfinder_permute.py \
+    bna/integrations/qwen_torch.py \
     scripts/bench_qwen35_cuda_wayfinder.py \
     scripts/serve_qwen_wayfinder_cuda.py \
     tests/pytorch/test_torch_qwen_sparse_gqa.py \
@@ -12700,9 +12700,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
   - Existing `torch.jit.script_method` deprecation warnings from PyTorch
   - Existing CUDA capability warning for GB10 (`12.1`) vs this PyTorch build’s exact arch list
 - Artifacts:
-  - Source changes in `hcsa/cycles.py`
-  - Source changes in `hcsa/torch/attention_wayfinder_permute.py`
-  - Source changes in `hcsa/integrations/qwen_torch.py`
+  - Source changes in `bna/cycles.py`
+  - Source changes in `bna/torch/attention_wayfinder_permute.py`
+  - Source changes in `bna/integrations/qwen_torch.py`
   - Source changes in `scripts/bench_qwen35_cuda_wayfinder.py`
   - Source changes in `scripts/serve_qwen_wayfinder_cuda.py`
   - Test coverage in `tests/pytorch/test_torch_qwen_sparse_gqa.py`
@@ -12718,9 +12718,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Question: Does the new Qwen `block_sparse` path execute end-to-end on the real Qwen3.5-9B backbone with `flex_attention`, including on this machine’s unsupported-but-forceable GB10 CUDA capability?
 - Hypothesis: With `--allow-unsupported-arch --engine flex`, the block-Hamiltonian path should run at least a guarded backbone smoke at `T=512` and `T=4096`, emitting `block_sparse_*` profile fields instead of silently falling back.
 - Change set:
-  - `hcsa/cycles.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/cycles.py`
+  - `bna/torch/attention_wayfinder_permute.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
 - Baseline:
@@ -13083,16 +13083,16 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Baseline:
   - none; implementation cutover only
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
-  - `hcsa/torch/attention_wayfinder_sparse.py`
+  - `bna/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_permute.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `tests/test_qwen_cuda_wayfinder_cli.py`
   - docs/readme updates for the new Wayfinder block topology
 - Command queue (sequential; one process at a time):
-  - `python -m py_compile hcsa/integrations/qwen_torch.py hcsa/torch/attention_wayfinder_permute.py hcsa/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
+  - `python -m py_compile bna/integrations/qwen_torch.py bna/torch/attention_wayfinder_permute.py bna/torch/attention_wayfinder_sparse.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py`
   - `pytest tests/pytorch/test_torch_qwen_sparse_gqa.py tests/test_qwen_cuda_wayfinder_cli.py -q`
 - Controls (held fixed):
   - inference: `off`
@@ -13117,9 +13117,9 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Date (UTC): `2026-03-20`
 - Question / hypothesis: Can we cut over the Qwen CUDA `block_sparse` path to a staged Wayfinder topology, add cached-KV sparse execution, and keep build/test validation green without running any model benchmarks?
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
-  - `hcsa/torch/attention_wayfinder_permute.py`
-  - `hcsa/torch/attention_wayfinder_sparse.py`
+  - `bna/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_permute.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
@@ -13224,8 +13224,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Command:
   ```bash
   .venv/bin/python -m py_compile \
-    hcsa/torch/attention_relay_block_sparse.py \
-    hcsa/integrations/qwen_torch.py \
+    bna/torch/attention_relay_block_sparse.py \
+    bna/integrations/qwen_torch.py \
     scripts/bench_qwen35_cuda_wayfinder.py \
     tests/pytorch/test_torch_qwen_sparse_gqa.py \
     tests/test_qwen_cuda_wayfinder_cli.py && \
@@ -13263,8 +13263,8 @@ Second attempt used per-head loop without `mx.eval()` barriers (same structure a
 - Command:
   ```bash
   .venv/bin/python -m py_compile \
-    hcsa/torch/attention_relay_block_sparse.py \
-    hcsa/integrations/qwen_torch.py \
+    bna/torch/attention_relay_block_sparse.py \
+    bna/integrations/qwen_torch.py \
     scripts/bench_qwen35_cuda_wayfinder.py \
     tests/pytorch/test_torch_qwen_sparse_gqa.py \
     tests/test_qwen_cuda_wayfinder_cli.py
@@ -13407,7 +13407,7 @@ Pattern: every 4th layer starting at index 3 is `full_attention` (`full_attentio
 
 **Do NOT treat `linear_attention` layers as an easy swap target.** `Qwen3_5GatedDeltaNet` is a completely different computation from softmax attention — it uses `linear_key_head_dim=128`, `linear_value_head_dim=128`, `linear_num_key_heads=16`, `linear_num_value_heads=32`. Building a Wayfinder replacement for DeltaNet layers would require a separate project, not a filter change.
 
-The current swap path in `hcsa/integrations/qwen_torch.py` correctly targets only `layer_type == "full_attention"`.
+The current swap path in `bna/integrations/qwen_torch.py` correctly targets only `layer_type == "full_attention"`.
 
 ### Claim Correction: Prefill Throughput
 
@@ -13564,7 +13564,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Change set:
   - `scripts/bench_qwen35_cuda_wayfinder.py`: added `--quantize {none,fp8-weight-only,fp8-dynamic}` CLI arg, wired `TorchAoConfig` in model loading, fixed deprecated `torch_dtype` → `dtype`
   - `scripts/serve_qwen_wayfinder_cuda.py`: same `--quantize` arg and `TorchAoConfig` wiring
-  - `hcsa/integrations/qwen_torch.py`: added FP8 dtype guard in `QwenCUDAWayfinderAttention.__init__` — `routing_proj` falls back to BF16 when `proj_dtype.itemsize < 2`
+  - `bna/integrations/qwen_torch.py`: added FP8 dtype guard in `QwenCUDAWayfinderAttention.__init__` — `routing_proj` falls back to BF16 when `proj_dtype.itemsize < 2`
   - installed `torchao==0.16.0`
 - Baseline: [EXP-20260321T023000Z-QWEN35CUDA-INCREMENTAL-SCALE-240K.ndjson (T=245760, BF16)](/home/hmbown/Projects/Wayfinder/benchmarks/cuda/qwen35_wayfinder/EXP-20260321T023000Z-QWEN35CUDA-INCREMENTAL-SCALE-240K.ndjson)
 - Command: `.venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 262144 --quantize fp8-weight-only --warmup 0 --repeats 1 --path block_sparse --engine triton --phases wayfinder --forward-target backbone --output benchmarks/cuda/qwen35_wayfinder/EXP-FP8-262K-PROBE-WF.ndjson`
@@ -13638,7 +13638,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Question: Does the current CUDA Wayfinder block-sparse path work on `Qwen3.5-35B-A3B-FP8`, and if so what paired dense-vs-Wayfinder prefill scaling curve and max-context ceiling fit on the DGX Spark GB10?
 - Hypothesis: With the repo `.venv` (`transformers 5.3.0`) and the new native-FP8 loader path, `AutoModelForCausalLM` should load the text-only `qwen3_5_moe` checkpoint without torchao, `swap_qwen_attention_with_wayfinder_cuda()` should replace the 10 `full_attention` layers directly, and the Triton block-sparse path should run with `num_key_value_groups=8`. Expect an 8k smoke pass, positive paired scaling by 32k+, and a ceiling somewhere between 192k and 262k depending on recurrent-state growth.
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_qwen35_cuda_wayfinder.py`
   - `scripts/serve_qwen_wayfinder_cuda.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
@@ -13686,14 +13686,14 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Question: Can the current Wayfinder CUDA path load `Qwen3.5-35B-A3B-FP8`, swap the 10 full-attention layers, and complete a short text-only prefill on GB10 without adding runtime quantization on top of the checkpoint's native FP8 format?
 - Hypothesis: Upgrading to a `transformers` build that exposes `qwen3_5_moe` plus `FineGrainedFP8Config`, loading through the conditional-generation auto class, and resolving the decoder at `model.language_model.layers` should allow a text-only Wayfinder smoke run. Expect 10 swapped layers, native FP8 load with `--quantize none`, and a successful dense/Wayfinder short prefill artifact.
 - Change set:
-  - `hcsa/integrations/qwen_torch.py`: broaden decoder discovery to `model.language_model.layers`
+  - `bna/integrations/qwen_torch.py`: broaden decoder discovery to `model.language_model.layers`
   - `scripts/bench_qwen35_cuda_wayfinder.py`: choose HF auto loader from checkpoint architectures, prefer `language_model` for backbone timing, block double-quantization on native FP8 checkpoints
   - `scripts/serve_qwen_wayfinder_cuda.py`: same conditional-generation loader selection for service bringup
   - `tests/test_qwen_cuda_wayfinder_cli.py`: extend fake transformers surface for `AutoConfig` and `AutoModelForImageTextToText`
   - environment: upgrade active venv to `transformers==5.3.0`
 - Baseline:
   - Loader failure before change: local `transformers==4.48.2` could not resolve `model_type=qwen3_5_moe`
-- Command: `python -m py_compile hcsa/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py && pytest tests/test_qwen_cuda_wayfinder_cli.py -q && python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-35B-A3B-FP8 --seq-lens 512 --warmup 0 --repeats 1 --path block_sparse --engine triton --phases wayfinder dense --skip-divergence --forward-target backbone --output benchmarks/cuda/qwen35_wayfinder/EXP-20260321T060610Z-QWEN35A3B-FP8-BRINGUP.ndjson`
+- Command: `python -m py_compile bna/integrations/qwen_torch.py scripts/bench_qwen35_cuda_wayfinder.py scripts/serve_qwen_wayfinder_cuda.py tests/test_qwen_cuda_wayfinder_cli.py && pytest tests/test_qwen_cuda_wayfinder_cli.py -q && python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-35B-A3B-FP8 --seq-lens 512 --warmup 0 --repeats 1 --path block_sparse --engine triton --phases wayfinder dense --skip-divergence --forward-target backbone --output benchmarks/cuda/qwen35_wayfinder/EXP-20260321T060610Z-QWEN35A3B-FP8-BRINGUP.ndjson`
 - Controls: model `Qwen3.5-35B-A3B-FP8`, `--quantize none`, path `block_sparse`, engine `triton`, block_size `128`, block_local_window_blocks `1`, block_partner_count `1`, block_sink_blocks `1`, block_partner_rule `xor`, warmup/repeats `0/1`, forward_target `backbone`, phases `wayfinder dense`, no divergence
 - Expected artifacts:
   - [EXP-20260321T060610Z-QWEN35A3B-FP8-BRINGUP.ndjson](/home/hmbown/Projects/Wayfinder/benchmarks/cuda/qwen35_wayfinder/EXP-20260321T060610Z-QWEN35A3B-FP8-BRINGUP.ndjson)
@@ -14272,12 +14272,12 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Question: Can the reCUDA optimized sparse GQA Triton kernel be integrated behind a runtime toggle in Wayfinder, preserve correctness on the shared sparse-GQA path, and validate the cached `sparse_gqa_precomputed` Qwen path without changing the current Qwen block-sparse Triton prefill kernel?
 - Hypothesis: Yes. The reCUDA `candidate-01.py` kernel is signature-compatible with `triton_fused_sparse_gqa_attention()`, so a toggleable sibling module plus dispatcher wiring should pass the existing Triton sparse-GQA correctness tests and the cached Qwen `sparse_gqa_precomputed` test. Because the current Qwen long-prefill benchmark uses `triton_block_sparse_attention` rather than `triton_fused_sparse_gqa_attention`, no immediate change to the 27B `--path block_sparse --engine triton` prefill numbers is expected from this swap alone.
 - Change set:
-  - add `hcsa/torch/triton_fused_sparse_attn_v2.py` from reCUDA `candidate-01.py`
-  - wire `WAYFINDER_USE_RECUDA_KERNEL` dispatch in `hcsa/torch/triton_fused_sparse_attn.py`
+  - add `bna/torch/triton_fused_sparse_attn_v2.py` from reCUDA `candidate-01.py`
+  - wire `WAYFINDER_USE_RECUDA_KERNEL` dispatch in `bna/torch/triton_fused_sparse_attn.py`
 - Baselines:
   - reCUDA trace benchmark summary: `/home/hmbown/Projects/reCUDA/artifacts/wayfinder-zai-trace-20260321/wayfinder-sparse-gqa-20260321-121356/summary.json`
   - trace bundle used by reCUDA: `benchmarks/cuda/qwen35_wayfinder/traces/EXP-20260319T183847Z-QWEN35-SPARSE-TRACE-BRIDGE/`
-  - current Qwen block-sparse Triton dispatch reference: `hcsa/integrations/qwen_torch.py`
+  - current Qwen block-sparse Triton dispatch reference: `bna/integrations/qwen_torch.py`
 - Command queue (sequential):
   - `WAYFINDER_USE_RECUDA_KERNEL=0 .venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k 'test_sparse_gqa_precomputed_supports_rectangular_cached_decode or test_sparse_gqa_triton_fused_matches_repeated_kv_reference or test_sparse_gqa_triton_fused_handles_fully_masked_rows_with_bias'`
   - `WAYFINDER_USE_RECUDA_KERNEL=1 .venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k 'test_sparse_gqa_precomputed_supports_rectangular_cached_decode or test_sparse_gqa_triton_fused_matches_repeated_kv_reference or test_sparse_gqa_triton_fused_handles_fully_masked_rows_with_bias'`
@@ -14300,7 +14300,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
   - gate sparse-path import selection with `WAYFINDER_USE_RECUDA_KERNEL`
   - keep the default path on the current in-repo kernel unless the toggle is explicitly enabled
 - Baselines:
-  - existing sparse fused kernel: `hcsa/torch/triton_fused_sparse_attn.py`
+  - existing sparse fused kernel: `bna/torch/triton_fused_sparse_attn.py`
   - sparse smoke verifier: `scripts/smoke_verify_triton_wayfinder.py`
   - guide / candidate source: `/home/hmbown/Projects/reCUDA/wayfinderguide.md`, `/home/hmbown/Projects/reCUDA/artifacts/wayfinder-zai-trace-20260321/wayfinder-sparse-gqa-20260321-121356/candidates/candidate-01.py`
 - Command queue:
@@ -14418,7 +14418,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - **EXP-ID**: `EXP-20260321T195700Z-RECUDA-SPARSE-GQA-INTEGRATION-RESULT`
 - Date (UTC): `2026-03-21`
 - Result:
-  - Added `hcsa/torch/triton_fused_sparse_attn_v2.py` carrying the reCUDA candidate kernel and gated sparse-path import selection in `hcsa/torch/attention_wayfinder_sparse.py` behind `WAYFINDER_USE_RECUDA_KERNEL`.
+  - Added `bna/torch/triton_fused_sparse_attn_v2.py` carrying the reCUDA candidate kernel and gated sparse-path import selection in `bna/torch/attention_wayfinder_sparse.py` behind `WAYFINDER_USE_RECUDA_KERNEL`.
   - Default smoke still passes:
     - command: `python scripts/smoke_verify_triton_wayfinder.py`
     - backend: `triton_fused`
@@ -14433,7 +14433,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
     - result: `4 passed, 19 deselected`
 - Interpretation:
   - The runtime-toggled import swap is structurally sound and preserves correctness on the current CUDA sparse contraction path.
-  - This change does **not** touch the current Qwen `--path block_sparse --engine triton` prefill benchmark path. That path still uses `hcsa/torch/triton_block_sparse_attn.py` for prefill and only uses the sparse GQA helpers in the cached precomputed branch.
+  - This change does **not** touch the current Qwen `--path block_sparse --engine triton` prefill benchmark path. That path still uses `bna/torch/triton_block_sparse_attn.py` for prefill and only uses the sparse GQA helpers in the cached precomputed branch.
 - Decision: `keep`
 - Next action:
   - if the goal is immediate impact on the current Qwen prefill numbers, benchmark `--path sparse` separately or plumb the precomputed/block-sparse contraction path onto the same fused kernel before claiming any Qwen win from this change
@@ -14447,8 +14447,8 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Change set:
   - measurement-only
 - Baselines:
-  - cached decode dispatch reference: `hcsa/integrations/qwen_torch.py`
-  - precomputed sparse implementation reference: `hcsa/torch/attention_wayfinder_sparse.py`
+  - cached decode dispatch reference: `bna/integrations/qwen_torch.py`
+  - precomputed sparse implementation reference: `bna/torch/attention_wayfinder_sparse.py`
 - Command queue:
   - `WAYFINDER_USE_RECUDA_KERNEL=0 .venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k test_qwen_wayfinder_block_sparse_cached_kv_uses_sparse_precomputed_backend`
   - `WAYFINDER_USE_RECUDA_KERNEL=1 .venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k test_qwen_wayfinder_block_sparse_cached_kv_uses_sparse_precomputed_backend`
@@ -14466,9 +14466,9 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Question: Can we add an explicit cached-decode sparse backend control, route Qwen `block_sparse` cached decode onto fused sparse-GQA when requested, and build a repeatable CUDA decode benchmark matrix for dense vs Wayfinder vs Wayfinder+reCUDA?
 - Hypothesis: Yes. An explicit precomputed sparse backend switch should preserve the current default decode path while enabling an opt-in `triton_fused` decode branch. Extending the existing decode benchmark harness should then let us compare TTFT, TPOT, decode tok/s, peak memory, and per-layer backend markers across dense, Wayfinder-default, and Wayfinder+reCUDA runs without relying on the prefill-only benchmark.
 - Change set:
-  - `hcsa/torch/attention_wayfinder_sparse.py`
-  - `hcsa/torch/triton_fused_sparse_attn.py`
-  - `hcsa/integrations/qwen_torch.py`
+  - `bna/torch/attention_wayfinder_sparse.py`
+  - `bna/torch/triton_fused_sparse_attn.py`
+  - `bna/integrations/qwen_torch.py`
   - `scripts/bench_decode_wayfinder.py`
   - `tests/pytorch/test_torch_qwen_sparse_gqa.py`
 - Baselines:
@@ -14476,7 +14476,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
   - current cached decode backend baseline: `tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - current prefill benchmark baseline: `benchmarks/cuda/qwen35_wayfinder/EXP-20260321T172541Z-QWEN27B-FP8-SCALE.ndjson`
 - Command queue:
-  - `python -m py_compile hcsa/torch/attention_wayfinder_sparse.py hcsa/torch/triton_fused_sparse_attn.py hcsa/integrations/qwen_torch.py scripts/bench_decode_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+  - `python -m py_compile bna/torch/attention_wayfinder_sparse.py bna/torch/triton_fused_sparse_attn.py bna/integrations/qwen_torch.py scripts/bench_decode_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
   - `.venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k 'precomputed or triton_fused or cached_kv'`
   - `.venv/bin/python scripts/bench_decode_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-27B-FP8 --prompt-lens 2048 --max-new-tokens 8 --repeats 1 --mode-matrix dense wayfinder wayfinder_triton wayfinder_recuda --output benchmarks/cuda/qwen35_wayfinder/EXP-20260321T212000Z-QWEN27B-DECODE-SMOKE.ndjson`
 - Controls (held fixed):
@@ -14514,7 +14514,7 @@ The validated result from `EXP-20260321T003052Z-QWEN35CUDA-TRITON-SCALE-9B` is:
 - Result:
   - Added an explicit cached-decode sparse backend control through Qwen config and `sparse_row_attention_gqa_precomputed()`, plus a reusable CUDA decode benchmark matrix in `scripts/bench_decode_wayfinder.py`.
   - Validation:
-    - `python -m py_compile hcsa/torch/attention_wayfinder_sparse.py hcsa/torch/triton_fused_sparse_attn.py hcsa/integrations/qwen_torch.py scripts/bench_decode_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
+    - `python -m py_compile bna/torch/attention_wayfinder_sparse.py bna/torch/triton_fused_sparse_attn.py bna/integrations/qwen_torch.py scripts/bench_decode_wayfinder.py tests/pytorch/test_torch_qwen_sparse_gqa.py`
     - `.venv/bin/pytest -q tests/pytorch/test_torch_qwen_sparse_gqa.py -k 'precomputed or triton_fused or cached_kv'`
     - result: `2 passed, 4 skipped`
   - Decode smoke artifact:

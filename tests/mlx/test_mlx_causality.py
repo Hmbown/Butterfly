@@ -5,8 +5,8 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import sparse_gather_attention
-from hcsa.mlx.graph_abi import MLXGraphABI
+from bna.mlx.attention import sparse_gather_attention
+from bna.mlx.graph_abi import MLXGraphABI
 
 
 def test_mlx_sparse_masks_future_neighbors() -> None:

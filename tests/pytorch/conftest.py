@@ -14,7 +14,7 @@ try:
 except Exception:
     pass
 
-from hcsa.integrations.qwen_torch import _parse_cuda_arch_token
+from bna.integrations.qwen_torch import _parse_cuda_arch_token
 
 
 def _cuda_exact_arch_supported() -> bool:

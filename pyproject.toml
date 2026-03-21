@@ -3,14 +3,14 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hcsa"
-version = "0.3.0"
-description = "HCSA: Hamiltonian Cycle Sparse Attention — sparse causal attention via graph-theoretic guarantees"
+name = "bna"
+version = "0.4.0"
+description = "BNA: Butterfly Network Attention — block-sparse attention via butterfly network topology"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Hunter Bown", email = "hmbown@gmail.com" }]
-keywords = ["transformer", "sparse-attention", "hamiltonian-cycle", "language-model", "efficient-attention"]
+keywords = ["transformer", "sparse-attention", "butterfly-network", "language-model", "efficient-attention"]
 
 dependencies = [
   "torch>=2.1",
@@ -29,11 +29,11 @@ sweep = ["wandb"]
 experiments = ["pyyaml>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/Hmbown/hcsa"
-Repository = "https://github.com/Hmbown/hcsa"
+Homepage = "https://github.com/Hmbown/Wayfinder"
+Repository = "https://github.com/Hmbown/Wayfinder"
 
 [tool.setuptools.packages.find]
-include = ["hcsa*"]
+include = ["bna*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

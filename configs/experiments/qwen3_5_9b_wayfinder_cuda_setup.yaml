@@ -1,0 +1,80 @@
+name: qwen3_5_9b_wayfinder_cuda_setup
+mode: no_inference_planning
+created_utc: "2026-03-20T17:18:34Z"
+
+method:
+  codename: Wayfinder Attention
+  qwen_path: block_sparse
+  # block_sparse_topology is always "wayfinder" (the only active topology).
+  execution_backend:
+    prefill: flex_attention
+    cached_decode: sparse_gqa_precomputed
+  design_goal:
+    - causal
+    - block_structured
+    - compile_time_predictable
+    - kv_cache_aware
+    - low_degree_per_block
+    - multistage_global_mixing
+  default_schedule:
+    block_size: 128
+    block_local_window_blocks: 1
+    block_partner_count: 2
+    block_sink_blocks: 1
+    block_partner_rule: "xor"
+    stage_rule: "layer_idx mod ceil(log2(n_blocks))"
+
+model:
+  primary:
+    hf_repo: Qwen/Qwen3.5-9B
+    selected_local_path: /home/hmbown/HF_Models/Qwen3.5-9B
+    expected_full_attention_layers: 8
+    expected_total_layers: 48
+  secondary:
+    hf_repo: Qwen/Qwen3.5-35B-A3B
+    selected_local_path: null
+    status: pending_after_primary
+
+benchmark_harness:
+  script: scripts/bench_qwen35_cuda_wayfinder.py
+  forward_target: backbone
+  phases:
+    - dense
+    - wayfinder
+  dtype: bfloat16
+  warmup: 1
+  repeats: 3
+  divergence: off
+  retro_backfill_inference: off
+
+queue:
+  run_id_pattern: "EXP-<UTCSTAMP>-QWEN35CUDA-WAYFINDER-PHASE0"
+  output_root_pattern: "benchmarks/cuda/qwen35_wayfinder/<RUN_ID>"
+  commands:
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 8192 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/t8192_pair.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 32768 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/t32768_pair.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 65536 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/t65536_pair.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 131072 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/t131072_pair.ndjson"
+
+phase1_ablations:
+  commands:
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 32768 --warmup 1 --repeats 3 --path block_sparse --block-size 64 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/ablate_b64.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 32768 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 2 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/ablate_local2.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 32768 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 1 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/ablate_partner1.ndjson"
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path /home/hmbown/HF_Models/Qwen3.5-9B --seq-lens 32768 --warmup 1 --repeats 3 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 2 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/ablate_sink2.ndjson"
+
+secondary_queue:
+  status: blocked_until_primary_pass
+  stop_gate_dependency:
+    - "Primary Qwen3.5-9B run must show acceptable stability and informative wayfinder_profiles."
+    - "Any supported-arch flex requirement must be satisfied before 35B execution."
+  placeholder_command:
+    - ".venv/bin/python scripts/bench_qwen35_cuda_wayfinder.py --model-path <QWEN35B_LOCAL_PATH_OR_HF_ID> --seq-lens 8192 32768 --warmup 1 --repeats 1 --path block_sparse --block-size 128 --block-local-window-blocks 1 --block-partner-count 2 --block-sink-blocks 1 --block-partner-rule xor --strategy random --forward-target backbone --phases dense wayfinder --skip-divergence --output benchmarks/cuda/qwen35_wayfinder/<RUN_ID>/qwen35b_pair.ndjson"
+
+stop_gates:
+  - "No command runs before a dedicated PRERUN entry is appended to notes/LAB_NOTEBOOK.md and notes/experiments.ndjson."
+  - "Any nonzero exit or missing ndjson artifact is a hard FAIL."
+  - "Each wayfinder row must report path=block_sparse."
+  - "Each wayfinder profile must report graph_source=runtime_block_wayfinder, block_sparse_backend=flex_attention, and an integer block_sparse_stage."
+  - "If unsupported-arch flex is required, keep seq_len <= 4096 unless a separate unsafe-longrun PRERUN explicitly allows more."
+  - "Do not update README performance claims until dense-vs-wayfinder measurements exist and pass quality review."

@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import mlx.core as mx
 
-from hcsa.mlx.attention import (
+from bna.mlx.attention import (
     permute_cycle_window_attention_single,
     wayfinder_permute_window_attention_batched,
 )

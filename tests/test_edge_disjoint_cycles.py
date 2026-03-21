@@ -3,12 +3,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from hcsa.cycles import edge_disjoint_random_cycles, verify_edge_disjoint
+from bna.cycles import edge_disjoint_random_cycles, verify_edge_disjoint
 
 try:
     import mlx.core as mx
 
-    from hcsa.mlx.attention import wayfinder_permute_window_attention_batched
+    from bna.mlx.attention import wayfinder_permute_window_attention_batched
 
     _HAS_MLX = True
 except Exception:  # pragma: no cover - optional dependency in CI variants

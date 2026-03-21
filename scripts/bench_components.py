@@ -25,11 +25,11 @@ from typing import Dict, List
 import torch
 import torch.nn as nn
 
-from hcsa.model import GPT, GPTConfig
-from hcsa.attention_hcsa import HCSASelfAttention, _build_neighbors_index
-from hcsa.attention_dense import DenseCausalSelfAttention
-from hcsa.cycles import random_cycle, greedy_cycle, routing_similarity
-from hcsa.utils import auto_device, format_bytes, peak_memory_bytes
+from bna.model import GPT, GPTConfig
+from bna.attention_hcsa import HCSASelfAttention, _build_neighbors_index
+from bna.attention_dense import DenseCausalSelfAttention
+from bna.cycles import random_cycle, greedy_cycle, routing_similarity
+from bna.utils import auto_device, format_bytes, peak_memory_bytes
 
 
 def sync(device: torch.device) -> None:
@@ -82,7 +82,7 @@ def bench_cycle_construction(
     # Neighbor index building
     g2 = torch.Generator(device="cpu").manual_seed(42)
     perm = random_cycle(T, generator=g2, device=torch.device("cpu"))
-    from hcsa.cycles import cycle_prev_next_from_perm
+    from bna.cycles import cycle_prev_next_from_perm
     prev, nxt = cycle_prev_next_from_perm(perm)
     cycle_adj = [[int(prev[i]), int(nxt[i])] for i in range(T)]
 

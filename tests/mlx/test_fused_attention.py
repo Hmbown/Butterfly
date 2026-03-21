@@ -11,11 +11,11 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import (
+from bna.mlx.attention import (
     wayfinder_permute_window_attention_active_batched,
     wayfinder_permute_window_attention_batched,
 )
-from hcsa.mlx.fused_attention import (
+from bna.mlx.fused_attention import (
     _fused_dispatch_eligible,
     wayfinder_fused_permute_window_attention,
     wayfinder_fused_permute_window_attention_active,

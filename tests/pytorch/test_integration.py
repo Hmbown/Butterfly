@@ -7,10 +7,10 @@ from pathlib import Path
 
 import torch
 
-from hcsa.data import build_datasets, get_batch
-from hcsa.model import GPT, GPTConfig
-from hcsa.tokenizers import CharTokenizer, tokenizer_from_state_dict
-from hcsa.utils import set_seed, save_json, load_json
+from bna.data import build_datasets, get_batch
+from bna.model import GPT, GPTConfig
+from bna.tokenizers import CharTokenizer, tokenizer_from_state_dict
+from bna.utils import set_seed, save_json, load_json
 
 
 def _make_tiny_setup():

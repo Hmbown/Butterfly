@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from hcsa.compiler.graph_ir import GraphIR
-from hcsa.compiler.passes.cache_key_pass import cache_key_pass
+from bna.compiler.graph_ir import GraphIR
+from bna.compiler.passes.cache_key_pass import cache_key_pass
 
 
 def test_cache_key_is_stable_for_same_inputs() -> None:

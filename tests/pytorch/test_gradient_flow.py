@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.data import build_datasets, get_batch
-from hcsa.model import GPT, GPTConfig
-from hcsa.tokenizers import CharTokenizer
-from hcsa.utils import set_seed
+from bna.data import build_datasets, get_batch
+from bna.model import GPT, GPTConfig
+from bna.tokenizers import CharTokenizer
+from bna.utils import set_seed
 
 
 def _make_tiny_model(attn: str = "dense") -> tuple[GPT, torch.Tensor, torch.Tensor]:

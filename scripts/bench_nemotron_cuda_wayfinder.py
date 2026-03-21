@@ -127,7 +127,7 @@ def bench_prefill(
 
 
 def collect_wayfinder_profiles(model: torch.nn.Module) -> List[Dict[str, Any]]:
-    from hcsa.integrations.nemotron_h_torch import iter_nemotron_h_wayfinder_layers
+    from bna.integrations.nemotron_h_torch import iter_nemotron_h_wayfinder_layers
     profiles = []
     for layer in iter_nemotron_h_wayfinder_layers(model):
         p = layer.last_profile
@@ -165,7 +165,7 @@ def main() -> None:
     args = p.parse_args()
 
     from transformers import AutoModelForCausalLM, AutoTokenizer
-    from hcsa.integrations.nemotron_h_torch import (
+    from bna.integrations.nemotron_h_torch import (
         NemotronHWayfinderConfig,
         swap_nemotron_h_attention_with_wayfinder,
     )

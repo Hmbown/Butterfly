@@ -11,10 +11,10 @@ from typing import Any, Dict, List
 
 import mlx.core as mx
 
-from hcsa.compiler import compile_graph_spec
-from hcsa.mlx.metrics import largest_intermediate_bytes
-from hcsa.mlx.model import DenseCausalAttentionMLX, GPTConfigMLX, GPTMLX
-from hcsa.mlx.attention import WayfinderAttentionMLX
+from bna.compiler import compile_graph_spec
+from bna.mlx.metrics import largest_intermediate_bytes
+from bna.mlx.model import DenseCausalAttentionMLX, GPTConfigMLX, GPTMLX
+from bna.mlx.attention import WayfinderAttentionMLX
 
 
 def _sync(*arrays: mx.array) -> None:

@@ -29,8 +29,8 @@ try:
 except ImportError:
     yaml = None
 
-from hcsa.train import run_training, build_argparser
-from hcsa.utils import set_seed
+from bna.train import run_training, build_argparser
+from bna.utils import set_seed
 
 
 def load_sweep_config(path: str) -> Dict[str, Any]:

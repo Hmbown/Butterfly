@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from hcsa.torch.attention_dense import dense_causal_attention
-from hcsa.torch.attention_wayfinder_sparse import sparse_row_attention
+from bna.torch.attention_dense import dense_causal_attention
+from bna.torch.attention_wayfinder_sparse import sparse_row_attention
 
 
 def test_sparse_all_past_matches_dense(device: torch.device) -> None:

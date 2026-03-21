@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.integrations.qwen_mlx import extract_qkv_from_qwen_attention
+from bna.integrations.qwen_mlx import extract_qkv_from_qwen_attention
 
 
 def _reset_peak_memory() -> None:

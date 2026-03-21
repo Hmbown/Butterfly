@@ -10,7 +10,7 @@ import torch
 from hypothesis import given, settings, HealthCheck
 from hypothesis import strategies as st
 
-from hcsa.cycles import (
+from bna.cycles import (
     OnlineInsertionState,
     cycle_prev_next_from_perm,
     greedy_cycle,

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from hcsa.compiler import compile_graph_spec
+from bna.compiler import compile_graph_spec
 
 
 def test_wayc_compile_writes_artifacts(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from hcsa.graph.abi import EdgeType
+from bna.graph.abi import EdgeType
 
 
 def build_sparse_matrix(neigh_idx: np.ndarray, edge_type: np.ndarray) -> np.ndarray:

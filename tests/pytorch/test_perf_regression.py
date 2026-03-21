@@ -15,7 +15,7 @@ import time
 import pytest
 import torch
 
-from hcsa.model import GPT, GPTConfig
+from bna.model import GPT, GPTConfig
 
 
 # Skip if not explicitly requested via --run-slow

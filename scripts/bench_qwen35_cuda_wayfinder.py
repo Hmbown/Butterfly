@@ -318,7 +318,7 @@ def bench_prefill(
 
 
 def collect_wayfinder_profiles(model: torch.nn.Module) -> List[Dict[str, Any]]:
-    from hcsa.integrations.qwen_torch import iter_qwen_wayfinder_layers
+    from bna.integrations.qwen_torch import iter_qwen_wayfinder_layers
 
     if torch.cuda.is_available():
         torch.cuda.synchronize()
@@ -381,7 +381,7 @@ def collect_wayfinder_profiles(model: torch.nn.Module) -> List[Dict[str, Any]]:
 
 
 def clear_wayfinder_graph_caches(model: torch.nn.Module) -> Dict[str, int]:
-    from hcsa.integrations.qwen_torch import (
+    from bna.integrations.qwen_torch import (
         clear_shared_qwen_wayfinder_graph_cache,
         iter_qwen_wayfinder_layers,
     )
@@ -731,7 +731,7 @@ def main() -> None:
 
     import transformers as transformers_module
     from transformers import AutoConfig, AutoTokenizer
-    from hcsa.integrations.qwen_torch import (
+    from bna.integrations.qwen_torch import (
         QwenCUDAWayfinderConfig,
         get_cuda_arch_support_diagnostics,
         restore_qwen_dense_attention,
@@ -798,7 +798,7 @@ def main() -> None:
                 _log(f"WARNING: {message}")
         elif args.engine == "auto":
             try:
-                from hcsa.torch.triton_block_sparse_attn import TRITON_AVAILABLE
+                from bna.torch.triton_block_sparse_attn import TRITON_AVAILABLE
 
                 _triton_ok = TRITON_AVAILABLE
             except ImportError:

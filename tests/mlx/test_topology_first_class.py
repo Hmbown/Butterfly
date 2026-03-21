@@ -5,8 +5,8 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from hcsa.mlx.attention import WayfinderAttentionMLX
-from hcsa.topology import Topology
+from bna.mlx.attention import WayfinderAttentionMLX
+from bna.topology import Topology
 
 
 def test_topology_construct_save_load_roundtrip(tmp_path) -> None:

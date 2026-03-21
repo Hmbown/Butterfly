@@ -11,10 +11,10 @@ from typing import Any, Dict, Iterable, List
 
 import torch
 
-from hcsa.compiler import compile_graph_spec
-from hcsa.torch.attention_dense import DenseCausalAttentionTorch
-from hcsa.torch.attention_wayfinder_sparse import WayfinderAttentionTorch
-from hcsa.torch.bench_utils import largest_intermediate_bytes, sync_device
+from bna.compiler import compile_graph_spec
+from bna.torch.attention_dense import DenseCausalAttentionTorch
+from bna.torch.attention_wayfinder_sparse import WayfinderAttentionTorch
+from bna.torch.bench_utils import largest_intermediate_bytes, sync_device
 
 
 def _to_ms(seconds: float) -> float:

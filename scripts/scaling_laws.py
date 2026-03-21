@@ -18,8 +18,8 @@ from typing import List, Tuple
 import torch
 import numpy as np
 
-from hcsa.model import GPT, GPTConfig
-from hcsa.utils import auto_device
+from bna.model import GPT, GPTConfig
+from bna.utils import auto_device
 
 try:
     import matplotlib.pyplot as plt

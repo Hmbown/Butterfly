@@ -49,7 +49,7 @@ This is what removes the old “prefill-only” limitation for the new Wayfinder
 
 ## Qwen Integration Surface
 
-`hcsa/integrations/qwen_torch.py` exposes the following knobs:
+`bna/integrations/qwen_torch.py` exposes the following knobs:
 
 - `path="block_sparse"`
 - `block_size`

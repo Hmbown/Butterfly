@@ -10,17 +10,17 @@ import pytest
 import torch
 import torch.nn as nn
 
-from hcsa.torch.attention_wayfinder_sparse import (
+from bna.torch.attention_wayfinder_sparse import (
     _gather_kv_head_block_chunk,
     _resolve_sparse_gqa_chunking,
     sparse_row_attention,
     sparse_row_attention_gqa_chunked,
     sparse_row_attention_gqa_precomputed,
 )
-from hcsa.torch.attention_wayfinder_permute import (
+from bna.torch.attention_wayfinder_permute import (
     build_block_wayfinder_layout,
 )
-from hcsa.torch.bench_utils import _repeat_kv, stable_masked_softmax
+from bna.torch.bench_utils import _repeat_kv, stable_masked_softmax
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -156,7 +156,7 @@ def _make_wrapped_layers(
 
 
 def test_qwen_swap_and_qkv_extract_support_qwen35_moe_attention() -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
     from transformers import Qwen3_5MoeForCausalLM, Qwen3_5MoeTextConfig
 
     model = Qwen3_5MoeForCausalLM(
@@ -396,7 +396,7 @@ def test_sparse_gqa_precomputed_supports_rectangular_cached_decode(device: torch
 def test_sparse_gqa_precomputed_triton_fused_matches_repeated_kv_reference(
     device: torch.device,
 ) -> None:
-    from hcsa.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
+    from bna.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
 
     if not TRITON_AVAILABLE or device.type != "cuda":
         pytest.skip("Triton fused kernel requires CUDA + Triton")
@@ -496,7 +496,7 @@ def test_sparse_gqa_chunked_streamed_no_weights_matches_repeated_kv_reference(
 def test_sparse_gqa_triton_fused_matches_repeated_kv_reference(device: torch.device) -> None:
     """The triton_fused backend (return_weights=False, no degree chunking) must match
     the reference sparse_row_attention with repeated KV heads."""
-    from hcsa.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
+    from bna.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
 
     if not TRITON_AVAILABLE or device.type != "cuda":
         pytest.skip("Triton fused kernel requires CUDA + Triton")
@@ -555,7 +555,7 @@ def test_sparse_gqa_triton_fused_matches_repeated_kv_reference(device: torch.dev
 
 
 def test_sparse_gqa_triton_fused_handles_fully_masked_rows_with_bias(device: torch.device) -> None:
-    from hcsa.torch.triton_fused_sparse_attn import TRITON_AVAILABLE, triton_fused_sparse_gqa_attention
+    from bna.torch.triton_fused_sparse_attn import TRITON_AVAILABLE, triton_fused_sparse_gqa_attention
 
     if not TRITON_AVAILABLE or device.type != "cuda":
         pytest.skip("Triton fused kernel requires CUDA + Triton")
@@ -695,7 +695,7 @@ def test_sparse_gqa_manual_degree_chunking_reports_streamed_blocks() -> None:
 
 
 def test_qwen_static_sparse_cache_shared_across_layers(monkeypatch, device: torch.device) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -731,7 +731,7 @@ def test_qwen_static_block_sparse_cache_shared_across_layers(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -784,7 +784,7 @@ def test_qwen_wayfinder_block_sparse_cache_shared_only_for_matching_stage(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
 
@@ -793,7 +793,7 @@ def test_qwen_wayfinder_block_sparse_cached_kv_uses_sparse_precomputed_backend(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     class _FakePastKeyValues:
         def __init__(self, seq_len: int) -> None:
@@ -941,8 +941,8 @@ def test_qwen_wayfinder_block_sparse_cached_kv_can_use_triton_fused_backend(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
-    from hcsa.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
+    import bna.integrations.qwen_torch as qwen_torch
+    from bna.torch.triton_fused_sparse_attn import TRITON_AVAILABLE
 
     if not TRITON_AVAILABLE or device.type != "cuda":
         pytest.skip("Triton fused kernel requires CUDA + Triton")
@@ -1024,7 +1024,7 @@ def test_qwen_static_sparse_metrics_computed_once_per_shared_cache(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -1063,7 +1063,7 @@ def test_qwen_sparse_profile_reports_effective_chunking(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -1114,7 +1114,7 @@ def test_qwen_sparse_trace_dump_writes_replayable_payload(
     tmp_path: Path,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -1154,7 +1154,7 @@ def test_qwen_sparse_chunk_config_is_forwarded_to_kernel(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -1249,7 +1249,7 @@ def test_qwen_sparse_compute_dtype_model_downcasts_before_kernel(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     captured = {}
@@ -1339,7 +1339,7 @@ def test_qwen_sparse_compute_dtype_model_downcasts_before_kernel(
 
 
 def test_qwen_dynamic_sparse_graphs_are_not_shared(monkeypatch, device: torch.device) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)
@@ -1366,7 +1366,7 @@ def test_bench_clear_wayfinder_caches_clears_shared_qwen_cache(
     monkeypatch,
     device: torch.device,
 ) -> None:
-    import hcsa.integrations.qwen_torch as qwen_torch
+    import bna.integrations.qwen_torch as qwen_torch
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
     monkeypatch.setattr(qwen_torch, "extract_qkv_from_qwen_attention", _fake_extract_qkv)

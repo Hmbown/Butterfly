@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from hcsa.graph.analysis import expansion_proxy, spectral_gap
+from bna.graph.analysis import expansion_proxy, spectral_gap
 
 
 def test_random_cycle_gap_beats_identity_with_window() -> None:

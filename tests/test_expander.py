@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from hcsa.graph.expander import (
+from bna.graph.expander import (
     causal_diameter,
     causal_reachability,
     degree_stats,

@@ -16,12 +16,12 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 import mlx.core as mx
-from hcsa.mlx.attention import (
+from bna.mlx.attention import (
     _GraphCache,
     wayfinder_permute_window_attention,
     wayfinder_permute_window_attention_batched,
 )
-from hcsa.mlx.graph_abi import MLXGraphABI
+from bna.mlx.graph_abi import MLXGraphABI
 
 
 def build_synthetic_cache(H: int, T: int, W_half: int):

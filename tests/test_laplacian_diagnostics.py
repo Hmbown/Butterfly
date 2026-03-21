@@ -1,5 +1,5 @@
 import numpy as np
-from hcsa.graph.analysis import fiedler_bridge_candidates, laplacian_spectral_gap
+from bna.graph.analysis import fiedler_bridge_candidates, laplacian_spectral_gap
 
 
 def test_connected_graph_positive_fiedler():

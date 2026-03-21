@@ -40,14 +40,14 @@ import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
 
-from hcsa.graph.abi import (
+from bna.graph.abi import (
     WayfinderGraphABI,
     build_graph_abi_from_adjacency,
     stack_head_abis,
 )
-from hcsa.graph.expander import graph_quality_report
-from hcsa.mlx.attention import sparse_gather_attention
-from hcsa.mlx.graph_abi import (
+from bna.graph.expander import graph_quality_report
+from bna.mlx.attention import sparse_gather_attention
+from bna.mlx.graph_abi import (
     MLXGraphABI,
     causal_neighbor_mask,
     safe_neighbor_idx,
@@ -327,7 +327,7 @@ def _extract_qkv(
     attn_module: nn.Module, x: mx.array,
 ) -> Tuple[mx.array, mx.array, mx.array]:
     """Extract Q, K, V from a GPT-2 attention module.  Returns [B, H, T, dh]."""
-    from hcsa.integrations.gpt2_mlx import extract_qkv_from_gpt2_attention
+    from bna.integrations.gpt2_mlx import extract_qkv_from_gpt2_attention
 
     return extract_qkv_from_gpt2_attention(attn_module, x)
 

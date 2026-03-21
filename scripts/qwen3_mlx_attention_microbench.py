@@ -10,8 +10,8 @@ from typing import Any, Dict
 
 import mlx.core as mx
 
-from hcsa.mlx.model import DenseCausalAttentionMLX
-from hcsa.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.model import DenseCausalAttentionMLX
+from bna.mlx.attention import WayfinderAttentionMLX
 
 
 def _reset_peak_memory() -> None:

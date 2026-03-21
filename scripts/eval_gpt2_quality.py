@@ -47,7 +47,7 @@ def _cross_entropy_loss(logits: mx.array, targets: mx.array) -> float:
 
 def _swap_to_wayfinder(model, *, window: int, seed: int):
     """Swap GPT-2 attention layers to Wayfinder/HCSA permute."""
-    from hcsa.integrations.gpt2_mlx import GPT2WayfinderAttention, GPT2WayfinderConfig
+    from bna.integrations.gpt2_mlx import GPT2WayfinderAttention, GPT2WayfinderConfig
 
     cfg = GPT2WayfinderConfig(
         path="permute",

@@ -1,8 +1,8 @@
 """Tests for W² Crossover Gate active_dense_threshold routing logic."""
 import pytest
 
-from hcsa.integrations.glm_mlx import GLMWayfinderConfig, GLMWayfinderAttention
-from hcsa.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention
+from bna.integrations.glm_mlx import GLMWayfinderConfig, GLMWayfinderAttention
+from bna.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention
 
 
 class TestGLMActiveDenseThreshold:

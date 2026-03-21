@@ -17,7 +17,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from hcsa.integrations.glm_mlx import GLMWayfinderAttention, GLMWayfinderConfig, swap_glm_attention_with_wayfinder
+from bna.integrations.glm_mlx import GLMWayfinderAttention, GLMWayfinderConfig, swap_glm_attention_with_wayfinder
 
 
 def _log(message: str) -> None:

@@ -1,6 +1,6 @@
 """Tests for principled d (num_cycles) selection utilities."""
 
-from hcsa.cycles import max_edge_disjoint_cycles, recommended_num_cycles
+from bna.cycles import max_edge_disjoint_cycles, recommended_num_cycles
 
 
 def test_recommended_num_cycles_1024():

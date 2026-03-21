@@ -31,7 +31,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from mlx_lm import load, stream_generate
 
-from hcsa.integrations.glm_mlx import GLMWayfinderConfig, swap_glm_attention_with_wayfinder
+from bna.integrations.glm_mlx import GLMWayfinderConfig, swap_glm_attention_with_wayfinder
 
 
 def parse_args() -> argparse.Namespace:
