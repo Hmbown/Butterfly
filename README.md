@@ -1,6 +1,6 @@
 # Wayfinder
 
-Sparse attention for long-context language models. Training-free — works on existing dense-attention models at inference time.
+Block-structured attention acceleration for long-context inference. Training-free — works on existing dense-attention models at inference time.
 
 ## How it works
 
