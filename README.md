@@ -18,9 +18,11 @@ The sequence is partitioned into fixed-size blocks (typically 128 tokens). Each 
 
 ### Global mixing across layers
 
-Restricting each layer to a few blocks would lose long-range information — except the partner selection changes by layer. The schedule is borrowed from interconnect network theory (the same math behind switch fabrics and butterfly networks): at layer `l`, each block `b` connects to block `b XOR (1 << (l mod log₂ N))` (or a bit-reversal / Benes variant). After O(log N) layers, every block can reach every other block through a chain of these hops.
+Restricting each layer to a few blocks would lose long-range information — except the partner selection changes by layer. The schedule comes from the same family of networks used in telecom switch fabrics and parallel computing interconnects since the 1960s: [butterfly networks](https://en.wikipedia.org/wiki/Butterfly_network) and [Benes networks](https://en.wikipedia.org/wiki/Clos_network#Bene%C5%A1_network_(m_=_n_=_2)).
 
-This is the key property: no single layer has global attention, but the *stack* of layers provides global reachability. Information flows everywhere in O(log N) hops, while each individual layer does only O(T) work.
+In a butterfly network, stage `s` connects node `b` to node `b XOR (1 << s)` — each stage flips a different bit of the address. After log₂(N) stages, any node can reach any other node. Wayfinder applies this directly: at layer `l`, each block `b` partners with block `b XOR (1 << (l mod log₂ N))`. A Benes variant (forward + reverse butterfly) is also supported for denser connectivity in fewer stages.
+
+The result: no single layer has global attention, but the *stack* of layers provides global reachability. Information flows between any two positions in O(log N) hops, while each individual layer does only O(T) work.
 
 ### Why it's hardware-friendly
 
@@ -52,7 +54,7 @@ Qwen 3.5 is a hybrid model — 8 full-attention layers (`Qwen3_5Attention`, GQA)
 | 4,096   | 99.88%          | 0.291       |
 | 16,384  | 94.44%          | 0.340       |
 
-At 4k context, Wayfinder predictions are nearly identical to dense. At 16k, ~5.6% of top-1 token predictions change. Quality degrades with context length — evaluate on your workload before deploying.
+At 4k context, Wayfinder predictions are nearly identical to dense. At 16k, ~5.6% of top-1 token predictions change. These numbers measure logit-level divergence only — **perplexity and downstream task accuracy have not been evaluated yet**. Quality degrades with context length; treat these speedups as promising but unvalidated until end-to-end evals are complete.
 
 ### Qwen 3.5 35B A3B FP8 (CUDA, Triton block-sparse, DGX Spark GB10)
 
