@@ -55,7 +55,11 @@ def _gpu_mem_gb() -> dict[str, float]:
         return {}
     allocated = torch.cuda.memory_allocated() / (1024 ** 3)
     reserved = torch.cuda.memory_reserved() / (1024 ** 3)
-    total = torch.cuda.get_device_properties(0).total_mem / (1024 ** 3)
+    props = torch.cuda.get_device_properties(0)
+    total_bytes = getattr(props, "total_memory", None)
+    if total_bytes is None:
+        total_bytes = getattr(props, "total_mem")
+    total = total_bytes / (1024 ** 3)
     return {
         "allocated_gb": round(allocated, 2),
         "reserved_gb": round(reserved, 2),

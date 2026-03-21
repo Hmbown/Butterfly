@@ -72,6 +72,97 @@ def random_cycle(T: int, *, generator: Optional[torch.Generator] = None, device:
     return perm.to(torch.long)
 
 
+def num_blocks_for_seq_len(seq_len: int, block_size: int) -> int:
+    """Return ceil(seq_len / block_size) for block-sparse attention."""
+    if seq_len <= 0:
+        raise ValueError("seq_len must be positive")
+    if block_size <= 0:
+        raise ValueError("block_size must be positive")
+    return int((int(seq_len) + int(block_size) - 1) // int(block_size))
+
+
+def log_landmark_blocks(num_blocks: int) -> list[int]:
+    """Return fixed log-spaced landmark block ids: 0, 1, 2, 4, 8, ..."""
+    if num_blocks <= 0:
+        raise ValueError("num_blocks must be positive")
+    landmarks = [0]
+    stride = 1
+    while stride < int(num_blocks):
+        landmarks.append(int(stride))
+        stride *= 2
+    return sorted(set(landmarks))
+
+
+def block_hamiltonian_cycles(
+    seq_len: int,
+    block_size: int,
+    *,
+    strategy: str = "random",
+    num_cycles: int = 1,
+    edge_disjoint: bool = True,
+    regular_num_clusters: int = 8,
+    seed: int = 0,
+    head_idx: int = 0,
+    device: torch.device | None = None,
+) -> list[torch.Tensor]:
+    """Sample Hamiltonian cycles over blocks instead of individual tokens.
+
+    The returned permutations are over block ids ``0..ceil(seq_len / block_size)-1``.
+    This keeps the Hamiltonian machinery reusable while shifting the attention
+    pattern onto GPU-friendly contiguous tiles.
+    """
+    if num_cycles <= 0:
+        raise ValueError("num_cycles must be positive")
+
+    num_blocks = num_blocks_for_seq_len(seq_len, block_size)
+    target_device = device or torch.device("cpu")
+    if num_blocks == 1:
+        return [torch.zeros((1,), dtype=torch.long, device=target_device) for _ in range(num_cycles)]
+
+    strategy_name = str(strategy)
+    seeded_head = int(seed) + 7919 * int(head_idx)
+
+    if strategy_name == "random":
+        rng = torch.Generator(device="cpu")
+        rng.manual_seed(seeded_head)
+        if num_cycles > 1 and edge_disjoint:
+            perms_np = edge_disjoint_random_cycles(
+                num_blocks,
+                num_cycles,
+                generator=rng,
+            )
+            perms = [
+                torch.from_numpy(np.asarray(perm, dtype=np.int64)).to(dtype=torch.long, device=target_device)
+                for perm in perms_np
+            ]
+        else:
+            perms = [
+                random_cycle(num_blocks, generator=rng, device=target_device)
+                for _ in range(num_cycles)
+            ]
+    elif strategy_name == "regular_partition":
+        rng = np.random.default_rng(seeded_head)
+        perms = [
+            torch.from_numpy(
+                regular_partition_cycle(
+                    num_blocks,
+                    num_clusters=regular_num_clusters,
+                    generator=rng,
+                ).astype(np.int64, copy=False)
+            ).to(dtype=torch.long, device=target_device)
+            for _ in range(num_cycles)
+        ]
+    else:
+        raise ValueError(
+            "block_hamiltonian_cycles currently supports only static strategies "
+            f"('random', 'regular_partition'); got {strategy_name!r}"
+        )
+
+    for perm in perms:
+        validate_cycle_perm(perm, num_blocks)
+    return perms
+
+
 def _edge_set_from_perm_np(perm: np.ndarray) -> set[tuple[int, int]]:
     p = np.asarray(perm, dtype=np.int64).reshape(-1)
     t = int(p.shape[0])

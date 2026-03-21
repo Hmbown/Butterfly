@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 import math
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 import torch
 
+from hcsa.cycles import block_hamiltonian_cycles, cycle_prev_next_from_perm, log_landmark_blocks, num_blocks_for_seq_len
 from hcsa.graph.abi import EdgeType
 from hcsa.torch.bench_utils import now_ms, stable_masked_softmax
 
@@ -235,8 +237,8 @@ def wayfinder_permute_window_attention(
     v: torch.Tensor,
     *,
     window: int,
-    neigh_idx: torch.Tensor,
-    edge_type: torch.Tensor,
+    neigh_idx: torch.Tensor | None,
+    edge_type: torch.Tensor | None,
     graph_meta: Dict[str, Any] | None = None,
     return_weights: bool = False,
     cache: Any | None = None,
@@ -249,12 +251,14 @@ def wayfinder_permute_window_attention(
         raise ValueError("q/k/v must be [B,H,T,dh]")
 
     _b, h, _t, _dh = q.shape
-    if neigh_idx.ndim != 3 or edge_type.ndim != 3:
-        raise ValueError("neigh_idx/edge_type must be [H,T,D]")
 
     if cache is not None:
         cycle_perms = [p.tolist() for p in cache.perm]
     else:
+        if neigh_idx is None or edge_type is None:
+            raise ValueError("neigh_idx/edge_type are required when cache is not provided")
+        if neigh_idx.ndim != 3 or edge_type.ndim != 3:
+            raise ValueError("neigh_idx/edge_type must be [H,T,D]")
         cycle_perms = recover_cycle_perms(neigh_idx, edge_type, meta=graph_meta)
 
     ys: list[torch.Tensor] = []
@@ -278,9 +282,14 @@ def wayfinder_permute_window_attention(
         if cache is not None:
             kwargs["pre_perm"] = cache.perm[head]
             kwargs["pre_inv_perm"] = cache.inv_perm[head]
-            kwargs["pre_pi_idx_clamped"] = cache.pi_idx_clamped[head]
-            kwargs["pre_valid_mask"] = cache.valid_mask[head]
-            kwargs["pre_causal_mask"] = cache.causal_masks[head]
+            if (
+                head < len(cache.pi_idx_clamped)
+                and head < len(cache.valid_mask)
+                and head < len(cache.causal_masks)
+            ):
+                kwargs["pre_pi_idx_clamped"] = cache.pi_idx_clamped[head]
+                kwargs["pre_valid_mask"] = cache.valid_mask[head]
+                kwargs["pre_causal_mask"] = cache.causal_masks[head]
 
         y_h, w_h, p_ms, a_ms = permute_window_attention_single(q[:, head], k[:, head], v[:, head], **kwargs)
         ys.append(y_h)
@@ -360,6 +369,555 @@ def wayfinder_permute_window_attention_batched(
 # ═══════════════════════════════════════════════════════════════════════════
 # flex_attention — fused block-sparse kernel, optimal for large T
 # ═══════════════════════════════════════════════════════════════════════════
+
+
+@dataclass(frozen=True)
+class BlockHamiltonianLayout:
+    """Block-level sparse neighborhood reused by flex_attention.
+
+    Shapes:
+      - block_neighbors: [H_q, N, K]
+      - block_perm: [H_q, N]
+    """
+
+    seq_len: int
+    block_size: int
+    num_blocks: int
+    block_neighbors: torch.Tensor
+    block_perm: torch.Tensor
+    landmark_blocks: tuple[int, ...]
+    sink_blocks: tuple[int, ...]
+    num_cycles: int
+    strategy: str
+    topology_name: str = "hamiltonian"
+    stage_idx: int = 0
+    stage_count: int = 1
+    local_window_blocks: int = 0
+    partner_rule: str = "none"
+    partner_count: int = 0
+
+
+def _ordered_unique_ints(values: Iterable[int]) -> list[int]:
+    seen: set[int] = set()
+    out: list[int] = []
+    for value in values:
+        ivalue = int(value)
+        if ivalue in seen:
+            continue
+        seen.add(ivalue)
+        out.append(ivalue)
+    return out
+
+
+def _ceil_log2(value: int) -> int:
+    if int(value) <= 1:
+        return 1
+    return int(math.ceil(math.log2(int(value))))
+
+
+def _bit_reverse(value: int, width: int) -> int:
+    out = 0
+    for bit_idx in range(int(width)):
+        out = (out << 1) | ((int(value) >> bit_idx) & 1)
+    return out
+
+
+def _wayfinder_stage_meta(
+    *,
+    num_blocks: int,
+    layer_idx: int,
+    partner_rule: str,
+) -> tuple[int, int]:
+    width = _ceil_log2(num_blocks)
+    if partner_rule == "benes":
+        stage_count = max(1, (2 * width) - 2)
+    else:
+        stage_count = width
+    stage_idx = int(layer_idx) % int(stage_count)
+    return stage_idx, stage_count
+
+
+def _wayfinder_partner_bits(
+    *,
+    stage_idx: int,
+    stage_count: int,
+    width: int,
+    partner_count: int,
+    partner_rule: str,
+) -> list[int]:
+    if width <= 0 or partner_count <= 0:
+        return []
+    if partner_rule == "benes":
+        if stage_count <= 1:
+            base_phase = 0
+        else:
+            base_phase = int(stage_idx) % int(stage_count)
+
+        def phase_to_bit(phase: int) -> int:
+            if width <= 1:
+                return 0
+            if phase < width:
+                return int(phase)
+            return int((2 * width) - 2 - phase)
+
+        return [phase_to_bit((base_phase + offset) % stage_count) for offset in range(partner_count)]
+    return [int(stage_idx + offset) % int(width) for offset in range(partner_count)]
+
+
+def _wayfinder_partner_block(
+    *,
+    block_idx: int,
+    bit_idx: int,
+    num_blocks: int,
+    partner_rule: str,
+    width: int,
+) -> int | None:
+    if bit_idx < 0 or bit_idx >= max(1, int(width)):
+        return None
+    if partner_rule == "xor" or partner_rule == "benes":
+        partner = int(block_idx) ^ (1 << int(bit_idx))
+    elif partner_rule == "bit_reversal":
+        reversed_idx = _bit_reverse(int(block_idx), int(width))
+        partner = _bit_reverse(reversed_idx ^ (1 << int(bit_idx)), int(width))
+    else:
+        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
+    if partner < 0 or partner >= int(num_blocks) or partner > int(block_idx):
+        return None
+    return int(partner)
+
+
+def build_block_hamiltonian_layout(
+    *,
+    seq_len: int,
+    block_size: int,
+    num_key_value_heads: int,
+    num_key_value_groups: int,
+    strategy: str = "random",
+    num_cycles: int = 1,
+    edge_disjoint: bool = True,
+    regular_num_clusters: int = 8,
+    seed: int = 0,
+    landmark_blocks: Sequence[int] | None = None,
+    device: torch.device | None = None,
+) -> BlockHamiltonianLayout:
+    """Build block-level Hamiltonian neighborhoods for a GQA attention module."""
+    if seq_len <= 0:
+        raise ValueError("seq_len must be positive")
+    if block_size <= 0:
+        raise ValueError("block_size must be positive")
+    if num_key_value_heads <= 0:
+        raise ValueError("num_key_value_heads must be positive")
+    if num_key_value_groups <= 0:
+        raise ValueError("num_key_value_groups must be positive")
+
+    target_device = device or torch.device("cpu")
+    num_blocks = num_blocks_for_seq_len(seq_len, block_size)
+    landmarks = tuple(
+        int(block_idx)
+        for block_idx in (
+            log_landmark_blocks(num_blocks)
+            if landmark_blocks is None
+            else _ordered_unique_ints(
+                block_idx for block_idx in landmark_blocks if 0 <= int(block_idx) < num_blocks
+            )
+        )
+    )
+
+    kv_perms: list[torch.Tensor] = []
+    kv_neighbor_rows: list[list[list[int]]] = []
+    max_degree = 1
+
+    for head_idx in range(int(num_key_value_heads)):
+        perms = block_hamiltonian_cycles(
+            int(seq_len),
+            int(block_size),
+            strategy=strategy,
+            num_cycles=int(num_cycles),
+            edge_disjoint=bool(edge_disjoint),
+            regular_num_clusters=int(regular_num_clusters),
+            seed=int(seed),
+            head_idx=head_idx,
+            device=torch.device("cpu"),
+        )
+        kv_perms.append(perms[0].to(dtype=torch.long))
+        cycle_links = [cycle_prev_next_from_perm(perm) for perm in perms]
+        head_rows: list[list[int]] = []
+        for block_idx in range(num_blocks):
+            row: list[int] = [block_idx]
+            for prev_h, next_h in cycle_links:
+                row.append(int(prev_h[block_idx].item()))
+                row.append(int(next_h[block_idx].item()))
+            row.extend(landmarks)
+            deduped = [value for value in _ordered_unique_ints(row) if 0 <= value < num_blocks]
+            head_rows.append(deduped)
+            max_degree = max(max_degree, len(deduped))
+        kv_neighbor_rows.append(head_rows)
+
+    kv_perm = torch.stack(kv_perms, dim=0)
+    kv_neighbors = torch.full(
+        (int(num_key_value_heads), num_blocks, max_degree),
+        -1,
+        dtype=torch.long,
+    )
+    for head_idx, rows in enumerate(kv_neighbor_rows):
+        for block_idx, row in enumerate(rows):
+            if row:
+                kv_neighbors[head_idx, block_idx, : len(row)] = torch.tensor(row, dtype=torch.long)
+
+    q_perm = kv_perm.repeat_interleave(int(num_key_value_groups), dim=0).to(device=target_device)
+    q_neighbors = kv_neighbors.repeat_interleave(int(num_key_value_groups), dim=0).to(device=target_device)
+    return BlockHamiltonianLayout(
+        seq_len=int(seq_len),
+        block_size=int(block_size),
+        num_blocks=int(num_blocks),
+        block_neighbors=q_neighbors,
+        block_perm=q_perm,
+        landmark_blocks=landmarks,
+        sink_blocks=(),
+        num_cycles=int(num_cycles),
+        strategy=str(strategy),
+    )
+
+
+def build_block_wayfinder_layout(
+    *,
+    seq_len: int,
+    block_size: int,
+    num_key_value_heads: int,
+    num_key_value_groups: int,
+    layer_idx: int,
+    local_window_blocks: int = 4,
+    sink_count: int = 1,
+    partner_count: int = 1,
+    partner_rule: str = "xor",
+    device: torch.device | None = None,
+) -> BlockHamiltonianLayout:
+    """Build the staged Wayfinder block topology for static sparse attention.
+
+    Each block attends to:
+      - itself
+      - a fixed number of prior local blocks
+      - one or more deterministic partner blocks from a staged communication schedule
+      - a small fixed set of sink blocks
+
+    The stage changes by layer index to create global mixing across layers while
+    keeping the per-layer degree small and compile-time predictable.
+    """
+    if seq_len <= 0:
+        raise ValueError("seq_len must be positive")
+    if block_size <= 0:
+        raise ValueError("block_size must be positive")
+    if num_key_value_heads <= 0:
+        raise ValueError("num_key_value_heads must be positive")
+    if num_key_value_groups <= 0:
+        raise ValueError("num_key_value_groups must be positive")
+    if local_window_blocks < 0:
+        raise ValueError("local_window_blocks must be >= 0")
+    if sink_count < 0:
+        raise ValueError("sink_count must be >= 0")
+    if partner_count < 0:
+        raise ValueError("partner_count must be >= 0")
+    if partner_rule not in {"xor", "bit_reversal", "benes"}:
+        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
+
+    target_device = device or torch.device("cpu")
+    num_blocks = num_blocks_for_seq_len(seq_len, block_size)
+    width = _ceil_log2(num_blocks)
+    stage_idx, stage_count = _wayfinder_stage_meta(
+        num_blocks=int(num_blocks),
+        layer_idx=int(layer_idx),
+        partner_rule=partner_rule,
+    )
+    sink_blocks = tuple(range(min(int(sink_count), int(num_blocks))))
+    identity_perm = torch.arange(int(num_blocks), dtype=torch.long)
+    partner_bits = _wayfinder_partner_bits(
+        stage_idx=int(stage_idx),
+        stage_count=int(stage_count),
+        width=int(width),
+        partner_count=int(partner_count),
+        partner_rule=partner_rule,
+    )
+
+    kv_neighbor_rows: list[list[list[int]]] = []
+    max_degree = 1
+    for _head_idx in range(int(num_key_value_heads)):
+        head_rows: list[list[int]] = []
+        for block_idx in range(int(num_blocks)):
+            row: list[int] = [int(block_idx)]
+            for offset in range(1, int(local_window_blocks) + 1):
+                local_block = int(block_idx) - int(offset)
+                if local_block < 0:
+                    break
+                row.append(local_block)
+            for bit_idx in partner_bits:
+                partner = _wayfinder_partner_block(
+                    block_idx=int(block_idx),
+                    bit_idx=int(bit_idx),
+                    num_blocks=int(num_blocks),
+                    partner_rule=partner_rule,
+                    width=int(width),
+                )
+                if partner is not None:
+                    row.append(int(partner))
+            row.extend(int(block_idx) for block_idx in sink_blocks)
+            deduped = [value for value in _ordered_unique_ints(row) if 0 <= value < int(num_blocks)]
+            head_rows.append(deduped)
+            max_degree = max(max_degree, len(deduped))
+        kv_neighbor_rows.append(head_rows)
+
+    kv_neighbors = torch.full(
+        (int(num_key_value_heads), int(num_blocks), int(max_degree)),
+        -1,
+        dtype=torch.long,
+    )
+    for head_idx, rows in enumerate(kv_neighbor_rows):
+        for block_idx, row in enumerate(rows):
+            if row:
+                kv_neighbors[head_idx, block_idx, : len(row)] = torch.tensor(row, dtype=torch.long)
+
+    q_perm = identity_perm.repeat(int(num_key_value_heads) * int(num_key_value_groups), 1).to(device=target_device)
+    q_neighbors = kv_neighbors.repeat_interleave(int(num_key_value_groups), dim=0).to(device=target_device)
+    return BlockHamiltonianLayout(
+        seq_len=int(seq_len),
+        block_size=int(block_size),
+        num_blocks=int(num_blocks),
+        block_neighbors=q_neighbors,
+        block_perm=q_perm,
+        landmark_blocks=(),
+        sink_blocks=sink_blocks,
+        num_cycles=1,
+        strategy="wayfinder",
+        topology_name="wayfinder",
+        stage_idx=int(stage_idx),
+        stage_count=int(stage_count),
+        local_window_blocks=int(local_window_blocks),
+        partner_rule=str(partner_rule),
+        partner_count=int(partner_count),
+    )
+
+
+def build_block_hamiltonian_mask(
+    layout: BlockHamiltonianLayout,
+    *,
+    device: torch.device | None = None,
+) -> Any:
+    """Compile a flex_attention block mask for block-Hamiltonian neighborhoods."""
+    if not FLEX_ATTENTION_AVAILABLE:
+        raise RuntimeError("flex_attention not available in this PyTorch build")
+
+    target_device = device or layout.block_neighbors.device
+    block_neighbors = layout.block_neighbors.to(device=target_device)
+    num_heads, num_blocks, _ = block_neighbors.shape
+
+    allow = torch.zeros((num_heads, num_blocks, num_blocks), device=target_device, dtype=torch.bool)
+    for head_idx in range(num_heads):
+        for block_idx in range(num_blocks):
+            row = block_neighbors[head_idx, block_idx]
+            valid = row[row >= 0]
+            if valid.numel() > 0:
+                allow[head_idx, block_idx, valid] = True
+
+    block_size = int(layout.block_size)
+    max_block = int(num_blocks - 1)
+    seq_len = int(layout.seq_len)
+    _allow = allow
+
+    def mask_mod(b: torch.Tensor, h: torch.Tensor, q_idx: torch.Tensor, kv_idx: torch.Tensor):
+        del b
+        q_block = torch.clamp(torch.div(q_idx, block_size, rounding_mode="floor"), max=max_block)
+        kv_block = torch.clamp(torch.div(kv_idx, block_size, rounding_mode="floor"), max=max_block)
+        return _allow[h, q_block, kv_block] & (kv_idx <= q_idx)
+
+    return _create_block_mask(
+        mask_mod,
+        B=None,
+        H=num_heads,
+        Q_LEN=seq_len,
+        KV_LEN=seq_len,
+        device=target_device,
+        BLOCK_SIZE=block_size,
+    )
+
+
+def wayfinder_block_sparse_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    block_mask: Any,
+) -> tuple[torch.Tensor, Any]:
+    """Run block-Hamiltonian sparse attention directly in original token order."""
+    if not FLEX_ATTENTION_AVAILABLE:
+        raise RuntimeError("flex_attention not available")
+
+    enable_gqa = int(k.shape[1]) < int(q.shape[1])
+    y = _compiled_flex_attention(
+        q,
+        k,
+        v,
+        block_mask=block_mask,
+        enable_gqa=enable_gqa,
+    )
+    return y, block_mask
+
+
+def _build_block_sparse_sdpa_index(
+    layout: "BlockHamiltonianLayout",
+    T: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Build cached gather index and attention mask for block-sparse SDPA.
+
+    Returns:
+        idx_long: [N, KB] int64 — token-level gather indices
+        attn_mask: [N, BS, KB] bool — combined causal + validity mask
+    """
+    BS = int(layout.block_size)
+    N = int(layout.num_blocks)
+    neighbors = layout.block_neighbors[0].to(device=device)  # [N, K]
+    K = int(neighbors.shape[1])
+    KB = K * BS
+
+    offsets = torch.arange(BS, device=device, dtype=torch.int32)
+    valid_mask = neighbors >= 0  # [N, K]
+    safe_neighbors = neighbors.clamp(min=0).to(dtype=torch.int32)
+    kv_token_idx = (safe_neighbors.unsqueeze(-1) * BS + offsets.view(1, 1, BS)).view(N, KB)
+    kv_token_idx = kv_token_idx.clamp(max=T - 1)
+
+    valid_tok = valid_mask.unsqueeze(-1).expand(N, K, BS).reshape(N, KB)
+
+    q_positions = torch.arange(N * BS, device=device, dtype=torch.int32).view(N, BS)
+    if N * BS > T:
+        q_positions = q_positions.clamp(max=T - 1)
+    kv_positions = kv_token_idx.clone()
+    kv_positions[~valid_tok] = T
+    attn_mask = (kv_positions.unsqueeze(1) <= q_positions.unsqueeze(2)) & valid_tok.unsqueeze(1)
+
+    return kv_token_idx.long(), attn_mask
+
+
+# Cache for block-sparse SDPA index/mask tensors.
+# Key: (layout id, T, device) → (idx_long, attn_mask)
+_BLOCK_SPARSE_SDPA_CACHE: Dict[tuple, tuple[torch.Tensor, torch.Tensor]] = {}
+
+
+def _get_block_sparse_sdpa_index(
+    layout: "BlockHamiltonianLayout",
+    T: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Get or build cached index/mask tensors for block-sparse SDPA."""
+    key = (id(layout), T, str(device))
+    cached = _BLOCK_SPARSE_SDPA_CACHE.get(key)
+    if cached is not None:
+        return cached
+    result = _build_block_sparse_sdpa_index(layout, T, device)
+    _BLOCK_SPARSE_SDPA_CACHE[key] = result
+    # Evict old entries if cache grows too large
+    if len(_BLOCK_SPARSE_SDPA_CACHE) > 32:
+        oldest = next(iter(_BLOCK_SPARSE_SDPA_CACHE))
+        del _BLOCK_SPARSE_SDPA_CACHE[oldest]
+    return result
+
+
+def wayfinder_block_sparse_sdpa_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    layout: "BlockHamiltonianLayout",
+    block_chunk_size: int = 0,
+) -> torch.Tensor:
+    """Block-sparse attention using F.scaled_dot_product_attention.
+
+    No torch.compile, no flex_attention — works on any CUDA arch including
+    unsupported sm_121 (DGX Spark GB10).  Folds blocks into the batch
+    dimension for efficient SDPA kernel launches.
+
+    Args:
+        q: [B, H_q, T, dh]
+        k: [B, H_kv, T, dh]
+        v: [B, H_kv, T, dh]
+        layout: BlockHamiltonianLayout with block_neighbors [H_q, N, K]
+        block_chunk_size: Process this many blocks per SDPA call (0 = all at once).
+            Reduces peak memory at the cost of more kernel launches.
+
+    Returns:
+        output: [B, H_q, T, dh]
+    """
+    batch, H_q, T, dh = q.shape
+    H_kv = k.shape[1]
+    BS = int(layout.block_size)
+    N = int(layout.num_blocks)
+    device = q.device
+    enable_gqa = H_kv < H_q
+
+    # Get or build cached index/mask tensors
+    idx_long, attn_mask = _get_block_sparse_sdpa_index(layout, T, device)
+    KB = idx_long.shape[1]
+
+    # Pad Q if sequence isn't block-aligned
+    pad_len = N * BS - T
+    if pad_len > 0:
+        q_work = torch.nn.functional.pad(q, (0, 0, 0, pad_len))
+    else:
+        q_work = q
+
+    # Choose chunk size: 0 means process all blocks in one SDPA call
+    C = N if block_chunk_size <= 0 else min(block_chunk_size, N)
+
+    if C >= N:
+        # --- Single-shot: all blocks at once ---
+        q_blocks = q_work.view(batch, H_q, N, BS, dh).permute(0, 2, 1, 3, 4)
+        q_blocks = q_blocks.reshape(batch * N, H_q, BS, dh)
+
+        k_gathered = k[:, :, idx_long]  # [batch, H_kv, N, KB, dh]
+        v_gathered = v[:, :, idx_long]
+        k_blocks = k_gathered.permute(0, 2, 1, 3, 4).reshape(batch * N, H_kv, KB, dh)
+        v_blocks = v_gathered.permute(0, 2, 1, 3, 4).reshape(batch * N, H_kv, KB, dh)
+
+        mask_exp = attn_mask.unsqueeze(0).expand(batch, N, BS, KB)
+        mask_exp = mask_exp.reshape(batch * N, 1, BS, KB)
+
+        out_blocks = torch.nn.functional.scaled_dot_product_attention(
+            q_blocks, k_blocks, v_blocks,
+            attn_mask=mask_exp, enable_gqa=enable_gqa,
+        )
+        out = out_blocks.view(batch, N, H_q, BS, dh).permute(0, 2, 1, 3, 4)
+        out = out.reshape(batch, H_q, N * BS, dh)
+    else:
+        # --- Chunked: process C blocks at a time to bound peak memory ---
+        out_pieces: list[torch.Tensor] = []
+        q_blocked = q_work.view(batch, H_q, N, BS, dh)  # [batch, H_q, N, BS, dh]
+
+        for start in range(0, N, C):
+            end = min(start + C, N)
+            n_c = end - start
+
+            q_c = q_blocked[:, :, start:end].permute(0, 2, 1, 3, 4)
+            q_c = q_c.reshape(batch * n_c, H_q, BS, dh)
+
+            idx_c = idx_long[start:end]  # [n_c, KB]
+            k_c = k[:, :, idx_c].permute(0, 2, 1, 3, 4).reshape(batch * n_c, H_kv, KB, dh)
+            v_c = v[:, :, idx_c].permute(0, 2, 1, 3, 4).reshape(batch * n_c, H_kv, KB, dh)
+
+            mask_c = attn_mask[start:end].unsqueeze(0).expand(batch, n_c, BS, KB)
+            mask_c = mask_c.reshape(batch * n_c, 1, BS, KB)
+
+            out_c = torch.nn.functional.scaled_dot_product_attention(
+                q_c, k_c, v_c,
+                attn_mask=mask_c, enable_gqa=enable_gqa,
+            )  # [batch*n_c, H_q, BS, dh]
+            out_pieces.append(out_c.view(batch, n_c, H_q, BS, dh))
+
+        # [batch, N, H_q, BS, dh]
+        out = torch.cat(out_pieces, dim=1).permute(0, 2, 1, 3, 4)
+        out = out.reshape(batch, H_q, N * BS, dh)
+
+    if pad_len > 0:
+        out = out[:, :, :T, :]
+    return out
+
 
 def build_flex_block_mask(
     perm: torch.Tensor,

@@ -12,6 +12,15 @@ import torch
 from hcsa.graph.abi import EdgeType, WayfinderGraphABI, graph_metrics, validate_graph_abi
 
 
+def _repeat_kv(hidden_states: torch.Tensor, n_rep: int) -> torch.Tensor:
+    """Expand grouped-query K/V heads to query-head count."""
+    if n_rep == 1:
+        return hidden_states
+    batch, num_kv_heads, seq_len, head_dim = hidden_states.shape
+    expanded = hidden_states[:, :, None, :, :].expand(batch, num_kv_heads, n_rep, seq_len, head_dim)
+    return expanded.reshape(batch, num_kv_heads * n_rep, seq_len, head_dim)
+
+
 @dataclass
 class AttentionProfile:
     graph_build_ms: float = 0.0
