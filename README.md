@@ -106,11 +106,15 @@ python scripts/serve_qwen_wayfinder_cuda.py \
 
 Wayfinder is **training-free** — it works on existing models at inference time, complementary to training-time methods.
 
-**Training-free:** [FlexPrefill](https://arxiv.org/abs/2502.20766) (ByteDance) — content-aware per-head sparsity budgets.
+**Block-sparse attention:** [BigBird](https://arxiv.org/abs/2007.14062) (Google) — random + window + global tokens; Wayfinder replaces the random blocks with a deterministic butterfly schedule. [Longformer](https://arxiv.org/abs/2004.05150) (AI2) — sliding window + global attention.
 
-**Requires training:** [MoDA](https://arxiv.org/abs/2603.15619) (ByteDance/HUST) — depth-stream KV attention. [NSA/DSA](https://arxiv.org/abs/2502.11089) (DeepSeek) — hardware-aligned trained sparse attention. [MoBA](https://arxiv.org/abs/2502.13189) (Kimi) — learned block gating.
+**Butterfly structure in ML:** [Monarch](https://arxiv.org/abs/2204.00595) (Dao et al.) — uses butterfly matrices for efficient structured computation. Wayfinder applies the same network topology to attention routing across layers.
 
-**Different computation:** [MLA](https://arxiv.org/abs/2502.07864) (DeepSeek) — KV cache compression. [Gated DeltaNet](https://arxiv.org/abs/2412.06464) (Qwen 3.5) — linear recurrence. [FlashAttention](https://arxiv.org/abs/2205.14135) — exact dense, faster kernels.
+**Training-free sparse:** [FlexPrefill](https://arxiv.org/abs/2502.20766) (ByteDance) — content-aware per-head sparsity budgets.
+
+**Requires training:** [NSA/DSA](https://arxiv.org/abs/2502.11089) (DeepSeek) — hardware-aligned trained sparse attention. [MoBA](https://arxiv.org/abs/2502.13189) (Kimi) — learned block gating.
+
+**Different computation:** [Gated DeltaNet](https://arxiv.org/abs/2412.06464) (Qwen 3.5) — linear recurrence. [FlashAttention](https://arxiv.org/abs/2205.14135) — exact dense, faster kernels.
 
 ## Project structure
 
