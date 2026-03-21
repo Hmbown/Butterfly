@@ -6,7 +6,7 @@ Block-structured attention acceleration for long-context inference. Training-fre
 
 Dense attention is O(T²) per layer — every token scores against every earlier token. Wayfinder replaces this with a block-sparse pattern where each block only attends to a small, fixed set of other blocks, reducing per-layer work to O(T·B) where B is constant. Linear instead of quadratic — the speedup grows with sequence length.
 
-![Attention patterns: dense vs sparse approaches](docs/assets/attention_comparison_5panel.png)
+![Dense causal vs Wayfinder block-sparse attention](docs/assets/wayfinder_block_topology.png)
 
 ### Block topology
 
