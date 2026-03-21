@@ -16,15 +16,11 @@ The sequence is split into fixed-size blocks (typically 128 tokens). Each block 
 2. **Partner blocks** — deterministic long-range blocks from a staged schedule
 3. **Sink blocks** — early-sequence anchors (handles the [attention sink](https://arxiv.org/abs/2309.17453) effect)
 
-### Global mixing via butterfly networks
+### Global mixing via hypercube routing
 
-The partner schedule is borrowed from [butterfly](https://en.wikipedia.org/wiki/Butterfly_network) and [Benes](https://en.wikipedia.org/wiki/Clos_network#Bene%C5%A1_network_(m_=_n_=_2)) networks — the same topology used in telecom switch fabrics and parallel computing interconnects since the 1960s.
+The partner schedule forms a [hypercube](https://en.wikipedia.org/wiki/Hypercube) — the same topology used in telecom switch fabrics and parallel computing interconnects since the 1960s (also known as [butterfly](https://en.wikipedia.org/wiki/Butterfly_network) / [Benes](https://en.wikipedia.org/wiki/Clos_network#Bene%C5%A1_network_(m_=_n_=_2)) networks). At layer `l`, block `b` partners with block `b XOR (1 << (l mod log₂ N))` — each layer traverses one dimension of the hypercube. No single layer has global attention, but the **stack** of layers provides global reachability in O(log N) hops.
 
-At stage `s`, each node `b` connects to node `b XOR (1 << s)` — flipping one bit of the address per stage. After log₂(N) stages, any node can reach any other. Wayfinder maps this to transformer layers: at layer `l`, block `b` partners with block `b XOR (1 << (l mod log₂ N))`.
-
-No single layer has global attention, but the **stack** of layers provides global reachability in O(log N) hops.
-
-![Butterfly network schedule, reachability expansion, and per-layer attention masks](docs/assets/wayfinder_butterfly_diagram.png)
+![Block-sparse topology as hypercube communication](docs/assets/wayfinder_hypercube.png)
 
 ### Hardware alignment
 
