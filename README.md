@@ -4,17 +4,27 @@ Block-structured attention acceleration for long-context inference. Training-fre
 
 ## How it works
 
-In dense causal attention, every token attends to every earlier token — O(T^2) total edges. Wayfinder replaces this with a block-sparse attention pattern that keeps the per-layer support small and hardware-regular while maintaining global information flow across layers.
+Dense causal attention computes scores between every token and every earlier token — O(T^2) work per layer. At 262K context that's ~34 billion score computations per layer. Most of that work contributes negligibly to the output: attention distributions in trained models are typically sparse, concentrating on local context and a few distant positions.
 
-The sequence is partitioned into fixed-size blocks (typically 128 tokens). For each query block, the attention support is:
+Wayfinder exploits this by replacing dense attention with a block-sparse pattern where each block of tokens only attends to a small, fixed set of other blocks. The total work per layer becomes O(T·B) where B is the constant number of blocks in the support — linear in sequence length instead of quadratic. That's where the speedup comes from: as context grows, dense attention's cost grows quadratically while Wayfinder's grows linearly, so the gap widens at longer sequences.
 
-1. **Self + local predecessors** — the query block itself and a fixed number of immediately preceding blocks (local context)
-2. **Partner blocks** — deterministic long-range blocks selected by a staged communication schedule (XOR, bit-reversal, or Benes network)
-3. **Sink blocks** — a small fixed set of early-sequence blocks (anchors)
+### Block topology
 
-The partner selection stage changes by layer. At layer `l`, the partner rule connects each block to a different long-range target — so across O(log N) layers, every block can reach every other block through a chain of short hops. Global mixing, without global attention at any single layer.
+The sequence is partitioned into fixed-size blocks (typically 128 tokens). Each query block attends to:
 
-Causal masking still applies at token level within each block. The block topology is static and compile-time predictable — no routing, no learned gating, no content-dependent sparsity decisions.
+1. **Self + local predecessors** — the block itself and a fixed number of immediately preceding blocks
+2. **Partner blocks** — deterministic long-range blocks from a staged communication schedule
+3. **Sink blocks** — a small set of early-sequence blocks (handles the [attention sink](https://arxiv.org/abs/2309.17453) phenomenon)
+
+### Global mixing across layers
+
+Restricting each layer to a few blocks would lose long-range information — except the partner selection changes by layer. The schedule is borrowed from interconnect network theory (the same math behind switch fabrics and butterfly networks): at layer `l`, each block `b` connects to block `b XOR (1 << (l mod log₂ N))` (or a bit-reversal / Benes variant). After O(log N) layers, every block can reach every other block through a chain of these hops.
+
+This is the key property: no single layer has global attention, but the *stack* of layers provides global reachability. Information flows everywhere in O(log N) hops, while each individual layer does only O(T) work.
+
+### Why it's hardware-friendly
+
+The block support is static and known at compile time — no routing decisions, no content-dependent gating, no irregular memory access. Each block's attention is a regular dense matmul against a small contiguous set of K/V blocks, which maps directly to Triton/CUDA block operations and stays on the fast path of the memory hierarchy.
 
 ## Results
 
