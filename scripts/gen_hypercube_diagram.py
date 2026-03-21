@@ -214,10 +214,10 @@ def main():
     ax_map.set_title("Each layer traverses one hypercube dimension\n→ global reachability in log₂(N) layers",
                      color=TEXT, fontsize=12, fontweight="bold", pad=12)
 
-    fig.suptitle("Wayfinder block-sparse attention ≡ hypercube communication",
+    fig.suptitle("BNA block-sparse attention ≡ hypercube communication",
                  color=TEXT, fontsize=14, fontweight="bold", y=1.02)
 
-    out = "docs/assets/wayfinder_hypercube.png"
+    out = "docs/assets/bna_hypercube.png"
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor=BG, pad_inches=0.3)
     print(f"Saved: {out}")
     plt.close()

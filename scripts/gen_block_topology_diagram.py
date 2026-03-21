@@ -3,8 +3,8 @@
 
 Creates a multi-panel figure showing:
   1. Dense causal attention mask
-  2. Wayfinder block-sparse mask at a single layer
-  3. Wayfinder block-sparse mask across 4 layers (union = global reachability)
+  2. BNA block-sparse mask at a single layer
+  3. BNA block-sparse mask across 4 layers (union = global reachability)
 """
 from __future__ import annotations
 
@@ -181,12 +181,12 @@ def main():
     ax.text(0.5, -0.12, f"{sparsity_dense*100:.0f}% sparse",
             transform=ax.transAxes, ha="center", color="#8b949e", fontsize=9)
 
-    # Panel 2: Wayfinder single layer (color-coded)
+    # Panel 2: BNA single layer (color-coded)
     ax = axes[1]
     colored = color_block_mask(num_blocks, block_size, layer_idx=0,
                                local_window_blocks=local_w, sink_count=sink_c)
     ax.imshow(colored, origin="upper", aspect="equal", interpolation="nearest")
-    ax.set_title("Wayfinder — layer 0", color="white", fontsize=13, fontweight="bold", pad=10)
+    ax.set_title("BNA — layer 0", color="white", fontsize=13, fontweight="bold", pad=10)
     ax.set_xlabel("Key position", color="#8b949e", fontsize=9)
     ax.tick_params(colors="#8b949e", labelsize=7)
     ax.set_facecolor(BG_COLOR)
@@ -196,7 +196,7 @@ def main():
     ax.text(0.5, -0.12, f"{sparsity_wf*100:.0f}% sparse",
             transform=ax.transAxes, ha="center", color="#8b949e", fontsize=9)
 
-    # Panel 3: Wayfinder union across log2(N) layers
+    # Panel 3: BNA union across log2(N) layers
     ax = axes[2]
     width = _ceil_log2(num_blocks)
     union_mask = np.zeros((T, T), dtype=bool)
@@ -224,7 +224,7 @@ def main():
             union_img[shared] = blended.astype(np.uint8)
 
     ax.imshow(union_img, origin="upper", aspect="equal", interpolation="nearest")
-    ax.set_title(f"Wayfinder — {width} layers combined", color="white",
+    ax.set_title(f"BNA — {width} layers combined", color="white",
                  fontsize=13, fontweight="bold", pad=10)
     ax.set_xlabel("Key position", color="#8b949e", fontsize=9)
     ax.tick_params(colors="#8b949e", labelsize=7)
@@ -249,7 +249,7 @@ def main():
                  color="white", fontsize=14, y=0.98)
 
     plt.tight_layout(rect=[0, 0.04, 1, 0.95])
-    out = "docs/assets/wayfinder_block_topology.png"
+    out = "docs/assets/bna_block_topology.png"
     fig.savefig(out, dpi=200, bbox_inches="tight", facecolor=BG_COLOR, pad_inches=0.3)
     print(f"Saved: {out}")
     plt.close()
