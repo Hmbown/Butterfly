@@ -59,15 +59,19 @@ Perplexity and downstream task evaluations haven't been done yet.
 
 MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attention layers replaced. 4-bit quantized model (`mlx-community/Qwen3.5-9B-MLX-4bit`).
 
-| Context | Dense TTFT | BNA TTFT | Dense tok/s | BNA tok/s | Top-1 agreement |
-|--------:|-----------:|---------:|------------:|----------:|----------------:|
-| 2,048   | 71 ms      | 49 ms    | 62.2        | 62.0      | 100%            |
-| 8,192   | 116 ms     | 86 ms    | 57.2        | 58.8      | —               |
-| 32,768  | 447 ms     | 416 ms   | 48.0        | 48.1      | —               |
-| 65,536  | —          | —        | —           | —         | —               |
-| 122,880 | —          | —        | —           | 20.0      | —               |
+| Context | Dense TTFT | BNA TTFT | Dense tok/s | BNA tok/s | Peak memory |
+|--------:|-----------:|---------:|------------:|----------:|------------:|
+| 2,048   | 71 ms      | 49 ms    | 62.2        | 62.0      | 7.1 GB      |
+| 8,192   | 116 ms     | 86 ms    | 57.2        | 58.8      | 9.9 GB      |
+| 32,768  | 447 ms     | 416 ms   | 48.0        | 48.1      | 13.7 GB     |
+| 65,536  | 160 ms     | 650 ms   | 41.5        | 31.2      | 18.9 GB     |
+| 98,304  | 2.0 s      | 3.7 s    | 17.2        | 11.9      | 24.0 GB     |
+| 131,072 | 6.9 s      | 9.9 s    | 7.3         | 5.4       | 29.1 GB     |
+| 163,840 | 26.8 s     | —        | 2.2         | —         | 34.2 GB     |
 
-Peak memory at 122K context: 27.8 GB (77% of 36 GB unified memory).
+BNA wins at short-to-mid context (2K–32K) where the K6 Metal kernel eliminates permutation overhead. At 65K+ the MLX permute-window prefill path is slower than dense — the Python-level `take_along_axis` and mask construction dominates. This is an MLX-specific limitation; the CUDA Triton block-sparse kernel does not have this issue (see DGX results above).
+
+Top-1 agreement: 100% (5/6 quality tasks identical to dense). Max context on 36 GB: 163K tokens (dense), 131K tokens (BNA).
 
 ## Try it
 
