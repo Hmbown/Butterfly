@@ -17,6 +17,7 @@ _KERNEL_DIR = Path(__file__).resolve().parent
 _ACTIVE_ROW_DISCOVERED = _KERNEL_DIR / "hcsa_active_row_fused_discovered.metal"
 _PERMUTE_WINDOW_DISCOVERED = _KERNEL_DIR / "hcsa_permute_window_fused_discovered.metal"
 _FUSED_ATTENTION_DISCOVERED = _KERNEL_DIR / "hcsa_fused_attention_discovered.metal"
+_SPARSE_NEIGHBOR_ATTENTION = _KERNEL_DIR / "hcsa_sparse_neighbor_attention.metal"
 
 
 def has_discovered_active_row_kernel() -> bool:
@@ -87,20 +88,39 @@ inline void kk_store(device T* ptr, uint idx, float val) {
     )
 
 
-def sparse_row_attention_fused(
-    q: mx.array,
-    k: mx.array,
-    v: mx.array,
-    neigh_idx: mx.array,
-    *,
-    edge_type: Optional[mx.array] = None,
-) -> mx.array:
-    """Future Metal fused op seam.
+def has_sparse_neighbor_kernel() -> bool:
+    """True when the K7 sparse-neighbor attention kernel is available."""
+    return _SPARSE_NEIGHBOR_ATTENTION.exists()
 
-    Expected shapes:
-    - q,k,v: [B,H,T,dh]
-    - neigh_idx: [H,T,D] int32 with -1 padding
-    - edge_type: [H,T,D] uint8 (optional)
-    - return: [B,H,T,dh]
-    """
-    raise NotImplementedError("Metal fused kernel not wired yet; use MLX fallback path")
+
+@cache
+def sparse_neighbor_attention_kernel():
+    """Load the K7 sparse-neighbor attention Metal kernel."""
+    if not has_sparse_neighbor_kernel():
+        raise FileNotFoundError(
+            "K7 sparse-neighbor kernel not found. Expected: "
+            f"{_SPARSE_NEIGHBOR_ATTENTION}"
+        )
+    try:
+        from zmlx.metal import kernel as metal_kernel
+        from zmlx.msl import DEFAULT_HEADER
+    except ModuleNotFoundError as exc:  # pragma: no cover
+        raise RuntimeError(
+            "zmlx is required to load the sparse-neighbor kernel."
+        ) from exc
+
+    _K7_HEADER_EXTRA = """
+template <typename T>
+inline void kk_store(device T* ptr, uint idx, float val) {
+    ptr[idx] = T(val);
+}
+"""
+    source = _SPARSE_NEIGHBOR_ATTENTION.read_text()
+    return metal_kernel(
+        name="kk_sparse_neighbor_attention",
+        input_names=["q", "k", "v", "neigh_idx", "causal_mask", "hkv_map"],
+        output_names=["out"],
+        source=source,
+        header=DEFAULT_HEADER + _K7_HEADER_EXTRA,
+        cache=True,
+    )

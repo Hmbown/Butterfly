@@ -317,6 +317,45 @@ def _union_multigraph_attention(
     return mx.stack(ys, axis=1)
 
 
+def _sparse_gather_attention_metal(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    neigh_idx_safe: mx.array,
+    causal_mask: mx.array,
+) -> mx.array:
+    """K7 Metal kernel path for sparse-neighbor attention.
+
+    All heads fused in a single Metal dispatch — no per-head Python loop.
+    """
+    from bna.mlx.kernels.metal import sparse_neighbor_attention_kernel
+
+    kernel = sparse_neighbor_attention_kernel()
+    B, Hq, Tq, dh = q.shape
+    Hkv = k.shape[1]
+
+    # Build GQA head map: query head h → KV head h // (Hq // Hkv)
+    gqa_rep = Hq // Hkv
+    hkv_map = mx.array([h // gqa_rep for h in range(Hq)], dtype=mx.int32)
+
+    # Ensure mask is uint8 for Metal
+    mask_u8 = causal_mask.astype(mx.uint8) if causal_mask.dtype != mx.uint8 else causal_mask
+
+    _grid = (dh, B * Hq * Tq, 1)
+    _tg = (min(dh, 256), 1, 1)
+    y = kernel(
+        q, k, v,
+        neigh_idx_safe.astype(mx.int32),
+        mask_u8,
+        hkv_map,
+        output_shapes=[q.shape],
+        output_dtypes=[q.dtype],
+        grid=_grid,
+        threadgroup=_tg,
+    )[0]
+    return y
+
+
 def sparse_gather_attention(
     q: mx.array,
     k: mx.array,
@@ -357,6 +396,18 @@ def sparse_gather_attention(
     # Apply window-drop: zero out dropped WINDOW edges in mask
     if window_drop_mask is not None:
         mask = mask & window_drop_mask
+
+    # --- K7 Metal kernel fast path: no per-head loop, no edge bias ---
+    from bna.mlx.kernels.metal import has_sparse_neighbor_kernel
+
+    if (
+        has_sparse_neighbor_kernel()
+        and not return_weights
+        and edge_type_bias is None
+        and edge_type_bias_offset is None
+    ):
+        y = _sparse_gather_attention_metal(q, k, v, s_idx, mask)
+        return y, None
 
     # Precompute per-edge bias tensor [H, T, D] if edge_type_bias provided
     bias_htd: Optional[mx.array] = None
