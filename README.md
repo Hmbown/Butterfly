@@ -61,15 +61,15 @@ MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attenti
 
 | Context | Dense TTFT | BNA TTFT | Dense tok/s | BNA tok/s | Peak memory |
 |--------:|-----------:|---------:|------------:|----------:|------------:|
-| 2,048   | 71 ms      | 49 ms    | 62.2        | 62.0      | 7.1 GB      |
-| 8,192   | 116 ms     | 86 ms    | 57.2        | 58.8      | 9.9 GB      |
-| 32,768  | 100 ms     | 138 ms   | 49.6        | 45.1      | 13.7 GB     |
-| 65,536  | 160 ms     | 859 ms   | 41.5        | 27.2      | 18.9 GB     |
-| 98,304  | 2.0 s      | 7.7 s    | 17.2        | 6.7       | 24.0 GB     |
-| 131,072 | 6.9 s      | **6.4 s**| 7.3         | **7.8**   | 29.1 GB     |
-| 163,840 | 26.8 s     | **22.1 s**| 2.2        | **2.6**   | 34.2 GB     |
+| 2,048   | 71 ms      | **49 ms**| 62.2        | 62.0      | 7.1 GB      |
+| 8,192   | 116 ms     | **86 ms**| 57.2        | 58.8      | 9.9 GB      |
+| 32,768  | 100 ms     | **99 ms**| 49.6        | 47.1      | 13.7 GB     |
+| 65,536  | 160 ms     | 202 ms   | 41.5        | 39.8      | 18.9 GB     |
+| 98,304  | 2.0 s      | **1.2 s**| 17.2        | **22.4**  | 24.0 GB     |
+| 131,072 | 6.9 s      | 7.5 s    | 7.3         | 6.8       | 29.1 GB     |
+| 163,840 | 26.8 s     | **21.5 s**| 2.2        | **2.7**   | 34.2 GB     |
 
-BNA wins at short context (2K–8K TTFT: 31% faster) and at the memory wall (131K+: 7–18% faster TTFT and decode). The K6 Metal kernel avoids materializing full permuted Q/K/V tensors, which matters when memory is tight. Mid-range (32K–98K) favors dense because MLX's optimized SDPA on contiguous data outpaces the per-element kernel.
+BNA uses chunked-gather + native SDPA for prefill (no full-T permutation copies) and the K6 fused Metal kernel for decode. Wins at short context (2K–8K TTFT: 31% faster), mid-range (98K: **40% faster TTFT, 30% faster decode**), and at the memory wall (163K: **20% faster**). Mid-range dip at 65K–131K where dense's contiguous access pattern is slightly faster.
 
 Top-1 agreement: 100% (5/6 quality tasks identical to dense). Max context on 36 GB: 163K tokens for both dense and BNA.
 

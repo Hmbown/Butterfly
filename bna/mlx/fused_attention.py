@@ -72,6 +72,87 @@ def _fused_active_dispatch_eligible(
     return True
 
 
+def wayfinder_fused_permute_window_attention_chunked_gather(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    all_perms: mx.array,
+    all_inv_perms: mx.array,
+    window: int,
+    query_chunk_size: int = 384,
+    scale: Optional[float] = None,
+) -> mx.array:
+    """Chunked-gather permute-window attention.
+
+    Instead of pre-permuting the full Q/K/V tensors upfront (3x full-T
+    copies), gather per-chunk directly from original Q/K/V.  Uses MLX's
+    native ``scaled_dot_product_attention`` for the actual attention —
+    much faster than per-element Metal kernels in the mid-range.
+
+    Peak memory: O(chunk_size * Hq * dh) instead of O(T * Hq * dh).
+    """
+    B, Hq, T, dh = q.shape
+    Hkv = k.shape[1]
+    scale = scale if scale is not None else 1.0 / math.sqrt(dh)
+    q_chunk = int(max(1, min(query_chunk_size, T)))
+
+    # --- GQA perm expansion ---
+    Hp = int(all_perms.shape[0])
+    if Hp < Hq:
+        perm_rep = Hq // Hp
+        all_perms = mx.repeat(all_perms, repeats=perm_rep, axis=0)
+        all_inv_perms = mx.repeat(all_inv_perms, repeats=perm_rep, axis=0)
+
+    # --- GQA: expand K/V to match Hq ---
+    if Hkv < Hq:
+        repeats = Hq // Hkv
+        k = mx.repeat(k, repeats=repeats, axis=1)
+        v = mx.repeat(v, repeats=repeats, axis=1)
+
+    # --- Per-chunk gather + SDPA (no full-T permutation copies) ---
+    y_pi_chunks: list[mx.array] = []
+    for s in range(0, T, q_chunk):
+        e = min(T, s + q_chunk)
+        ks = max(0, s - window)
+        ke = min(T, e + window)
+        Qblk = e - s
+        Kblk = ke - ks
+
+        # Gather Q/K/V for this chunk directly from original tensors
+        q_perm = all_perms[:, s:e]  # [Hq, Qblk] — original positions
+        q_idx = mx.broadcast_to(q_perm[None, :, :, None], (B, Hq, Qblk, 1))
+        q_blk = mx.take_along_axis(q, q_idx, axis=2)
+
+        kv_perm = all_perms[:, ks:ke]  # [Hq, Kblk]
+        kv_idx = mx.broadcast_to(kv_perm[None, :, :, None], (B, Hq, Kblk, 1))
+        k_blk = mx.take_along_axis(k, kv_idx, axis=2)
+        v_blk = mx.take_along_axis(v, kv_idx, axis=2)
+
+        # Causal mask from original positions
+        causal = kv_perm[:, None, :] <= q_perm[:, :, None]  # [Hq, Qblk, Kblk]
+
+        # Window constraint in permuted order
+        q_pos = mx.arange(s, e, dtype=mx.int32).reshape(1, Qblk, 1)
+        k_pos = mx.arange(ks, ke, dtype=mx.int32).reshape(1, 1, Kblk)
+        in_window = ((k_pos - q_pos) >= -window) & ((k_pos - q_pos) <= window)
+
+        mask = in_window & causal
+
+        y_blk = mx.fast.scaled_dot_product_attention(
+            q_blk, k_blk, v_blk,
+            scale=scale,
+            mask=mask[None, :, :, :],
+        ).astype(v.dtype)
+
+        y_pi_chunks.append(y_blk)
+
+    # Concatenate (permuted order) and inverse-permute
+    y_pi = y_pi_chunks[0] if len(y_pi_chunks) == 1 else mx.concatenate(y_pi_chunks, axis=2)
+    inv_idx = mx.broadcast_to(all_inv_perms[None, :, :, None], (B, Hq, T, 1))
+    return mx.take_along_axis(y_pi, inv_idx, axis=2).astype(v.dtype)
+
+
 def wayfinder_fused_permute_window_attention(
     q: mx.array,
     k: mx.array,
