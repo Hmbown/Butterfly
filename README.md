@@ -63,15 +63,15 @@ MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attenti
 |--------:|-----------:|---------:|------------:|----------:|------------:|
 | 2,048   | 71 ms      | 49 ms    | 62.2        | 62.0      | 7.1 GB      |
 | 8,192   | 116 ms     | 86 ms    | 57.2        | 58.8      | 9.9 GB      |
-| 32,768  | 447 ms     | 416 ms   | 48.0        | 48.1      | 13.7 GB     |
-| 65,536  | 160 ms     | 650 ms   | 41.5        | 31.2      | 18.9 GB     |
-| 98,304  | 2.0 s      | 3.7 s    | 17.2        | 11.9      | 24.0 GB     |
-| 131,072 | 6.9 s      | 9.9 s    | 7.3         | 5.4       | 29.1 GB     |
-| 163,840 | 26.8 s     | —        | 2.2         | —         | 34.2 GB     |
+| 32,768  | 100 ms     | 138 ms   | 49.6        | 45.1      | 13.7 GB     |
+| 65,536  | 160 ms     | 859 ms   | 41.5        | 27.2      | 18.9 GB     |
+| 98,304  | 2.0 s      | 7.7 s    | 17.2        | 6.7       | 24.0 GB     |
+| 131,072 | 6.9 s      | **6.4 s**| 7.3         | **7.8**   | 29.1 GB     |
+| 163,840 | 26.8 s     | **22.1 s**| 2.2        | **2.6**   | 34.2 GB     |
 
-BNA wins at short-to-mid context (2K–32K) where the K6 Metal kernel eliminates permutation overhead. At 65K+ the MLX permute-window prefill path is slower than dense — the Python-level `take_along_axis` and mask construction dominates. This is an MLX-specific limitation; the CUDA Triton block-sparse kernel does not have this issue (see DGX results above).
+BNA wins at short context (2K–8K TTFT: 31% faster) and at the memory wall (131K+: 7–18% faster TTFT and decode). The K6 Metal kernel avoids materializing full permuted Q/K/V tensors, which matters when memory is tight. Mid-range (32K–98K) favors dense because MLX's optimized SDPA on contiguous data outpaces the per-element kernel.
 
-Top-1 agreement: 100% (5/6 quality tasks identical to dense). Max context on 36 GB: 163K tokens (dense), 131K tokens (BNA).
+Top-1 agreement: 100% (5/6 quality tasks identical to dense). Max context on 36 GB: 163K tokens for both dense and BNA.
 
 ## Try it
 
