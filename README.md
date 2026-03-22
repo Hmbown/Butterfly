@@ -55,17 +55,56 @@ BNA is an approximation. "Top-1 agreement" is the percentage of positions where 
 
 Perplexity and downstream task evaluations haven't been done yet.
 
+### Qwen 3.5 9B — Mac Studio M4 Max (36 GB)
+
+MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attention layers replaced. 4-bit quantized model (`mlx-community/Qwen3.5-9B-MLX-4bit`).
+
+| Context | Dense TTFT | BNA TTFT | Dense tok/s | BNA tok/s | Top-1 agreement |
+|--------:|-----------:|---------:|------------:|----------:|----------------:|
+| 2,048   | 71 ms      | 49 ms    | 62.2        | 62.0      | 100%            |
+| 8,192   | 116 ms     | 86 ms    | 57.2        | 58.8      | —               |
+| 32,768  | 447 ms     | 416 ms   | 48.0        | 48.1      | —               |
+| 65,536  | —          | —        | —           | —         | —               |
+| 122,880 | —          | —        | —           | 20.0      | —               |
+
+Peak memory at 122K context: 27.8 GB (77% of 36 GB unified memory).
+
 ## Try it
+
+### CUDA (NVIDIA GPU)
 
 ```bash
 git clone https://github.com/Hmbown/Butterfly && cd Butterfly
-pip install -e ".[dev]"
+pip install -e ".[dev,kernels]"
 
 python scripts/bench_qwen35_cuda_wayfinder.py \
     --model-path <path-to-Qwen3.5-9B> \
     --path block_sparse --engine triton --block-size 128 \
     --seq-lens 4096 8192 16384 32768
 ```
+
+### MLX (Apple Silicon)
+
+```bash
+git clone https://github.com/Hmbown/Butterfly && cd Butterfly
+pip install -e ".[mlx]"
+pip install mlx-lm zmlx   # model loading + Metal kernel runtime
+
+# Environment check
+python scripts/env_check_mlx.py
+
+# Benchmark (downloads model automatically)
+python scripts/bench_qwen_consumer_mlx.py \
+    --model-path mlx-community/Qwen3.5-9B-MLX-4bit \
+    --mode wayfinder \
+    --seq-lens 2048 8192 32768 \
+    --decode-len 256 --repeats 3 \
+    --out-dir results/benchmarks/my_run
+```
+
+Set `HF_HOME` to an SSD path for faster model loading (the script defaults to `/Volumes/VIXinSSD/hf_cache` if it exists).
+
+The `--mode dense` flag runs the stock attention baseline for comparison. Add `--skip-quality` to benchmark only throughput.
 
 ## Related work
 

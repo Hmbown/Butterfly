@@ -604,6 +604,10 @@ def wayfinder_fused_permute_window_attention_active_metal(
         e = min(Tq, s + q_chunk)
         q_blk = q[:, :, s:e, :]
         q_pos_blk = q_pos_all[s:e]
+        # K6 kernel: one threadgroup per (b,h,q) output token, dh threads each
+        Qblk = e - s
+        _grid = (dh, B * Hq * Qblk, 1)
+        _tg = (min(dh, 256), 1, 1)
         y_blk = kernel(
             q_blk,
             k,
@@ -614,6 +618,8 @@ def wayfinder_fused_permute_window_attention_active_metal(
             window_arr,
             output_shapes=[q_blk.shape],
             output_dtypes=[q_blk.dtype],
+            grid=_grid,
+            threadgroup=_tg,
         )[0]
         y_chunks.append(y_blk)
 

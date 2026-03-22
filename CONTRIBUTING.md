@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in HCSA.
+Thanks for your interest in BNA.
 
 ## Before opening a PR
 

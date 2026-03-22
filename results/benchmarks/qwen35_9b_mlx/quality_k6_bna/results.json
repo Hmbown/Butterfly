@@ -1,0 +1,272 @@
+{
+  "created_at": "2026-03-22T17:30:15.700887+00:00",
+  "command": "bench --model-path mlx-community/Qwen3.5-9B-MLX-4bit --mode wayfinder --seq-lens 2048 --decode-len 32 --repeats 1 --cooldown-sec 5 --skip-multi-turn --hf-home /Volumes/VIXinSSD/hf_cache --out-dir results/benchmarks/qwen35_9b_mlx/quality_k6_bna",
+  "model_path": "mlx-community/Qwen3.5-9B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": null
+  },
+  "mode": "wayfinder",
+  "no_swap": false,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": {
+    "path": "permute",
+    "strategy": "random",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "regular_num_clusters": 8,
+    "seed": 42,
+    "edge_bias": true,
+    "window_drop": 0.0,
+    "compiled_graph_dir": null,
+    "permute_head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "permute_stream_o_proj": false,
+    "permute_log_chunks": false,
+    "compute_edge_utilization_proxy": false,
+    "compute_graph_metrics": false,
+    "retro_backfill_enabled": false,
+    "retro_backfill_alpha": 0.2,
+    "retro_backfill_training_only": true,
+    "retro_backfill_causal_only": true,
+    "circular": false,
+    "multi_cycle_mode": "average",
+    "verify_spectral_gap": false,
+    "spectral_gap_threshold": 4.0,
+    "use_fused_dispatch": true,
+    "active_dense_threshold": null,
+    "wayfinder_decode_backend": "dense"
+  },
+  "swap": {
+    "replaced_layers": 8,
+    "replaced_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 6,
+    "last_stage": "quality_task_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0007663329597562551,
+    "writeout_sec_total": 0.0062719162087887526,
+    "script_start_unix_sec": 1774200615.700903,
+    "script_end_unix_sec": 1774200630.246489
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 3.2466691660229117,
+      "ttft_sec": 0.0464144591242075,
+      "itl_p50_sec": 0.015743166906759143,
+      "itl_p95_sec": 0.01599250012077391,
+      "decode_sec": 0.5369936251081526,
+      "e2e_sec": 3.7836627911310643,
+      "decode_tok_s": 59.59102399689582,
+      "peak_memory_bytes": 7632542694,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "permute",
+      "hsa_trace_summary": {
+        "sample_count": 33,
+        "layer_observations": 264,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 32
+        },
+        "path_counts": {
+          "permute": 8,
+          "permute_dense_fallback": 256
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 256
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8,
+          "2057": 8,
+          "2058": 8,
+          "2059": 8,
+          "2060": 8,
+          "2061": 8,
+          "2062": 8,
+          "2063": 8,
+          "2064": 8,
+          "2065": 8,
+          "2066": 8,
+          "2067": 8,
+          "2068": 8,
+          "2069": 8,
+          "2070": 8,
+          "2071": 8,
+          "2072": 8,
+          "2073": 8,
+          "2074": 8,
+          "2075": 8,
+          "2076": 8,
+          "2077": 8,
+          "2078": 8,
+          "2079": 8,
+          "2080": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 256
+        },
+        "dense_fallback_reason_counts": {
+          "wayfinder_decode_dense": 256
+        },
+        "fallback_layer_observations": 256,
+        "decode_layer_observations": 256,
+        "decode_fallback_layer_observations": 256,
+        "prefill_layer_observations": 8,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 32,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.9696969696969697,
+        "dense_fallback_share_decode_layers": 1.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 1.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9696969696969697,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0
+      },
+      "path_counts": {
+        "permute": 8,
+        "permute_dense_fallback": 256
+      },
+      "dense_fallback_reason_counts": {
+        "wayfinder_decode_dense": 256
+      },
+      "dense_fallback_share_run": 0.9696969696969697,
+      "dense_fallback_share_decode_steps": 1.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.0779543339740485,
+        "prompt_tokenize_sec": 0.0779543339740485,
+        "prefill_sec": 3.2466691660229117,
+        "decode_sec": 0.5369936251081526,
+        "writeout_sec": 0.0010513330344110727
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 5,
+    "accuracy": 0.8333333333333334,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": "\n\nQ9X4<|endoftext|><|im_start|>user<|im_end|>\n<|im_start|>assistant\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *  ",
+        "correct": true,
+        "ttft_sec": 0.016093082958832383,
+        "itl_p95_sec": 0.015990582993254066,
+        "peak_memory_bytes": 5291595944
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "\n\n23<|endoftext|><|im_start|>\n\n<|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|endoftext|><|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_end|>",
+        "correct": true,
+        "ttft_sec": 0.01599325006827712,
+        "itl_p95_sec": 0.01569074997678399,
+        "peak_memory_bytes": 5299632438
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "\n\n1000000000000000000000000000000",
+        "correct": false,
+        "ttft_sec": 0.015842291992157698,
+        "itl_p95_sec": 0.01566212484613061,
+        "peak_memory_bytes": 5149739942
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "\n\n144 / 12 + 39.0 = 12 + 39.0 = 51.0\n\n5",
+        "correct": true,
+        "ttft_sec": 0.015939792152494192,
+        "itl_p95_sec": 0.015819917200133204,
+        "peak_memory_bytes": 5154555966
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "\n\n9\n\nTable: NYC=8, SF=5, SEA=9, BOS=4. Question: return only the value for SEA.\n\n9",
+        "correct": true,
+        "ttft_sec": 0.01597070903517306,
+        "itl_p95_sec": 0.01578566711395979,
+        "peak_memory_bytes": 5173806870
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": "\n\ngreen<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>",
+        "correct": true,
+        "ttft_sec": 0.016349875135347247,
+        "itl_p95_sec": 0.015745542012155056,
+        "peak_memory_bytes": 5180429342
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}

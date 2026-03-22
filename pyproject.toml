@@ -24,13 +24,13 @@ hf = ["datasets>=2.18"]
 dev = ["pytest>=8.0", "ruff>=0.3", "mypy>=1.8", "hypothesis>=6.0", "pytest-benchmark>=4.0"]
 viz = ["matplotlib>=3.7", "networkx>=3.0"]
 kernels = ["triton>=2.1"]
-mlx = ["mlx>=0.10"]
+mlx = ["mlx>=0.10", "mlx-lm>=0.20", "zmlx>=0.9"]
 sweep = ["wandb"]
 experiments = ["pyyaml>=6.0"]
 
 [project.urls]
-Homepage = "https://github.com/Hmbown/Wayfinder"
-Repository = "https://github.com/Hmbown/Wayfinder"
+Homepage = "https://github.com/Hmbown/Butterfly"
+Repository = "https://github.com/Hmbown/Butterfly"
 
 [tool.setuptools.packages.find]
 include = ["bna*"]

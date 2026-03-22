@@ -61,6 +61,13 @@ def fused_attention_kernel():
             "Install ZMLX or set PYTHONPATH to the ZMLX source."
         ) from exc
 
+    # Helper to store float→half/bfloat/float via template deduction
+    _K6_HEADER_EXTRA = """
+template <typename T>
+inline void kk_store(device T* ptr, uint idx, float val) {
+    ptr[idx] = T(val);
+}
+"""
     source = _FUSED_ATTENTION_DISCOVERED.read_text()
     return metal_kernel(
         name="kk_discovered_hcsa_fused_attention",
@@ -75,7 +82,7 @@ def fused_attention_kernel():
         ],
         output_names=["out"],
         source=source,
-        header=DEFAULT_HEADER,
+        header=DEFAULT_HEADER + _K6_HEADER_EXTRA,
         cache=True,
     )
 

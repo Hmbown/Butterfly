@@ -1,0 +1,178 @@
+{
+  "created_at": "2026-03-22T17:29:36.256731+00:00",
+  "command": "bench --model-path mlx-community/Qwen3.5-9B-MLX-4bit --mode dense --seq-lens 2048 --decode-len 32 --repeats 1 --cooldown-sec 5 --skip-multi-turn --hf-home /Volumes/VIXinSSD/hf_cache --out-dir results/benchmarks/qwen35_9b_mlx/quality_k6_dense",
+  "model_path": "mlx-community/Qwen3.5-9B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": null
+  },
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 6,
+    "last_stage": "quality_task_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0036175409331917763,
+    "writeout_sec_total": 0.01330041466280818,
+    "script_start_unix_sec": 1774200576.2567492,
+    "script_end_unix_sec": 1774200590.921236
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 32,
+      "repeat": 1,
+      "prefill_sec": 3.2795604169368744,
+      "ttft_sec": 0.04608624987304211,
+      "itl_p50_sec": 0.015692833112552762,
+      "itl_p95_sec": 0.015855208039283752,
+      "decode_sec": 0.534687666920945,
+      "e2e_sec": 3.8142480838578194,
+      "decode_tok_s": 59.84802339705225,
+      "peak_memory_bytes": 7532759586,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 33,
+        "layer_observations": 33,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 32
+        },
+        "path_counts": {
+          "dense": 33
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 32,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 32,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 33
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.0761249999050051,
+        "prompt_tokenize_sec": 0.0761249999050051,
+        "prefill_sec": 3.2795604169368744,
+        "decode_sec": 0.534687666920945,
+        "writeout_sec": 0.003937041852623224
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": {
+    "dataset_path": "benchmarks/mlx/qwen3_1_7b_wayfinder/quality_eval_qwen3_consumer_v1.json",
+    "num_tasks": 6,
+    "correct": 5,
+    "accuracy": 0.8333333333333334,
+    "rows": [
+      {
+        "id": "extract-01",
+        "expected": "Q9X4",
+        "output": "\n\nQ9X4<|endoftext|><|im_start|>user<|im_end|>\n<|im_start|>assistant\n<think>\nThinking Process:\n\n1.  **Analyze the Request:**\n    *  ",
+        "correct": true,
+        "ttft_sec": 0.04749508295208216,
+        "itl_p95_sec": 0.015708375023677945,
+        "peak_memory_bytes": 5277206500
+      },
+      {
+        "id": "extract-02",
+        "expected": "23",
+        "output": "\n\n23<|endoftext|><|im_start|>\n\n<|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|endoftext|><|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_end|>\n<|im_start|>\n\n<|im_end|>",
+        "correct": true,
+        "ttft_sec": 0.01604829099960625,
+        "itl_p95_sec": 0.0157172498293221,
+        "peak_memory_bytes": 5284826154
+      },
+      {
+        "id": "math-01",
+        "expected": "317",
+        "output": "\n\n1051999999999999999999999999999",
+        "correct": false,
+        "ttft_sec": 0.01605587499216199,
+        "itl_p95_sec": 0.015721582807600498,
+        "peak_memory_bytes": 5151126560
+      },
+      {
+        "id": "math-02",
+        "expected": "51",
+        "output": "\n\n144 / 12 + 39.0 = 12 + 39.0 = 51.0\n\n5",
+        "correct": true,
+        "ttft_sec": 0.015928458888083696,
+        "itl_p95_sec": 0.015617875149473548,
+        "peak_memory_bytes": 5155868520
+      },
+      {
+        "id": "lookup-01",
+        "expected": "9",
+        "output": "\n\n9\n\nTable: NYC=8, SF=5, SEA=9, BOS=4. Question: return only the value for SEA.\n\n9",
+        "correct": true,
+        "ttft_sec": 0.015766125172376633,
+        "itl_p95_sec": 0.015700915828347206,
+        "peak_memory_bytes": 5175041088
+      },
+      {
+        "id": "lookup-02",
+        "expected": "green",
+        "output": "\n\ngreen<|endoftext|><|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>\n<|im_start|>\n<|im_end|>",
+        "correct": true,
+        "ttft_sec": 0.01591854216530919,
+        "itl_p95_sec": 0.0156492090318352,
+        "peak_memory_bytes": 5176155060
+      }
+    ],
+    "task_id_filter": null,
+    "trace_task_id": null,
+    "trace_topk": 5,
+    "trace_max_steps": 0
+  }
+}
