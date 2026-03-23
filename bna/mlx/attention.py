@@ -317,6 +317,67 @@ def _union_multigraph_attention(
     return mx.stack(ys, axis=1)
 
 
+def _sparse_gather_attention_vectorized(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    s_idx: mx.array,
+    mask: mx.array,
+    *,
+    chunk_size: int = 256,
+) -> mx.array:
+    """Vectorized sparse-neighbor attention — all heads in one pass per chunk.
+
+    Uses batched matmul for dot products instead of per-head Python loop.
+    Correct butterfly topology (CYCLE + WINDOW + LANDMARK edges via neigh_idx).
+    """
+    B, H, T, dh = q.shape
+    Hkv = k.shape[1]
+    D = int(s_idx.shape[-1])
+    scale = 1.0 / math.sqrt(dh)
+
+    # GQA: expand K/V to match query heads
+    if Hkv < H:
+        reps = H // Hkv
+        k = mx.repeat(k, repeats=reps, axis=1)
+        v = mx.repeat(v, repeats=reps, axis=1)
+
+    BH = B * H
+    k_flat = k.reshape(BH, T, dh)
+    v_flat = v.reshape(BH, T, dh)
+
+    y_chunks: list[mx.array] = []
+    for s in range(0, T, chunk_size):
+        e = min(T, s + chunk_size)
+        Qblk = e - s
+
+        q_blk = q[:, :, s:e, :]  # [B, H, Qblk, dh]
+        idx_blk = s_idx[:, s:e, :]  # [H, Qblk, D]
+        mask_blk = mask[:, s:e, :]  # [H, Qblk, D]
+
+        # Gather K/V for all heads simultaneously: [BH, Qblk*D, dh]
+        idx_flat = mx.broadcast_to(idx_blk[None], (B, H, Qblk, D)).reshape(BH, Qblk * D)
+        idx_exp = mx.broadcast_to(idx_flat[:, :, None], (BH, Qblk * D, dh))
+
+        k_g = mx.take_along_axis(k_flat, idx_exp, axis=1).reshape(B, H, Qblk, D, dh)
+        v_g = mx.take_along_axis(v_flat, idx_exp, axis=1).reshape(B, H, Qblk, D, dh)
+
+        # Batched matmul: [B,H,Qblk,1,dh] @ [B,H,Qblk,dh,D] → [B,H,Qblk,1,D]
+        scores = mx.matmul(
+            q_blk[:, :, :, None, :].astype(mx.float32),
+            k_g.astype(mx.float32).transpose(0, 1, 2, 4, 3),
+        ).squeeze(3) * scale  # [B, H, Qblk, D]
+
+        # Masked softmax over D
+        w = stable_masked_softmax(scores, mask_blk[None, :, :, :], axis=-1)
+
+        # Weighted V: [B,H,Qblk,D,1] * [B,H,Qblk,D,dh] → sum over D
+        y_blk = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(v.dtype)
+        y_chunks.append(y_blk)
+
+    return mx.concatenate(y_chunks, axis=2) if len(y_chunks) > 1 else y_chunks[0]
+
+
 def _sparse_gather_attention_metal(
     q: mx.array,
     k: mx.array,
@@ -397,16 +458,21 @@ def sparse_gather_attention(
     if window_drop_mask is not None:
         mask = mask & window_drop_mask
 
-    # --- K7 Metal kernel fast path: no per-head loop, no edge bias ---
-    from bna.mlx.kernels.metal import has_sparse_neighbor_kernel
-
+    # --- Fast paths: no per-head loop, no edge bias ---
     if (
-        has_sparse_neighbor_kernel()
-        and not return_weights
+        not return_weights
         and edge_type_bias is None
         and edge_type_bias_offset is None
     ):
-        y = _sparse_gather_attention_metal(q, k, v, s_idx, mask)
+        Tq = q.shape[2]
+        from bna.mlx.kernels.metal import has_sparse_neighbor_kernel
+
+        if Tq <= 32 and has_sparse_neighbor_kernel():
+            # Decode (few queries): K7 Metal kernel — fused, zero overhead
+            y = _sparse_gather_attention_metal(q, k, v, s_idx, mask)
+        else:
+            # Prefill (many queries): vectorized gather + batched matmul
+            y = _sparse_gather_attention_vectorized(q, k, v, s_idx, mask)
         return y, None
 
     # Precompute per-edge bias tensor [H, T, D] if edge_type_bias provided
