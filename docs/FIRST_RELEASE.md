@@ -2,6 +2,8 @@
 
 Primary validated path: GLM-4.7-Flash-4bit on MLX (Apple Silicon).
 
+Naming note: this is the validated release evidence for Butterfly. Some artifact paths and older labels still use the legacy `wayfinder` name because that was the runtime identifier when these measurements were produced.
+
 ## Default Profile
 
 - Stable command: `./scripts/run_public_stable_profile_glm.sh`
@@ -16,7 +18,7 @@ Primary validated path: GLM-4.7-Flash-4bit on MLX (Apple Silicon).
 Stable wrapper run `EXP-20260218T151213Z-STABLE-PROFILE`:
 
 - Dense: `e2e=17.1473s`, `prefill=16.3586s`, `decode=0.7886s`, `decode_tok_s=40.5762`, `peak_memory=20,660,500,140`
-- Wayfinder: `e2e=10.5563s`, `prefill=9.7533s`, `decode=0.8030s`, `decode_tok_s=39.8499`, `peak_memory=20,071,482,232`
+- Butterfly: `e2e=10.5563s`, `prefill=9.7533s`, `decode=0.8030s`, `decode_tok_s=39.8499`, `peak_memory=20,071,482,232`
 - Delta (wayfinder vs dense):
   - `e2e=-38.44%`
   - `prefill=-40.38%`
@@ -36,7 +38,7 @@ Artifacts:
 Nanbeige instrumented pair `T=131072, decode_len=32`: 
 
 - Dense: `e2e=467.1097s`, `prefill=435.8845s`, `decode=31.2253s`, `decode_tok_s=1.0248`, `peak_memory=18,460,513,312`
-- Wayfinder trace: `e2e=471.7444s`, `prefill=425.2292s`, `decode=46.5151s`, `decode_tok_s=0.6879`, `peak_memory=18,474,229,212`
+- Butterfly trace: `e2e=471.7444s`, `prefill=425.2292s`, `decode=46.5151s`, `decode_tok_s=0.6879`, `peak_memory=18,474,229,212`
 - Delta (wayfinder vs dense):
   - `e2e=+0.99%`
   - `prefill=-2.44%`
@@ -110,7 +112,7 @@ python3 scripts/bench_qwen_consumer_mlx.py --model-path Nanbeige/Nanbeige4.1-3B 
 - If dense-relative regressions are material or unresolved at boundary slices: keep experimental/non-default.
 - Only validated slices are eligible for default commands.
 
-## Where Wayfinder Helps / Does Not Help
+## Where Butterfly Helps / Does Not Help
 
 - Helps (validated default path): GLM stable profile at `T=8192, decode_len=32` with large e2e/prefill gains and lower memory (2026-02-18 run above).
 - Does not help (current non-default boundaries): Nanbeige `T=131072` long-boundary slices remain decode-limited and fallback-heavy; `decode_len=256` is a confirmed regression and `decode_len=32` still loses decode throughput.

@@ -1,13 +1,13 @@
 # Architecture
 
-This document is contributor-facing and focuses on how Wayfinder/HCSA is structured and why the current implementation behaves the way it does.
+This document is contributor-facing and focuses on how Butterfly is structured and why the current implementation behaves the way it does.
 
 Public naming note: the GitHub landing page now uses `Butterfly` / `BNA` as the main project name. This document keeps the older `Wayfinder` / `HCSA` terminology because much of the implementation and benchmark history still uses it.
 
 ## Graph ABI
 Source: `bna/graph/abi.py`
 
-Wayfinder uses a backend-agnostic graph ABI with two key tensors:
+Butterfly uses a backend-agnostic graph ABI with two key tensors:
 - `neigh_idx`: padded `int32` adjacency list with `-1` as padding. Shape `[T, D]` or `[H, T, D]`.
 - `edge_type`: `uint8` labels in `{PAD, CYCLE, WINDOW, LANDMARK, REWIRE}`.
 

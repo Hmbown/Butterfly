@@ -2,6 +2,8 @@
 
 This document captures open research questions and hypothesis framing. It is intentionally exploratory and does not define public product defaults.
 
+Naming note: use `Butterfly` / `BNA` for current public-facing discussion. Legacy terms such as `Wayfinder` and `HCSA` may still appear in artifact names and older experiments.
+
 ## Research Questions
 Primary question:
 - Can sparse attention learn like a slime mold: start from structured connectivity and discover which edges carry information at scale?
@@ -24,7 +26,7 @@ Current working assumptions (subject to data):
 - Model-specific integration behavior (GLM vs Qwen/Nanbeige) must be reported separately; transfer assumptions are unsafe without matched controls.
 
 What counts as evidence:
-- paired dense vs wayfinder runs under matched controls
+- paired dense vs Butterfly runs under matched controls
 - complete fallback diagnostics and stop-gate compliance
 - explicit deltas (absolute and percent) versus named baselines
 

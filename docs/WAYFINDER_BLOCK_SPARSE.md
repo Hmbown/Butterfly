@@ -1,6 +1,8 @@
-# Wayfinder Block-Sparse Attention
+# Butterfly Block-Sparse Attention
 
-This note describes the new staged `block_sparse_topology=wayfinder` path used by the Qwen CUDA integration.
+This note describes the staged `block_sparse_topology=wayfinder` path used by the Qwen CUDA integration.
+
+Naming note: the runtime is now presented publicly as `Butterfly` / `BNA`. This document keeps the `wayfinder` path name where it is part of the actual CLI, config, or cache surface.
 
 ## Goal
 
@@ -43,7 +45,7 @@ Prefill uses the existing flex-attention block mask path. The block mask is comp
 
 ### Cached Decode / Cached Prefill
 
-When `k_len > q_len`, the Wayfinder block path switches to a sparse gather backend. It precomputes exact token indices from the selected block support and runs exact softmax over that sparse support via grouped-query sparse attention.
+When `k_len > q_len`, the Butterfly block path switches to a sparse gather backend. It precomputes exact token indices from the selected block support and runs exact softmax over that sparse support via grouped-query sparse attention.
 
 This is what removes the old “prefill-only” limitation for the new Wayfinder block topology.
 
@@ -58,11 +60,11 @@ This is what removes the old “prefill-only” limitation for the new Wayfinder
 - `block_sink_blocks`
 - `block_partner_rule="xor" | "bit_reversal" | "benes"`
 
-The block_sparse path always uses the Wayfinder staged topology. The older Hamiltonian random-graph mechanism has been archived.
+The block_sparse path always uses the Butterfly staged topology. The older Hamiltonian random-graph mechanism has been archived.
 
 ## Benchmark CLI
 
-The CUDA benchmark and serve entrypoints expose the same Wayfinder block controls:
+The CUDA benchmark and serve entrypoints expose the same block-sparse controls:
 
 ```bash
 python scripts/bench_qwen35_cuda_wayfinder.py \
@@ -81,6 +83,6 @@ python scripts/bench_qwen35_cuda_wayfinder.py \
 
 - Implementation cutover: complete
 - Targeted compile/test validation: complete
-- Real-model benchmark evidence for the new Wayfinder block topology: not run yet
+- Real-model benchmark evidence exists for experimental Qwen CUDA runs in this repo, but it is not part of the validated public default.
 
-Until real measurements exist, treat this as an implementation-ready experimental path rather than a performance claim.
+Treat this as an implementation-ready experimental path rather than a validated performance claim.
