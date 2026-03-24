@@ -1,0 +1,17 @@
+## Summary
+
+What changed, and why?
+
+## Validation
+
+- [ ] `pytest`
+- [ ] `ruff check bna tests`
+- [ ] benchmark or artifact links added if this PR makes performance or quality claims
+
+## Public posture
+
+- [ ] validated path
+- [ ] experimental path
+- [ ] archival or research-only material
+
+If you touched benchmarks, include the exact command, baseline, and artifact path.

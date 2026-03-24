@@ -1,124 +1,194 @@
-# BNA — Butterfly Network Attention
+# Butterfly
 
-Training-free block-sparse attention for long-context inference. Works on existing dense-attention models without retraining.
+Butterfly Network Attention (`bna`) is a training-free sparse-attention runtime for long-context inference. It is aimed at engineers who want measurable speed or memory wins without retraining the model.
 
-![Dense causal vs BNA block-sparse attention](docs/assets/bna_block_topology.png)
+![Dense causal vs BNA block topology](docs/assets/bna_block_topology.png)
+
+## What this repo contains
+
+- A PyTorch package, `bna`, for sparse-attention research and integration work
+- CUDA and MLX benchmark scripts for Qwen, GLM, GPT-2, and related paths
+- Measured benchmark artifacts under `benchmarks/`, `results/`, and `notes/`
+- Older docs and scripts that still use the names `Wayfinder` and `HCSA`
+
+Public naming note: this repo currently mixes `Butterfly`, `BNA`, `Wayfinder`, and `HCSA`. For the GitHub landing page, treat `Butterfly` / `BNA` as the current public name. `Wayfinder` / `HCSA` are legacy names still present in deeper docs, scripts, and archived benchmark material.
+
+## Status
+
+| Tier | What to trust | Evidence |
+|---|---|---|
+| Validated | GLM-4.7-Flash-4bit on MLX at the public stable profile | [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md) |
+| Experimental | Qwen 3.5 CUDA block-sparse path and long-context scaling work | `scripts/bench_qwen35_cuda_wayfinder.py`, `benchmarks/cuda/qwen35_wayfinder/` |
+| Experimental | Qwen 3.5 MLX / Apple Silicon path | `scripts/bench_qwen_consumer_mlx.py`, `results/benchmarks/` |
+| Research / archive | Older Wayfinder/HCSA docs, prompts, and exploratory runs | `docs/`, `notes/`, `archive/` |
+
+If you are new to the project, start from the validated GLM path first. The Qwen work is promising, but it should still be read as active engineering rather than a locked public release.
 
 ## How it works
 
-In dense attention, every token attends to every earlier token — O(T²) work per layer. As context gets longer, throughput drops.
+Dense causal attention does `O(T^2)` work per layer. Butterfly replaces that with a bounded sparse pattern over fixed-size token blocks.
 
-BNA splits the sequence into fixed-size blocks (128 tokens) and restricts which blocks can attend to each other. Each block sees:
+At a high level, each block attends to:
 
-- **Itself and its immediate neighbors** (local context)
-- **One long-range partner block** chosen by a [butterfly network](https://en.wikipedia.org/wiki/Butterfly_network) schedule — at layer `l`, block `b` partners with block `b XOR (1 << (l mod log₂ N))`
-- **Block 0** (handles the [attention sink](https://arxiv.org/abs/2309.17453) effect)
+- its local neighborhood
+- a small number of deterministic long-range partners
+- optional global or anchor-style connections, depending on the backend
 
-The partner changes every layer. After log₂(N) layers, every block can transitively reach every other block. Per-layer work is O(T) instead of O(T²).
+The exact sparse pattern differs across code paths. Older Wayfinder/HCSA integrations describe this as `window + cycle + landmarks`; the current Butterfly README uses the simpler butterfly-partner framing. In both cases the goal is the same: keep attention neighborhoods explicit, bounded, and cheap enough to help at long context.
 
-## Results
+For contributor-facing implementation details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-### Qwen 3.5 9B — DGX Spark GB10
+## Measured evidence
 
-Triton block-sparse kernel, `block_size=128`. 8 of 32 layers replaced (24 [DeltaNet](https://arxiv.org/abs/2412.06464) layers untouched). BF16 through 131K, FP8 weight-only at 262K.
+### Validated public path: GLM on MLX
 
-| Context | Dense tok/s | BNA tok/s | Top-1 agreement |
-|--------:|------------:|----------:|----------------:|
-| 4,096   | —           | —         | 99.88%          |
-| 8,192   | 1,651       | 1,698     | —               |
-| 16,384  | —           | —         | 94.44%          |
-| 32,768  | 1,585       | 1,688     | —               |
-| 65,536  | 1,475       | 1,724     | —               |
-| 98,304  | 1,413       | 1,660     | —               |
-| 131,072 | 1,365       | 1,667     | —               |
-| 262,144 | 1,257       | 1,712     | —               |
+The clearest in-repo release evidence today is the GLM-4.7-Flash-4bit stable profile documented in [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md).
 
-Dense throughput drops 24% from 8K to 262K. BNA stays flat around 1,700 tok/s. At 262K that's 1.36x faster. Memory usage is the same.
+At `seq_len=8192` and `decode_len=32` on the validated MLX path:
 
-### Qwen 3.5 35B A3B FP8
+| Mode | E2E | Prefill | Decode tok/s | Peak memory |
+|---|---:|---:|---:|---:|
+| Dense | 17.15s | 16.36s | 40.58 | 20.66 GB |
+| Wayfinder / Butterfly | 10.56s | 9.75s | 39.85 | 20.07 GB |
+| Delta vs dense | -38.44% | -40.38% | -1.79% | -2.85% |
 
-10 of 40 layers replaced. 30 linear-attention / MoE layers untouched.
+That is the safest benchmark slice to cite publicly from this tree today.
 
-| Context | Dense tok/s | BNA tok/s |
-|--------:|------------:|----------:|
-| 8,192   | 931         | 954       |
-| 32,768  | 1,280       | 1,301     |
-| 65,536  | 1,241       | 1,326     |
-| 131,072 | 1,131       | 1,331     |
-| 163,840 | —           | 1,306     |
-| 196,608 | —           | 1,364     |
-| 229,376 | —           | 1,233     |
+### Experimental CUDA path: Qwen 3.5 9B
 
-### Output quality
+The repo also contains experimental CUDA benchmark results for a Triton block-sparse path on Qwen 3.5 9B, where 8 of 32 layers are replaced and the remaining DeltaNet layers stay untouched.
 
-BNA is an approximation. "Top-1 agreement" is the percentage of positions where BNA and dense attention predict the same next token. At 4K tokens it's 99.88% — nearly identical. At 16K it's 94.44%.
+| Context | Dense tok/s | Butterfly tok/s | Top-1 agreement |
+|--------:|------------:|----------------:|----------------:|
+| 4,096   | —           | —               | 99.88%          |
+| 8,192   | 1,651       | 1,698           | —               |
+| 16,384  | —           | —               | 94.44%          |
+| 32,768  | 1,585       | 1,688           | —               |
+| 65,536  | 1,475       | 1,724           | —               |
+| 98,304  | 1,413       | 1,660           | —               |
+| 131,072 | 1,365       | 1,667           | —               |
+| 262,144 | 1,257       | 1,712           | —               |
 
-Perplexity and downstream task evaluations haven't been done yet.
+These numbers suggest flatter throughput than dense attention at long context, but this path should still be treated as experimental until the quality and support boundaries are documented as tightly as the GLM release path.
 
-### Qwen 3.5 9B — Mac Studio M4 Max (36 GB)
+### Experimental CUDA path: Qwen 3.5 35B A3B FP8
 
-MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attention layers replaced. 4-bit quantized model (`mlx-community/Qwen3.5-9B-MLX-4bit`).
+| Context | Dense tok/s | Butterfly tok/s |
+|--------:|------------:|----------------:|
+| 8,192   | 931         | 954             |
+| 32,768  | 1,280       | 1,301           |
+| 65,536  | 1,241       | 1,326           |
+| 131,072 | 1,131       | 1,331           |
+| 163,840 | —           | 1,306           |
+| 196,608 | —           | 1,364           |
+| 229,376 | —           | 1,233           |
 
-| Context | Dense TTFT | BNA TTFT | Dense tok/s | BNA tok/s | Peak memory |
-|--------:|-----------:|---------:|------------:|----------:|------------:|
-| 2,048   | 71 ms      | **49 ms**| 62.2        | 62.0      | 7.1 GB      |
-| 8,192   | 116 ms     | **86 ms**| 57.2        | 58.8      | 9.9 GB      |
-| 32,768  | 100 ms     | **99 ms**| 49.6        | 47.1      | 13.7 GB     |
-| 65,536  | 160 ms     | 202 ms   | 41.5        | 39.8      | 18.9 GB     |
-| 98,304  | 2.0 s      | **1.2 s**| 17.2        | **22.4**  | 24.0 GB     |
-| 131,072 | 6.9 s      | 7.5 s    | 7.3         | 6.8       | 29.1 GB     |
-| 163,840 | 26.8 s     | **21.5 s**| 2.2        | **2.7**   | 34.2 GB     |
+### Experimental Apple Silicon path: Qwen 3.5 9B on M4 Max
 
-BNA uses chunked-gather + native SDPA for prefill (no full-T permutation copies) and the K6 fused Metal kernel for decode. Wins at short context (2K–8K TTFT: 31% faster), mid-range (98K: **40% faster TTFT, 30% faster decode**), and at the memory wall (163K: **20% faster**). Mid-range dip at 65K–131K where dense's contiguous access pattern is slightly faster.
+MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attention layers are replaced. Model: `mlx-community/Qwen3.5-9B-MLX-4bit`.
 
-Top-1 agreement: 100% (5/6 quality tasks identical to dense). Max context on 36 GB: 163K tokens for both dense and BNA.
+| Context | Dense TTFT | Butterfly TTFT | Dense tok/s | Butterfly tok/s | Peak memory |
+|--------:|-----------:|---------------:|------------:|----------------:|------------:|
+| 2,048   | 71 ms      | 49 ms          | 62.2        | 62.0            | 7.1 GB      |
+| 8,192   | 116 ms     | 86 ms          | 57.2        | 58.8            | 9.9 GB      |
+| 32,768  | 100 ms     | 99 ms          | 49.6        | 47.1            | 13.7 GB     |
+| 65,536  | 160 ms     | 202 ms         | 41.5        | 39.8            | 18.9 GB     |
+| 98,304  | 2.0 s      | 1.2 s          | 17.2        | 22.4            | 24.0 GB     |
+| 131,072 | 6.9 s      | 7.5 s          | 7.3         | 6.8             | 29.1 GB     |
+| 163,840 | 26.8 s     | 21.5 s         | 2.2         | 2.7             | 34.2 GB     |
 
-## Try it
+This MLX path uses chunked-gather plus native SDPA for prefill and a fused Metal kernel for decode. It shows wins at short context and again near the memory wall, but it is still an experimental path rather than a validated public release.
+
+Top-1 agreement in the Qwen 9B experiments is `99.88%` at 4K and `94.44%` at 16K. Perplexity and downstream evaluation are still in progress, so avoid treating these tables as universal quality-parity claims.
+
+## Quick start
 
 ### CUDA (NVIDIA GPU)
 
 ```bash
-git clone https://github.com/Hmbown/Butterfly && cd Butterfly
+git clone https://github.com/Hmbown/Wayfinder.git
+cd Wayfinder
 pip install -e ".[dev,kernels]"
+```
 
+Validated public path:
+
+```bash
+./scripts/run_public_stable_profile_glm.sh
+```
+
+Experimental Qwen CUDA benchmark:
+
+```bash
 python scripts/bench_qwen35_cuda_wayfinder.py \
     --model-path <path-to-Qwen3.5-9B> \
-    --path block_sparse --engine triton --block-size 128 \
+    --path block_sparse \
+    --engine triton \
+    --block-size 128 \
     --seq-lens 4096 8192 16384 32768
 ```
 
 ### MLX (Apple Silicon)
 
 ```bash
-git clone https://github.com/Hmbown/Butterfly && cd Butterfly
+git clone https://github.com/Hmbown/Wayfinder.git
+cd Wayfinder
 pip install -e ".[mlx]"
-pip install mlx-lm zmlx   # model loading + Metal kernel runtime
+pip install mlx-lm zmlx
+```
 
-# Environment check
+Environment check:
+
+```bash
 python scripts/env_check_mlx.py
+```
 
-# Benchmark (downloads model automatically)
+Experimental Qwen MLX benchmark:
+
+```bash
 python scripts/bench_qwen_consumer_mlx.py \
     --model-path mlx-community/Qwen3.5-9B-MLX-4bit \
     --mode wayfinder \
     --seq-lens 2048 8192 32768 \
-    --decode-len 256 --repeats 3 \
+    --decode-len 256 \
+    --repeats 3 \
     --out-dir results/benchmarks/my_run
 ```
 
-Set `HF_HOME` to an SSD path for faster model loading (the script defaults to `/Volumes/VIXinSSD/hf_cache` if it exists).
-
 The `--mode dense` flag runs the stock attention baseline for comparison. Add `--skip-quality` to benchmark only throughput.
+
+### Basic checks
+
+```bash
+pytest
+ruff check bna tests
+```
+
+## Repo map
+
+| Path | What it is |
+|---|---|
+| `bna/` | Core package and backend integrations |
+| `scripts/` | Benchmarks, diagnostics, serving helpers, and figure generation |
+| `docs/` | Contributor-facing architecture, release evidence, and research notes |
+| `benchmarks/`, `results/` | Raw benchmark outputs and summaries |
+| `notes/` | Lab notebook, experiment log, handoff prompts, and planning material |
+| `archive/` | Older exploratory code and preserved artifacts |
+
+## Where to read next
+
+- [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md): validated benchmark slice and reproduction commands
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): contributor-facing implementation map
+- [CONTRIBUTING.md](CONTRIBUTING.md): expectations for docs, claims, and performance changes
 
 ## Related work
 
-BNA is training-free — it works on existing models at inference time.
-
-- [BigBird](https://arxiv.org/abs/2007.14062) — random + window + global tokens; BNA replaces the random blocks with a deterministic butterfly schedule
-- [Longformer](https://arxiv.org/abs/2004.05150) — sliding window + global attention
-- [Monarch](https://arxiv.org/abs/2204.00595) — butterfly matrices for structured computation
-- [FlexPrefill](https://arxiv.org/abs/2502.20766) — content-aware per-head sparsity budgets
-- [NSA](https://arxiv.org/abs/2502.11089) / [MoBA](https://arxiv.org/abs/2502.13189) — trained sparse attention
+- [BigBird](https://arxiv.org/abs/2007.14062)
+- [Longformer](https://arxiv.org/abs/2004.05150)
+- [Monarch](https://arxiv.org/abs/2204.00595)
+- [FlexPrefill](https://arxiv.org/abs/2502.20766)
+- [NSA](https://arxiv.org/abs/2502.11089)
+- [MoBA](https://arxiv.org/abs/2502.13189)
 
 ## License
 

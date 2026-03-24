@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Validated benchmark path
+    url: https://github.com/Hmbown/Butterfly/blob/main/docs/FIRST_RELEASE.md
+    about: Start here for the current validated public benchmark slice and reproduction commands.
+  - name: Contributor guide
+    url: https://github.com/Hmbown/Butterfly/blob/main/CONTRIBUTING.md
+    about: Read this before opening issues or pull requests about benchmarks or public claims.

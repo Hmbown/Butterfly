@@ -2,6 +2,8 @@
 
 This document is contributor-facing and focuses on how Wayfinder/HCSA is structured and why the current implementation behaves the way it does.
 
+Public naming note: the GitHub landing page now uses `Butterfly` / `BNA` as the main project name. This document keeps the older `Wayfinder` / `HCSA` terminology because much of the implementation and benchmark history still uses it.
+
 ## Graph ABI
 Source: `bna/graph/abi.py`
 
