@@ -9,9 +9,9 @@ Butterfly Network Attention (`bna`) is a training-free sparse-attention runtime 
 - A PyTorch package, `bna`, for sparse-attention research and integration work
 - CUDA and MLX benchmark scripts for Qwen, GLM, GPT-2, and related paths
 - Measured benchmark artifacts under `benchmarks/`, `results/`, and `notes/`
-- Older docs and scripts that still use the names `Wayfinder` and `HCSA`
+- Older docs and scripts that still use the legacy names `Wayfinder` and `HCSA`
 
-Public naming note: this repo currently mixes `Butterfly`, `BNA`, `Wayfinder`, and `HCSA`. For the GitHub landing page, treat `Butterfly` / `BNA` as the current public name. `Wayfinder` / `HCSA` are legacy names still present in deeper docs, scripts, and archived benchmark material.
+Public naming note: `Butterfly` / `BNA` is the current public project name. `Wayfinder` / `HCSA` are legacy names still present in deeper docs, scripts, benchmark artifact paths, and archived research material.
 
 ## Status
 
@@ -49,7 +49,7 @@ At `seq_len=8192` and `decode_len=32` on the validated MLX path:
 | Mode | E2E | Prefill | Decode tok/s | Peak memory |
 |---|---:|---:|---:|---:|
 | Dense | 17.15s | 16.36s | 40.58 | 20.66 GB |
-| Wayfinder / Butterfly | 10.56s | 9.75s | 39.85 | 20.07 GB |
+| Butterfly | 10.56s | 9.75s | 39.85 | 20.07 GB |
 | Delta vs dense | -38.44% | -40.38% | -1.79% | -2.85% |
 
 That is the safest benchmark slice to cite publicly from this tree today.
