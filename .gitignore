@@ -52,6 +52,10 @@ runs/mlx/qwen_env_check_full.json
 !docs/ARCHITECTURE.md
 !docs/RESEARCH.md
 !docs/WAYFINDER_BLOCK_SPARSE.md
+!docs/GLOSSARY.md
+!docs/PUBLIC_POSITIONING.md
+!docs/RELEASE_GATE.md
+!docs/VISUAL_STORYBOARD.md
 !SECURITY.md
 !CONTRIBUTING.md
 
