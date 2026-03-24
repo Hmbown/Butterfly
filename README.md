@@ -106,8 +106,8 @@ Top-1 agreement in the Qwen 9B experiments is `99.88%` at 4K and `94.44%` at 16K
 ### CUDA (NVIDIA GPU)
 
 ```bash
-git clone https://github.com/Hmbown/Wayfinder.git
-cd Wayfinder
+git clone https://github.com/Hmbown/Butterfly.git
+cd Butterfly
 pip install -e ".[dev,kernels]"
 ```
 
@@ -131,8 +131,8 @@ python scripts/bench_qwen35_cuda_wayfinder.py \
 ### MLX (Apple Silicon)
 
 ```bash
-git clone https://github.com/Hmbown/Wayfinder.git
-cd Wayfinder
+git clone https://github.com/Hmbown/Butterfly.git
+cd Butterfly
 pip install -e ".[mlx]"
 pip install mlx-lm zmlx
 ```
