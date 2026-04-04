@@ -179,6 +179,7 @@ ruff check bna tests
 
 - [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md): validated benchmark slice and reproduction commands
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): contributor-facing implementation map
+- [docs/APPLE_SILICON_SETUP.md](docs/APPLE_SILICON_SETUP.md): Apple Silicon bootstrap, llama.cpp Metal baseline, model catalog
 - [CONTRIBUTING.md](CONTRIBUTING.md): expectations for docs, claims, and performance changes
 
 ## Related work

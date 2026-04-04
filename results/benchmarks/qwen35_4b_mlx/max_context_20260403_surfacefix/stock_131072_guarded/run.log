@@ -1,0 +1,16 @@
+HF cache config: HF_HOME=None HF_HUB_CACHE=None HF_HUB_OFFLINE=1
+Resolved text-only checkpoint: /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit-text
+Loading model /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit-text
+Model loaded
+mode=stock: default Qwen 3.5 attention path (Butterfly target scope=qwen35_full_attention_layers, layers=[3, 7, 11, 15, 19, 23, 27, 31])
+    kv_step=4096, target prealloc=135168 tokens
+heartbeat T=131072 r=1 prompt-build: loops=2002 tokens=40051/131072 elapsed=30.0s
+heartbeat T=131072 r=1 prompt-build: loops=2794 tokens=55891/131072 elapsed=60.0s
+heartbeat T=131072 r=1 prompt-build: loops=3390 tokens=67811/131072 elapsed=90.1s
+heartbeat T=131072 r=1 prompt-build: loops=3914 tokens=78291/131072 elapsed=120.1s
+heartbeat T=131072 r=1 prompt-build: loops=4372 tokens=87451/131072 elapsed=150.2s
+heartbeat T=131072 r=1 prompt-build: loops=4795 tokens=95911/131072 elapsed=180.2s
+heartbeat T=131072 r=1 prompt-build: loops=5178 tokens=103571/131072 elapsed=210.2s
+heartbeat T=131072 r=1 prompt-build: loops=5510 tokens=110211/131072 elapsed=240.2s
+heartbeat T=131072 r=1 prompt-build: loops=5818 tokens=116371/131072 elapsed=270.2s
+heartbeat T=131072 r=1 prompt-build: loops=6107 tokens=122151/131072 elapsed=300.3s

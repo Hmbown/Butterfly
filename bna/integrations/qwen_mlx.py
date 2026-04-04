@@ -5,7 +5,7 @@ import time
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -35,6 +35,7 @@ from bna.topology import Topology
 _NEG_EPS = mx.array(1e-9, dtype=mx.float32)
 _QWEN_GRAPH_CACHE_STORE: Dict[int, "_QwenGraphCache"] = {}
 _QWEN_GRAPH_CACHE_BY_KEY: Dict[tuple, "_QwenGraphCache"] = {}
+EXPECTED_QWEN35_FULL_ATTENTION_LAYERS: tuple[int, ...] = (3, 7, 11, 15, 19, 23, 27, 31)
 
 
 @dataclass
@@ -1292,7 +1293,7 @@ def swap_qwen_attention_with_wayfinder(
     cfg: QwenWayfinderConfig,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> List[int]:
-    """Replace Qwen attention blocks with HCSA-backed attention modules.
+    """Replace selected Qwen attention blocks with Butterfly-backed attention modules.
 
     Returns:
         List of layer indices that were replaced.
@@ -1300,9 +1301,10 @@ def swap_qwen_attention_with_wayfinder(
     replaced: list[int] = []
     if not hasattr(model, "layers"):
         raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
+    selected_indices = None if layer_indices is None else {int(idx) for idx in layer_indices}
 
     for i, layer in enumerate(model.layers):
-        if layer_indices is not None and i not in set(layer_indices):
+        if selected_indices is not None and i not in selected_indices:
             continue
         base_attn = getattr(layer, "self_attn", None)
         if base_attn is None:
@@ -1310,3 +1312,43 @@ def swap_qwen_attention_with_wayfinder(
         layer.self_attn = QwenWayfinderAttention(base_attn, cfg)
         replaced.append(i)
     return replaced
+
+
+def get_qwen_full_attention_layer_indices(model: nn.Module) -> List[int]:
+    if not hasattr(model, "layers"):
+        raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
+    indices: List[int] = []
+    for idx, layer in enumerate(model.layers):
+        if getattr(layer, "is_linear", None) is False:
+            indices.append(int(idx))
+            continue
+        if getattr(layer, "self_attn", None) is not None:
+            indices.append(int(idx))
+    return indices
+
+
+def validate_qwen35_full_attention_layers(
+    model: nn.Module,
+    *,
+    allow_mismatch: bool = False,
+) -> List[int]:
+    discovered = get_qwen_full_attention_layer_indices(model)
+    expected = list(EXPECTED_QWEN35_FULL_ATTENTION_LAYERS)
+    if tuple(discovered) != EXPECTED_QWEN35_FULL_ATTENTION_LAYERS:
+        message = (
+            "Unexpected Qwen 3.5 full-attention layer layout: "
+            f"expected={expected} discovered={discovered}"
+        )
+        if not allow_mismatch:
+            raise ValueError(message)
+        warnings.warn(message, stacklevel=2)
+    return discovered
+
+
+def iter_qwen_wayfinder_layers(model: nn.Module) -> Iterable[QwenWayfinderAttention]:
+    if not hasattr(model, "layers"):
+        raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
+    for layer in model.layers:
+        attn = getattr(layer, "self_attn", None)
+        if isinstance(attn, QwenWayfinderAttention):
+            yield attn

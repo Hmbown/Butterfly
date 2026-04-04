@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Set
 
 import mlx.core as mx
-from mlx_lm import load
 from mlx_lm.models.cache import make_prompt_cache
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -26,7 +25,13 @@ if str(REPO_ROOT) not in sys.path:
 from bna.integrations.qwen_mlx import (  # noqa: E402
     QwenWayfinderAttention,
     QwenWayfinderConfig,
+    get_qwen_full_attention_layer_indices,
     swap_qwen_attention_with_wayfinder,
+    validate_qwen35_full_attention_layers,
+)
+from bna.integrations.qwen_mlx_loader import (  # noqa: E402
+    load_qwen_mlx_model,
+    resolve_qwen_mlx_model_path,
 )
 
 
@@ -137,11 +142,7 @@ def _collect_hsa_trace_snapshot(
 ) -> List[Dict[str, Any]]:
     layers = list(_iter_model_layers(model))
     if layer_indices is not None:
-        selected = [
-            int(idx)
-            for idx in layer_indices
-            if 0 <= int(idx) < len(layers)
-        ]
+        selected = [int(idx) for idx in layer_indices if 0 <= int(idx) < len(layers)]
     else:
         selected = [
             i
@@ -180,6 +181,7 @@ def _collect_hsa_trace_snapshot(
                 "layer_idx": int(idx),
                 "path": profile.get("path"),
                 "graph_build_ms": profile.get("graph_build_ms"),
+                "permute_ms": profile.get("permute_ms"),
                 "attention_ms": profile.get("attention_ms"),
                 "total_ms": profile.get("total_ms"),
                 "notes": notes_subset,
@@ -202,13 +204,55 @@ def _collect_hsa_layer_snapshot(
     )
 
 
+def _public_path_label(raw_path: str) -> str:
+    if raw_path == "permute":
+        return "butterfly_attention"
+    if raw_path == "permute_dense_fallback":
+        return "butterfly_stock_fallback"
+    if raw_path in {"dense", "native_hybrid"}:
+        return "stock_attention"
+    return raw_path
+
+
+def _public_stock_fallback_reason(
+    *,
+    raw_reason: Any,
+    notes: Dict[str, Any],
+    raw_path: str,
+) -> Optional[str]:
+    reason = "" if raw_reason is None else str(raw_reason).strip()
+    if reason and reason.lower() not in {"none", "null"}:
+        mapping = {
+            "wayfinder_decode_dense": "decode_backend_stock",
+            "active_dense_threshold": "stock_threshold",
+            "active_large_q": "stock_large_query",
+            "q_len_mismatch": "sequence_shape_guard",
+            "active_runtime_error": "butterfly_runtime_guard",
+            "unspecified": "stock_fallback",
+        }
+        return mapping.get(reason, reason)
+    if bool(notes.get("active_dense_triggered")):
+        return "stock_threshold"
+    if bool(notes.get("active_large_q_dense_triggered")):
+        return "stock_large_query"
+    if "dense_fallback" in raw_path:
+        return "stock_fallback"
+    return None
+
+
 def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     path_counts: Counter[str] = Counter()
     cache_source_counts: Counter[str] = Counter()
     phase_counts: Counter[str] = Counter()
     graph_seq_len_counts: Counter[str] = Counter()
     q_len_counts: Counter[str] = Counter()
-    dense_reason_counts: Counter[str] = Counter()
+    stock_reason_counts: Counter[str] = Counter()
+    graph_build_ms_values: List[float] = []
+    butterfly_ms_values: List[float] = []
+    attention_ms_values: List[float] = []
+    total_ms_values: List[float] = []
+    decode_butterfly_ms_values: List[float] = []
+    prefill_butterfly_ms_values: List[float] = []
 
     total_obs = 0
     fallback_layer_obs = 0
@@ -234,10 +278,26 @@ def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         sample_has_fallback = False
         for layer_row in sample.get("layers", []):
             total_obs += 1
-            path = str(layer_row.get("path") or "unknown")
-            path_counts[path] += 1
+            raw_path = str(layer_row.get("path") or "unknown")
+            public_path = _public_path_label(raw_path)
+            path_counts[public_path] += 1
             notes = layer_row.get("notes") or {}
-            is_dense_fallback = False
+            graph_build_ms = layer_row.get("graph_build_ms")
+            if graph_build_ms is not None:
+                graph_build_ms_values.append(float(graph_build_ms))
+            butterfly_ms = layer_row.get("permute_ms")
+            if butterfly_ms is not None:
+                butterfly_ms_values.append(float(butterfly_ms))
+                if phase == "decode":
+                    decode_butterfly_ms_values.append(float(butterfly_ms))
+                elif phase == "prefill":
+                    prefill_butterfly_ms_values.append(float(butterfly_ms))
+            attention_ms = layer_row.get("attention_ms")
+            if attention_ms is not None:
+                attention_ms_values.append(float(attention_ms))
+            total_ms = layer_row.get("total_ms")
+            if total_ms is not None:
+                total_ms_values.append(float(total_ms))
 
             cache_source = notes.get("cache_source")
             if cache_source is not None:
@@ -256,28 +316,19 @@ def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             if q_len is not None:
                 q_len_counts[str(int(q_len))] += 1
 
-            dense_reason = notes.get("dense_fallback_reason")
-            dense_reason_s = "" if dense_reason is None else str(dense_reason).strip()
-            if dense_reason_s and dense_reason_s.lower() not in {"none", "null"}:
-                dense_reason_counts[dense_reason_s] += 1
-                is_dense_fallback = True
-            else:
-                # Backward compatibility for runs that only emitted booleans.
-                if bool(notes.get("active_dense_triggered")):
-                    dense_reason_counts["active_dense_threshold"] += 1
-                    is_dense_fallback = True
-                if bool(notes.get("active_large_q_dense_triggered")):
-                    dense_reason_counts["active_large_q"] += 1
-                    is_dense_fallback = True
-                if "dense_fallback" in path and not is_dense_fallback:
-                    dense_reason_counts["unspecified"] += 1
-                    is_dense_fallback = True
+            stock_reason = _public_stock_fallback_reason(
+                raw_reason=notes.get("dense_fallback_reason"),
+                notes=notes,
+                raw_path=raw_path,
+            )
+            is_stock_fallback = stock_reason is not None
 
             if phase == "decode":
                 decode_layer_obs += 1
             elif phase == "prefill":
                 prefill_layer_obs += 1
-            if is_dense_fallback:
+            if is_stock_fallback:
+                stock_reason_counts[stock_reason] += 1
                 fallback_layer_obs += 1
                 sample_has_fallback = True
                 if phase == "decode":
@@ -290,6 +341,20 @@ def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
             elif phase == "prefill":
                 prefill_fallback_steps += 1
 
+    stock_fallback_share_run = float(fallback_layer_obs / total_obs) if total_obs else None
+    stock_fallback_share_decode_layers = (
+        float(decode_fallback_layer_obs / decode_layer_obs) if decode_layer_obs else None
+    )
+    stock_fallback_share_prefill_layers = (
+        float(prefill_fallback_layer_obs / prefill_layer_obs) if prefill_layer_obs else None
+    )
+    stock_fallback_share_decode_steps = (
+        float(decode_fallback_steps / decode_step_obs) if decode_step_obs else None
+    )
+    stock_fallback_share_prefill_steps = (
+        float(prefill_fallback_steps / prefill_step_obs) if prefill_step_obs else None
+    )
+
     return {
         "sample_count": int(len(samples)),
         "layer_observations": int(total_obs),
@@ -298,43 +363,69 @@ def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
         "cache_source_counts": dict(cache_source_counts),
         "graph_seq_len_counts": dict(graph_seq_len_counts),
         "q_len_counts": dict(q_len_counts),
-        "dense_fallback_reason_counts": dict(dense_reason_counts),
-        "fallback_layer_observations": int(fallback_layer_obs),
+        "stock_fallback_reason_counts": dict(stock_reason_counts),
+        "stock_fallback_layer_observations": int(fallback_layer_obs),
         "decode_layer_observations": int(decode_layer_obs),
-        "decode_fallback_layer_observations": int(decode_fallback_layer_obs),
+        "stock_fallback_decode_layer_observations": int(decode_fallback_layer_obs),
         "prefill_layer_observations": int(prefill_layer_obs),
-        "prefill_fallback_layer_observations": int(prefill_fallback_layer_obs),
+        "stock_fallback_prefill_layer_observations": int(prefill_fallback_layer_obs),
         "decode_step_observations": int(decode_step_obs),
-        "decode_fallback_steps": int(decode_fallback_steps),
+        "stock_fallback_decode_steps": int(decode_fallback_steps),
         "prefill_step_observations": int(prefill_step_obs),
-        "prefill_fallback_steps": int(prefill_fallback_steps),
-        "dense_fallback_share_run": (float(fallback_layer_obs / total_obs) if total_obs else None),
-        "dense_fallback_share_decode_layers": (
-            float(decode_fallback_layer_obs / decode_layer_obs) if decode_layer_obs else None
-        ),
-        "dense_fallback_share_prefill_layers": (
-            float(prefill_fallback_layer_obs / prefill_layer_obs) if prefill_layer_obs else None
-        ),
-        "dense_fallback_share_decode_steps": (
-            float(decode_fallback_steps / decode_step_obs) if decode_step_obs else None
-        ),
-        "dense_fallback_share_prefill_steps": (
-            float(prefill_fallback_steps / prefill_step_obs) if prefill_step_obs else None
-        ),
+        "stock_fallback_prefill_steps": int(prefill_fallback_steps),
+        "stock_fallback_share_run": stock_fallback_share_run,
+        "stock_fallback_share_decode_layers": stock_fallback_share_decode_layers,
+        "stock_fallback_share_prefill_layers": stock_fallback_share_prefill_layers,
+        "stock_fallback_share_decode_steps": stock_fallback_share_decode_steps,
+        "stock_fallback_share_prefill_steps": stock_fallback_share_prefill_steps,
         "fallback_share_known": bool(total_obs > 0),
         "active_query_ratio": (float(active_query_obs / total_obs) if total_obs else 0.0),
         "adaptive_graph_reuse_ratio": (float(adaptive_reuse_obs / total_obs) if total_obs else 0.0),
         "cache_hit_ratio": (float(cache_hit_obs / total_obs) if total_obs else 0.0),
+        "graph_build_ms_mean": (
+            float(sum(graph_build_ms_values) / len(graph_build_ms_values))
+            if graph_build_ms_values
+            else None
+        ),
+        "graph_build_ms_p95": _percentile(graph_build_ms_values, 95.0),
+        "butterfly_ms_mean": (
+            float(sum(butterfly_ms_values) / len(butterfly_ms_values))
+            if butterfly_ms_values
+            else None
+        ),
+        "butterfly_ms_p95": _percentile(butterfly_ms_values, 95.0),
+        "butterfly_ms_decode_mean": (
+            float(sum(decode_butterfly_ms_values) / len(decode_butterfly_ms_values))
+            if decode_butterfly_ms_values
+            else None
+        ),
+        "butterfly_ms_prefill_mean": (
+            float(sum(prefill_butterfly_ms_values) / len(prefill_butterfly_ms_values))
+            if prefill_butterfly_ms_values
+            else None
+        ),
+        "attention_ms_mean": (
+            float(sum(attention_ms_values) / len(attention_ms_values))
+            if attention_ms_values
+            else None
+        ),
+        "attention_ms_p95": _percentile(attention_ms_values, 95.0),
+        "total_ms_mean": (
+            float(sum(total_ms_values) / len(total_ms_values))
+            if total_ms_values
+            else None
+        ),
+        "total_ms_p95": _percentile(total_ms_values, 95.0),
     }
 
 
 def _expected_primary_path_for_mode(mode: str) -> str:
     mode_s = str(mode).strip().lower()
-    if mode_s == "wayfinder":
-        return "permute"
+    if mode_s in {"wayfinder", "butterfly"}:
+        return "butterfly_attention"
     if mode_s == "sparse":
         return "sparse"
-    return "dense"
+    return "stock_attention"
 
 
 def _parse_layer_indices(spec: str, *, total_layers: int) -> List[int]:
@@ -510,9 +601,8 @@ def _run_decode(
         t_step = time.perf_counter()
         logits = model(next_token, cache=cache)
         mx.eval(logits)
-        should_hsa_trace = (
-            hsa_trace_samples is not None
-            and (int(hsa_trace_max_steps) <= 0 or hsa_decode_steps < int(hsa_trace_max_steps))
+        should_hsa_trace = hsa_trace_samples is not None and (
+            int(hsa_trace_max_steps) <= 0 or hsa_decode_steps < int(hsa_trace_max_steps)
         )
         if should_hsa_trace:
             layer_rows = _collect_hsa_trace_snapshot(
@@ -549,8 +639,7 @@ def _run_decode(
             top_idx = np.argpartition(logits_np, -k)[-k:]
             top_idx = top_idx[np.argsort(logits_np[top_idx])[::-1]]
             top_candidates = [
-                {"token_id": int(i), "logit": float(logits_np[int(i)])}
-                for i in top_idx.tolist()
+                {"token_id": int(i), "logit": float(logits_np[int(i)])} for i in top_idx.tolist()
             ]
         else:
             top_candidates = []
@@ -777,9 +866,21 @@ def _run_single_turn(
                 "expected_primary_path": expected_primary_path,
                 "hsa_trace_summary": hsa_summary,
                 "path_counts": dict(hsa_summary.get("path_counts", {})),
-                "dense_fallback_reason_counts": dict(hsa_summary.get("dense_fallback_reason_counts", {})),
-                "dense_fallback_share_run": hsa_summary.get("dense_fallback_share_run"),
-                "dense_fallback_share_decode_steps": hsa_summary.get("dense_fallback_share_decode_steps"),
+                "stock_fallback_reason_counts": dict(
+                    hsa_summary.get("stock_fallback_reason_counts", {})
+                ),
+                "stock_fallback_share_run": hsa_summary.get("stock_fallback_share_run"),
+                "stock_fallback_share_decode_steps": hsa_summary.get(
+                    "stock_fallback_share_decode_steps"
+                ),
+                "stock_fallback_share_prefill_steps": hsa_summary.get(
+                    "stock_fallback_share_prefill_steps"
+                ),
+                "graph_build_ms_mean": hsa_summary.get("graph_build_ms_mean"),
+                "butterfly_ms_mean": hsa_summary.get("butterfly_ms_mean"),
+                "butterfly_ms_decode_mean": hsa_summary.get("butterfly_ms_decode_mean"),
+                "butterfly_ms_prefill_mean": hsa_summary.get("butterfly_ms_prefill_mean"),
+                "attention_ms_mean": hsa_summary.get("attention_ms_mean"),
                 "observability_fallback_share_known": bool(hsa_summary.get("fallback_share_known")),
                 "stage_timing_sec": {
                     "prompt_build_sec": prompt_build_sec,
@@ -912,17 +1013,15 @@ def _run_quality(
         ok = _normalize_text(expected) in _normalize_text(out_text)
         if ok:
             correct += 1
-        row = (
-            {
-                "id": task_id,
-                "expected": expected,
-                "output": out_text,
-                "correct": bool(ok),
-                "ttft_sec": dec["ttft_sec"],
-                "itl_p95_sec": dec["itl_p95_sec"],
-                "peak_memory_bytes": int(_peak_memory()),
-            }
-        )
+        row = {
+            "id": task_id,
+            "expected": expected,
+            "output": out_text,
+            "correct": bool(ok),
+            "ttft_sec": dec["ttft_sec"],
+            "itl_p95_sec": dec["itl_p95_sec"],
+            "peak_memory_bytes": int(_peak_memory()),
+        }
         if dec.get("trace"):
             row["decode_trace"] = dec["trace"]
         rows.append(row)
@@ -953,16 +1052,23 @@ def _resolve_primary_mode(args: argparse.Namespace, parser: argparse.ArgumentPar
 
     legacy_mode = None
     if bool(args.no_swap):
-        legacy_mode = "dense"
+        legacy_mode = "stock"
     elif path_arg == "sparse":
         legacy_mode = "sparse"
     elif path_arg == "permute":
-        legacy_mode = "wayfinder"
+        legacy_mode = "butterfly"
 
     if mode_arg is None:
-        return legacy_mode or "wayfinder"
-    if mode_arg not in {"dense", "wayfinder", "sparse"}:
-        parser.error(f"--mode must be one of ['dense', 'wayfinder', 'sparse']; got {mode_arg!r}")
+        return legacy_mode or "butterfly"
+    # Public surface: "butterfly" vs "stock". Legacy aliases remain accepted.
+    if mode_arg == "wayfinder":
+        mode_arg = "butterfly"
+    if mode_arg in {"native", "hybrid", "dense", "stock"}:
+        mode_arg = "stock"
+    if mode_arg not in {"stock", "butterfly", "sparse"}:
+        parser.error(
+            f"--mode must be one of ['stock', 'butterfly', 'sparse'] plus legacy aliases ['native', 'hybrid', 'dense', 'wayfinder']; got {mode_arg!r}"
+        )
     if legacy_mode is not None and legacy_mode != mode_arg:
         parser.error(
             f"Conflicting mode selectors: --mode {mode_arg} vs legacy selector {legacy_mode}. "
@@ -971,8 +1077,63 @@ def _resolve_primary_mode(args: argparse.Namespace, parser: argparse.ArgumentPar
     return mode_arg
 
 
+def _build_single_turn_summary_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    summary_rows: List[Dict[str, Any]] = []
+    for row in rows:
+        summary_rows.append(
+            {
+                "prompt_tokens": int(row.get("seq_len", 0)),
+                "decode_tokens": int(row.get("decode_len", 0)),
+                "repeat": int(row.get("repeat", 0)),
+                "prefill_sec": row.get("prefill_sec"),
+                "ttft_sec": row.get("ttft_sec"),
+                "decode_tok_s": row.get("decode_tok_s"),
+                "e2e_sec": row.get("e2e_sec"),
+                "path_counts": dict(row.get("path_counts", {})),
+                "stock_fallback_share_run": row.get("stock_fallback_share_run"),
+                "stock_fallback_share_prefill_steps": row.get("stock_fallback_share_prefill_steps"),
+                "stock_fallback_share_decode_steps": row.get("stock_fallback_share_decode_steps"),
+            }
+        )
+    return summary_rows
+
+
+def _render_summary_markdown(payload: Dict[str, Any]) -> str:
+    butterfly_meta = payload.get("butterfly") or {}
+    lines = [
+        "# Qwen MLX Summary",
+        "",
+        f"- mode: `{payload.get('mode')}`",
+        f"- butterfly decode backend: `{payload.get('butterfly_decode_backend')}`",
+        f"- butterfly prefill scope: `{butterfly_meta.get('prefill_scope')}`",
+        f"- butterfly prefill target layers: `{butterfly_meta.get('target_prefill_layer_indices')}`",
+        f"- butterfly prefill active layers: `{butterfly_meta.get('active_prefill_layer_indices')}`",
+        "",
+        "| Prompt | Prefill s | TTFT s | Decode tok/s | E2E s | Stock fallback share |",
+        "| ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for row in _build_single_turn_summary_rows(payload.get("single_turn") or []):
+        stock_share = row.get("stock_fallback_share_run")
+        stock_share_str = "n/a" if stock_share is None else f"{float(stock_share):.2f}"
+        decode_tok_s = row.get("decode_tok_s")
+        decode_tok_s_str = "n/a" if decode_tok_s is None else f"{float(decode_tok_s):.2f}"
+        lines.append(
+            "| "
+            f"{int(row.get('prompt_tokens', 0))} | "
+            f"{float(row.get('prefill_sec', 0.0)):.4f} | "
+            f"{float(row.get('ttft_sec', 0.0)):.4f} | "
+            f"{decode_tok_s_str} | "
+            f"{float(row.get('e2e_sec', 0.0)):.4f} | "
+            f"{stock_share_str} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def main() -> None:
-    p = argparse.ArgumentParser(description="Qwen consumer-like benchmark (single-turn/multi-turn/quality)")
+    p = argparse.ArgumentParser(
+        description="Qwen MLX benchmark with stock vs Butterfly single-turn, multi-turn, and quality flows."
+    )
     p.add_argument("--model-path", type=str, default="mlx-community/Qwen3-1.7B-4bit")
     p.add_argument(
         "--hf-home",
@@ -995,9 +1156,14 @@ def main() -> None:
     p.add_argument(
         "--mode",
         type=str,
-        choices=["dense", "wayfinder", "sparse"],
         default=None,
-        help="Primary attention mode selector for benchmark UX.",
+        help=(
+            "Primary attention mode selector. "
+            "'stock' = default Qwen 3.5 attention path. "
+            "'butterfly' = Butterfly attention for the 8 swapped prefill layers on Qwen 3.5. "
+            "Legacy aliases remain accepted. "
+            "'sparse' = legacy sparse-gather path."
+        ),
     )
     p.add_argument("--seq-lens", type=int, nargs="+", default=[2048, 8192, 32768])
     p.add_argument("--decode-len", type=int, default=256)
@@ -1047,20 +1213,22 @@ def main() -> None:
     p.add_argument("--head-chunk-size", type=int, default=2)
     p.add_argument("--query-chunk-size", type=int, default=384)
     p.add_argument(
-        "--debug-wayfinder-decode-backend",
+        "--butterfly-decode-backend",
         type=str,
-        default="dense",
-        choices=["active_permute", "dense"],
-        help="Wayfinder decode backend policy (default: dense, for GLM parity).",
+        default="stock",
+        help="Decode backend policy. 'stock' (legacy alias: 'dense') keeps the default stock decode path on swapped layers. 'experimental' (legacy alias: 'active_permute') enables Butterfly decode experiments.",
     )
+    p.add_argument("--debug-wayfinder-decode-backend", type=str, default="", help=argparse.SUPPRESS)
     p.add_argument("--wayfinder-decode-backend", type=str, default="", help=argparse.SUPPRESS)
     p.add_argument(
         "--debug-disable-fused-dispatch",
         action="store_true",
         default=False,
-        help="Debug-only: disable fused permute dispatch.",
+        help="Debug-only: disable fused Butterfly dispatch.",
     )
-    p.add_argument("--disable-fused-dispatch", action="store_true", default=False, help=argparse.SUPPRESS)
+    p.add_argument(
+        "--disable-fused-dispatch", action="store_true", default=False, help=argparse.SUPPRESS
+    )
     p.add_argument("--window-drop", type=float, default=0.0)
     p.add_argument("--retro-backfill", action="store_true")
     p.add_argument("--retro-alpha", type=float, default=0.2)
@@ -1093,10 +1261,16 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--no-swap", action="store_true", default=False, help=argparse.SUPPRESS)
     p.add_argument(
-        "--debug-swap-first-n-layers", type=int, default=0, help="Debug-only: swap only first N layers."
+        "--debug-swap-first-n-layers",
+        type=int,
+        default=0,
+        help="Debug-only: swap only first N layers.",
     )
     p.add_argument(
-        "--debug-swap-last-n-layers", type=int, default=0, help="Debug-only: swap only last N layers."
+        "--debug-swap-last-n-layers",
+        type=int,
+        default=0,
+        help="Debug-only: swap only last N layers.",
     )
     p.add_argument(
         "--debug-swap-layer-indices",
@@ -1116,7 +1290,11 @@ def main() -> None:
     p.add_argument("--trace-quality-task-id", type=str, default="")
     p.add_argument("--trace-topk", type=int, default=5)
     p.add_argument("--trace-max-steps", type=int, default=0)
-    p.add_argument("--hsa-trace", action="store_true", help="Record per-step Wayfinder attention path snapshots.")
+    p.add_argument(
+        "--hsa-trace",
+        action="store_true",
+        help="Record per-step Wayfinder attention path snapshots.",
+    )
     p.add_argument(
         "--hsa-trace-max-layers",
         type=int,
@@ -1161,14 +1339,21 @@ def main() -> None:
         pass
 
     decode_backend = (
-        str(args.wayfinder_decode_backend).strip()
-        if str(args.wayfinder_decode_backend).strip()
-        else str(args.debug_wayfinder_decode_backend).strip()
+        str(args.butterfly_decode_backend).strip()
+        if str(args.butterfly_decode_backend).strip()
+        else (
+            str(args.wayfinder_decode_backend).strip()
+            if str(args.wayfinder_decode_backend).strip()
+            else str(args.debug_wayfinder_decode_backend).strip()
+        )
     )
+    if decode_backend == "stock":
+        decode_backend = "dense"
+    if decode_backend == "experimental":
+        decode_backend = "active_permute"
     if decode_backend not in {"active_permute", "dense"}:
         p.error(
-            "--debug-wayfinder-decode-backend/--wayfinder-decode-backend "
-            "must be one of ['active_permute', 'dense']"
+            "--butterfly-decode-backend must be one of ['stock', 'experimental'] plus legacy aliases ['dense', 'active_permute']"
         )
     cache_cfg = _configure_hf_cache(
         hf_home=(str(args.hf_home).strip() or None),
@@ -1181,19 +1366,34 @@ def main() -> None:
         f"HF_HUB_OFFLINE={cache_cfg['hf_hub_offline']}"
     )
 
-    _log(f"Loading model {args.model_path}")
-    model, tokenizer, _ = load(
-        args.model_path,
+    resolved_model_path = resolve_qwen_mlx_model_path(args.model_path, prefer_text=True)
+    if str(resolved_model_path) != str(Path(args.model_path).expanduser().resolve()):
+        _log(f"Resolved text-only checkpoint: {resolved_model_path}")
+
+    _log(f"Loading model {resolved_model_path}")
+    model, tokenizer, _ = load_qwen_mlx_model(
+        resolved_model_path,
         return_config=True,
         lazy=True,
         tokenizer_config={"trust_remote_code": True},
     )
     _log("Model loaded")
 
-    dense_mode = mode == "dense"
+    try:
+        full_attention_layer_indices = validate_qwen35_full_attention_layers(
+            model,
+            allow_mismatch=False,
+        )
+        butterfly_prefill_scope = "qwen35_full_attention_layers"
+    except ValueError as exc:
+        full_attention_layer_indices = get_qwen_full_attention_layer_indices(model)
+        butterfly_prefill_scope = "discovered_full_attention_layers"
+        _log(f"WARNING: {exc}. Continuing with discovered full-attention layers for this benchmark.")
+
+    baseline_mode = mode == "stock"
     wf_cfg: Optional[QwenWayfinderConfig] = None
-    if not dense_mode:
-        qwen_path = "permute" if mode == "wayfinder" else "sparse"
+    if not baseline_mode:
+        qwen_path = "permute" if mode == "butterfly" else "sparse"
         wf_cfg = QwenWayfinderConfig(
             path=qwen_path,  # type: ignore[arg-type]
             strategy="random",
@@ -1220,8 +1420,13 @@ def main() -> None:
     replaced_layers = 0
     replaced_indices: List[int] = []
     requested_layer_indices: Optional[List[int]] = None
-    if dense_mode:
-        _log("mode=dense: stock Qwen attention baseline (no swap)")
+    active_prefill_layer_indices: List[int] = []
+    active_prefill_scope = butterfly_prefill_scope
+    if baseline_mode:
+        _log(
+            "mode=stock: default Qwen 3.5 attention path "
+            f"(Butterfly target scope={butterfly_prefill_scope}, layers={full_attention_layer_indices})"
+        )
     else:
         assert wf_cfg is not None
         layers = list(_iter_model_layers(model))
@@ -1231,10 +1436,15 @@ def main() -> None:
             swap_last_n_layers=int(debug_swap_last_n_layers),
             swap_layer_indices=debug_swap_layer_indices,
         )
+        active_prefill_layer_indices = (
+            requested_layer_indices if requested_layer_indices is not None else full_attention_layer_indices
+        )
+        if requested_layer_indices is not None:
+            active_prefill_scope = "explicit_debug_layer_selection"
         replaced = swap_qwen_attention_with_wayfinder(
             model,
             cfg=wf_cfg,
-            layer_indices=requested_layer_indices,
+            layer_indices=active_prefill_layer_indices,
         )
         replaced_indices = [int(x) for x in replaced]
         replaced_layers = len(replaced_indices)
@@ -1243,28 +1453,49 @@ def main() -> None:
             if isinstance(layer_attn, QwenWayfinderAttention):
                 layer_attn.compute_edge_utilization_proxy = False
                 layer_attn.compute_graph_metrics = False
-        scope = "all-layers" if requested_layer_indices is None else f"selected-layers={requested_layer_indices}"
-        _log(f"mode={mode}: swapped attention on {replaced_layers} layers ({scope})")
+        _log(
+            f"mode={mode}: Butterfly swap active on {replaced_layers} layers "
+            f"(scope={active_prefill_scope}, layers={replaced_indices}, "
+            f"decode_backend={'stock' if decode_backend == 'dense' else 'experimental'})"
+        )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    butterfly_decode_backend_public = (
+        "stock" if baseline_mode or decode_backend == "dense" else "experimental"
+    )
     payload: Dict[str, Any] = {
         "created_at": datetime.now(UTC).isoformat(),
         "command": " ".join(sys.argv),
         "model_path": args.model_path,
         "hf_cache": cache_cfg,
         "mode": mode,
-        "no_swap": bool(dense_mode),
+        "butterfly_decode_backend": butterfly_decode_backend_public,
         "retro_backfill_enabled": bool(args.retro_backfill),
-        "wayfinder_config": None if dense_mode else wf_cfg.__dict__,
-        "swap": {
-            "replaced_layers": int(replaced_layers),
-            "replaced_layer_indices": replaced_indices,
-            "requested_layer_indices": requested_layer_indices,
-            "debug_swap_first_n_layers": int(debug_swap_first_n_layers),
-            "debug_swap_last_n_layers": int(debug_swap_last_n_layers),
-            "debug_swap_layer_indices_arg": str(debug_swap_layer_indices),
-            "debug_disable_fused_dispatch": bool(debug_disable_fused_dispatch),
-            "debug_wayfinder_decode_backend": decode_backend,
+        "butterfly": {
+            "enabled": bool(not baseline_mode),
+            "decode_backend": butterfly_decode_backend_public,
+            "prefill_scope": active_prefill_scope,
+            "target_prefill_layer_indices": [int(x) for x in full_attention_layer_indices],
+            "active_prefill_layer_indices": [int(x) for x in replaced_indices],
+            "active_prefill_layer_count": int(replaced_layers),
+            "debug_override_layer_indices": requested_layer_indices,
+            "config": (
+                None
+                if baseline_mode
+                else {
+                    "window": int(args.window),
+                    "landmark_stride": (
+                        None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
+                    ),
+                    "num_cycles": int(max(0, args.num_cycles)),
+                    "head_chunk_size": int(max(1, args.head_chunk_size)),
+                    "query_chunk_size": int(max(1, args.query_chunk_size)),
+                    "decode_backend": butterfly_decode_backend_public,
+                    "edge_disjoint": bool(args.edge_disjoint),
+                    "enforce_hamiltonian": bool(args.enforce_hamiltonian),
+                    "fused_dispatch": bool(not debug_disable_fused_dispatch),
+                }
+            ),
         },
         "observability": {
             "runtime_summary_always_on": True,
@@ -1294,10 +1525,23 @@ def main() -> None:
     }
 
     results_path = args.out_dir / "results.json"
+    summary_json_path = args.out_dir / "summary.json"
+    summary_md_path = args.out_dir / "summary.md"
 
     def _flush() -> float:
         t0 = time.perf_counter()
         results_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        summary_payload = {
+            "created_at": payload.get("created_at"),
+            "mode": payload.get("mode"),
+            "butterfly_decode_backend": payload.get("butterfly_decode_backend"),
+            "butterfly": payload.get("butterfly"),
+            "status": payload.get("status"),
+            "status_reason": payload.get("status_reason"),
+            "single_turn": _build_single_turn_summary_rows(payload.get("single_turn") or []),
+        }
+        summary_json_path.write_text(json.dumps(summary_payload, indent=2), encoding="utf-8")
+        summary_md_path.write_text(_render_summary_markdown(payload), encoding="utf-8")
         dt = float(time.perf_counter() - t0)
         timing = payload.setdefault("timing", {})
         timing["writeout_sec_last"] = dt
@@ -1335,7 +1579,9 @@ def main() -> None:
                     repeat=int(row.get("repeat", 0)),
                 )
                 write_sec = _flush()
-                payload["single_turn"][-1].setdefault("stage_timing_sec", {})["writeout_sec"] = write_sec
+                payload["single_turn"][-1].setdefault("stage_timing_sec", {})["writeout_sec"] = (
+                    write_sec
+                )
                 _flush()
 
             _run_single_turn(
@@ -1359,6 +1605,27 @@ def main() -> None:
 
         if not args.skip_multi_turn:
             _set_stage("multi_turn")
+            payload["multi_turn"] = {
+                "turns": int(args.turns),
+                "target_total_context": int(args.multi_target_context),
+                "decode_len_per_turn": int(args.multi_decode_len),
+                "session_e2e_sec": 0.0,
+                "per_turn": [],
+            }
+
+            def _on_multi_turn(turn_row: Dict[str, Any]) -> None:
+                multi_turn_payload = payload.setdefault("multi_turn", {})
+                per_turn_rows = multi_turn_payload.setdefault("per_turn", [])
+                per_turn_rows.append(dict(turn_row))
+                multi_turn_payload["session_e2e_sec"] = float(
+                    multi_turn_payload.get("session_e2e_sec", 0.0)
+                ) + float(turn_row.get("e2e_sec", 0.0))
+                payload.setdefault("progress", {})["multi_turns_completed"] = int(
+                    len(per_turn_rows)
+                )
+                _set_stage("multi_turn_turn_complete")
+                _flush()
+
             payload["multi_turn"] = _run_multi_turn(
                 model,
                 tokenizer,
@@ -1367,14 +1634,7 @@ def main() -> None:
                 decode_len=int(args.multi_decode_len),
                 chunk_size=int(args.chunk_size),
                 kv_step=int(args.kv_step),
-                on_turn=lambda _turn: (
-                    payload.setdefault("progress", {}).__setitem__(
-                        "multi_turns_completed",
-                        int(payload.get("progress", {}).get("multi_turns_completed", 0)) + 1,
-                    ),
-                    _set_stage("multi_turn_turn_complete"),
-                    _flush(),
-                ),
+                on_turn=_on_multi_turn,
             )
             _flush()
 

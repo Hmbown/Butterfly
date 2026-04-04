@@ -1,0 +1,13 @@
+{
+  "label": "llama_cpp_metal",
+  "speed_runs": 2,
+  "memory_runs": 0,
+  "max_context_runs": 0,
+  "max_successful_ctx": null,
+  "files": {
+    "manifest": "/private/tmp/llama_cpp_4b_speed/manifest.json",
+    "speed": "/private/tmp/llama_cpp_4b_speed/speed.json",
+    "memory": "/private/tmp/llama_cpp_4b_speed/memory.json",
+    "max_context": "/private/tmp/llama_cpp_4b_speed/max_context.json"
+  }
+}

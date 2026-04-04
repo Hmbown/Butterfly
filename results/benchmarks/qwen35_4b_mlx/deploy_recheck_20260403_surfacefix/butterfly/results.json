@@ -1,0 +1,290 @@
+{
+  "created_at": "2026-04-04T02:44:42.693267+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit --mode butterfly --butterfly-decode-backend stock --seq-lens 2048 8192 --decode-len 8 --repeats 1 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --skip-multi-turn --skip-quality --hf-offline --out-dir results/benchmarks/qwen35_4b_mlx/deploy_recheck_20260403_surfacefix/butterfly",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "None",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": "1"
+  },
+  "mode": "butterfly",
+  "butterfly_decode_backend": "stock",
+  "retro_backfill_enabled": false,
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_count": 8,
+    "debug_override_layer_indices": null,
+    "config": {
+      "window": 64,
+      "landmark_stride": 64,
+      "num_cycles": 1,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true
+    }
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 2,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 8192,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.004865708004217595,
+    "writeout_sec_total": 0.008296832995256409,
+    "script_start_unix_sec": 1775270682.693436,
+    "script_end_unix_sec": 1775270700.115093
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 1.8798730409907876,
+      "ttft_sec": 0.02089841599809006,
+      "itl_p50_sec": 0.010444666986586526,
+      "itl_p95_sec": 0.010586082993540913,
+      "decode_sec": 0.09556362500006799,
+      "e2e_sec": 1.9754366659908555,
+      "decode_tok_s": 83.71386079163813,
+      "peak_memory_bytes": 4977594096,
+      "sample_output_text": "am,l,` (-l",
+      "expected_primary_path": "butterfly_attention",
+      "hsa_trace_summary": {
+        "sample_count": 9,
+        "layer_observations": 72,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 8
+        },
+        "path_counts": {
+          "butterfly_attention": 8,
+          "butterfly_stock_fallback": 64
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 64
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 64
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 64
+        },
+        "stock_fallback_layer_observations": 64,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 64,
+        "prefill_layer_observations": 8,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 1,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.8888888888888888,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.8888888888888888,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.00015223667853408388,
+        "graph_build_ms_p95": 0.0010000020265579224,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.015733210369944572,
+        "attention_ms_p95": 0.1024169921875,
+        "total_ms_mean": 0.06233906890783045,
+        "total_ms_p95": 0.25804199278354645
+      },
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.00015223667853408388,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.015733210369944572,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07615729099779855,
+        "prompt_tokenize_sec": 0.07615729099779855,
+        "prefill_sec": 1.8798730409907876,
+        "decode_sec": 0.09556362500006799,
+        "writeout_sec": 0.0004693329974543303
+      }
+    },
+    {
+      "seq_len": 8192,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 8.027703125000698,
+      "ttft_sec": 0.07715920799819287,
+      "itl_p50_sec": 0.011548041002242826,
+      "itl_p95_sec": 0.011917665993678384,
+      "decode_sec": 0.16100520800682716,
+      "e2e_sec": 8.188708333007526,
+      "decode_tok_s": 49.68783369827871,
+      "peak_memory_bytes": 7877321884,
+      "sample_output_text": "B ( < (. ( ((",
+      "expected_primary_path": "butterfly_attention",
+      "hsa_trace_summary": {
+        "sample_count": 10,
+        "layer_observations": 80,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 8
+        },
+        "path_counts": {
+          "butterfly_attention": 8,
+          "butterfly_stock_fallback": 72
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 72
+        },
+        "graph_seq_len_counts": {
+          "4096": 8,
+          "8192": 8,
+          "8193": 8,
+          "8194": 8,
+          "8195": 8,
+          "8196": 8,
+          "8197": 8,
+          "8198": 8,
+          "8199": 8,
+          "8200": 8
+        },
+        "q_len_counts": {
+          "4096": 16,
+          "1": 64
+        },
+        "stock_fallback_reason_counts": {
+          "stock_large_query": 8,
+          "decode_backend_stock": 64
+        },
+        "stock_fallback_layer_observations": 72,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 64,
+        "prefill_layer_observations": 16,
+        "stock_fallback_prefill_layer_observations": 8,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 2,
+        "stock_fallback_prefill_steps": 1,
+        "stock_fallback_share_run": 0.9,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.5,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.5,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.9875,
+        "graph_build_ms_mean": 0.07773697469383478,
+        "graph_build_ms_p95": 0.0013339966535568237,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.024405212700366975,
+        "attention_ms_p95": 0.18950000405311584,
+        "total_ms_mean": 0.14187449980527161,
+        "total_ms_p95": 0.33112500607967377
+      },
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 72
+      },
+      "stock_fallback_reason_counts": {
+        "stock_large_query": 8,
+        "decode_backend_stock": 64
+      },
+      "stock_fallback_share_run": 0.9,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.5,
+      "graph_build_ms_mean": 0.07773697469383478,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.024405212700366975,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 1.21631033300946,
+        "prompt_tokenize_sec": 1.21631033300946,
+        "prefill_sec": 8.027703125000698,
+        "decode_sec": 0.16100520800682716,
+        "writeout_sec": 0.0007372079999186099
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

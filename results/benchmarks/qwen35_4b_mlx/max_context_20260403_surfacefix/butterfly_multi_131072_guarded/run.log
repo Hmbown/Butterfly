@@ -1,0 +1,8 @@
+HF cache config: HF_HOME=None HF_HUB_CACHE=None HF_HUB_OFFLINE=1
+Resolved text-only checkpoint: /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit-text
+Loading model /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit-text
+Model loaded
+mode=butterfly: Butterfly swap active on 8 layers (scope=qwen35_full_attention_layers, layers=[3, 7, 11, 15, 19, 23, 27, 31], decode_backend=stock)
+    kv_step=4096, target prealloc=24576 tokens
+multi_turn t=1/6: T=21845 e2e=31.118s ttft=0.0448s itl_p95=0.0292s
+    kv_step=4096, target prealloc=45056 tokens

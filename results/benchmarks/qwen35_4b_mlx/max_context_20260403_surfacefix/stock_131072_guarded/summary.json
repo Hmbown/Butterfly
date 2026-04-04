@@ -1,0 +1,27 @@
+{
+  "created_at": "2026-04-04T02:58:32.079098+00:00",
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "status": "interrupted",
+  "status_reason": null,
+  "single_turn": []
+}

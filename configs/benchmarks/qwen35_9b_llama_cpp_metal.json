@@ -1,0 +1,17 @@
+{
+  "label": "qwen35_9b_llama_cpp_metal",
+  "prompt_lengths": [2048, 8192, 32768],
+  "gen_lengths": [128],
+  "ctx_sizes": [32768, 65536, 98304, 131072],
+  "max_context_start": 32768,
+  "max_context_stop": 163840,
+  "max_context_step": 16384,
+  "threads": 10,
+  "n_gpu_layers": 999,
+  "cache_type_k": "f16",
+  "cache_type_v": "f16",
+  "flash_attn": "on",
+  "repetitions": 1,
+  "mmap": true,
+  "probe_prompt": "Write exactly one word: ready."
+}

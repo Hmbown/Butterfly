@@ -2,6 +2,10 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHON_BIN="${BUTTERFLY_PYTHON:-${ROOT_DIR}/.venv-macos-metal/bin/python}"
+if [[ ! -x "${PYTHON_BIN}" ]]; then
+  PYTHON_BIN="${ALT_PYTHON_BIN:-python3}"
+fi
 RUN_ID=""
 OUT_DIR_ARG="notes/preflight"
 
@@ -115,12 +119,12 @@ FILE_BENCH_QWEN_WAYFINDER_PY="$(check_file_status "scripts/bench_qwen_wayfinder_
 FILE_BENCH_GLM_WAYFINDER_PY="$(check_file_status "scripts/bench_glm_wayfinder_mlx.py")"
 FILE_WAYC_PY="$(check_file_status "scripts/wayc.py")"
 
-HELP_BENCH_PY="$(check_help_status python3 "$ROOT_DIR/scripts/bench.py" --help)"
-HELP_BENCH_MLX_SCALE_PY="$(check_help_status python3 "$ROOT_DIR/scripts/bench_mlx_wayfinder_scale.py" --help)"
-HELP_BENCH_QWEN_WAYFINDER_PY="$(check_help_status python3 "$ROOT_DIR/scripts/bench_qwen_wayfinder_mlx.py" --help)"
-HELP_BENCH_GLM_WAYFINDER_PY="$(check_help_status python3 "$ROOT_DIR/scripts/bench_glm_wayfinder_mlx.py" --help)"
-HELP_WAYC_PY="$(check_help_status python3 "$ROOT_DIR/scripts/wayc.py" --help)"
-HELP_WAYC_BENCH="$(check_help_status python3 "$ROOT_DIR/scripts/wayc.py" bench --help)"
+HELP_BENCH_PY="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/bench.py" --help)"
+HELP_BENCH_MLX_SCALE_PY="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/bench_mlx_wayfinder_scale.py" --help)"
+HELP_BENCH_QWEN_WAYFINDER_PY="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/bench_qwen_wayfinder_mlx.py" --help)"
+HELP_BENCH_GLM_WAYFINDER_PY="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/bench_glm_wayfinder_mlx.py" --help)"
+HELP_WAYC_PY="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/wayc.py" --help)"
+HELP_WAYC_BENCH="$(check_help_status "$PYTHON_BIN" "$ROOT_DIR/scripts/wayc.py" bench --help)"
 
 capture_snapshot "POST"
 END_TS_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

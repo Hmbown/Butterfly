@@ -1,0 +1,73 @@
+{
+  "created_at": "2026-04-04T02:46:34.559321+00:00",
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 1,
+      "prefill_sec": 1.8770920419920003,
+      "ttft_sec": 0.02079429199511651,
+      "decode_tok_s": 85.62460952688176,
+      "e2e_sec": 1.9705231249972712,
+      "path_counts": {
+        "stock_attention": 9
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 2,
+      "prefill_sec": 1.8731513329985319,
+      "ttft_sec": 0.023070292008924298,
+      "decode_tok_s": 83.5299768193357,
+      "e2e_sec": 1.9689253329997882,
+      "path_counts": {
+        "stock_attention": 9
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 3,
+      "prefill_sec": 1.8723080420022598,
+      "ttft_sec": 0.023891625009127893,
+      "decode_tok_s": 81.34290299983668,
+      "e2e_sec": 1.9706571260030614,
+      "path_counts": {
+        "stock_attention": 9
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    }
+  ]
+}

@@ -7,10 +7,17 @@ import json
 import os
 import platform
 import shutil
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
 import mlx.core as mx
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from bna.local_setup import default_local_paths
 
 
 def _fmt_gb(num_bytes: int) -> float:
@@ -68,6 +75,7 @@ def main() -> None:
     p.add_argument("--json-out", type=Path, default=None)
     args = p.parse_args()
 
+    local_paths = default_local_paths(REPO_ROOT)
     device_info = mx.device_info()
     disk_points = [
         Path.cwd(),
@@ -108,6 +116,7 @@ def main() -> None:
             "tokenizers": _probe_module("tokenizers"),
             "datasets": _probe_module("datasets"),
             "huggingface_hub": _probe_module("huggingface_hub"),
+            "zmlx": _probe_module("zmlx"),
         },
         "disk": disk_report,
         "recommended_defaults": _recommend_defaults(device_info),
@@ -116,6 +125,7 @@ def main() -> None:
             "HF_HUB_CACHE": os.environ.get("HF_HUB_CACHE"),
             "MLX_CACHE_DIR": os.environ.get("MLX_CACHE_DIR"),
         },
+        "local_paths": local_paths.as_dict(),
     }
 
     text = json.dumps(report, indent=2)

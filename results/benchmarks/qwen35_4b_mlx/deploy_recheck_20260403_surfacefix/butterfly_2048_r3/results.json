@@ -1,0 +1,387 @@
+{
+  "created_at": "2026-04-04T02:47:04.507599+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit --mode butterfly --butterfly-decode-backend stock --seq-lens 2048 --decode-len 8 --repeats 3 --chunk-size 4096 --kv-step 4096 --cooldown-sec 0 --window 64 --landmark-stride 64 --num-cycles 1 --head-chunk-size 2 --query-chunk-size 384 --skip-multi-turn --skip-quality --hf-offline --out-dir results/benchmarks/qwen35_4b_mlx/deploy_recheck_20260403_surfacefix/butterfly_2048_r3",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "None",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": "1"
+  },
+  "mode": "butterfly",
+  "butterfly_decode_backend": "stock",
+  "retro_backfill_enabled": false,
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_count": 8,
+    "debug_override_layer_indices": null,
+    "config": {
+      "window": 64,
+      "landmark_stride": 64,
+      "num_cycles": 1,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true
+    }
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 3,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 3
+  },
+  "timing": {
+    "writeout_sec_last": 0.0013804170012008399,
+    "writeout_sec_total": 0.00628337700618431,
+    "script_start_unix_sec": 1775270824.507738,
+    "script_end_unix_sec": 1775270832.8401
+  },
+  "single_turn": [
+    {
+      "seq_len": 2048,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 1.8767225000046892,
+      "ttft_sec": 0.028978874994209036,
+      "itl_p50_sec": 0.010675458004698157,
+      "itl_p95_sec": 0.010861375005333684,
+      "decode_sec": 0.10513212501246016,
+      "e2e_sec": 1.9818546250171494,
+      "decode_tok_s": 76.09472365418132,
+      "peak_memory_bytes": 4977594096,
+      "sample_output_text": "am,l,` (-l",
+      "expected_primary_path": "butterfly_attention",
+      "hsa_trace_summary": {
+        "sample_count": 9,
+        "layer_observations": 72,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 8
+        },
+        "path_counts": {
+          "butterfly_attention": 8,
+          "butterfly_stock_fallback": 64
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 64
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 64
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 64
+        },
+        "stock_fallback_layer_observations": 64,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 64,
+        "prefill_layer_observations": 8,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 1,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.8888888888888888,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.8888888888888888,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.00022799997693962522,
+        "graph_build_ms_p95": 0.001458004117012024,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.018492513439721532,
+        "attention_ms_p95": 0.12320800125598907,
+        "total_ms_mean": 0.06921005518072182,
+        "total_ms_p95": 0.3384160101413727
+      },
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.00022799997693962522,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.018492513439721532,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.0792459580115974,
+        "prompt_tokenize_sec": 0.0792459580115974,
+        "prefill_sec": 1.8767225000046892,
+        "decode_sec": 0.10513212501246016,
+        "writeout_sec": 0.0005439579981612042
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 8,
+      "repeat": 2,
+      "prefill_sec": 1.8643771250062855,
+      "ttft_sec": 0.034426750004058704,
+      "itl_p50_sec": 0.01095950001035817,
+      "itl_p95_sec": 0.01108041699626483,
+      "decode_sec": 0.11272375000407919,
+      "e2e_sec": 1.9771008750103647,
+      "decode_tok_s": 70.96995974415773,
+      "peak_memory_bytes": 4977594096,
+      "sample_output_text": "am,l,` (-l",
+      "expected_primary_path": "butterfly_attention",
+      "hsa_trace_summary": {
+        "sample_count": 9,
+        "layer_observations": 72,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 8
+        },
+        "path_counts": {
+          "butterfly_attention": 8,
+          "butterfly_stock_fallback": 64
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 64
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 64
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 64
+        },
+        "stock_fallback_layer_observations": 64,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 64,
+        "prefill_layer_observations": 8,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 1,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.8888888888888888,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.8888888888888888,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.00020082005196147494,
+        "graph_build_ms_p95": 0.0017499923706054688,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.01765391706592507,
+        "attention_ms_p95": 0.11600001156330109,
+        "total_ms_mean": 0.0641886391159561,
+        "total_ms_p95": 0.29466700553894043
+      },
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.00020082005196147494,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.01765391706592507,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07911770799546503,
+        "prompt_tokenize_sec": 0.07911770799546503,
+        "prefill_sec": 1.8643771250062855,
+        "decode_sec": 0.11272375000407919,
+        "writeout_sec": 0.00048312499711755663
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 8,
+      "repeat": 3,
+      "prefill_sec": 1.8466412499983562,
+      "ttft_sec": 0.029884291987400502,
+      "itl_p50_sec": 0.010514583991607651,
+      "itl_p95_sec": 0.010626083007082343,
+      "decode_sec": 0.10523137499694712,
+      "e2e_sec": 1.9518726249953033,
+      "decode_tok_s": 76.02295418293345,
+      "peak_memory_bytes": 4977594096,
+      "sample_output_text": "am,l,` (-l",
+      "expected_primary_path": "butterfly_attention",
+      "hsa_trace_summary": {
+        "sample_count": 9,
+        "layer_observations": 72,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 8
+        },
+        "path_counts": {
+          "butterfly_attention": 8,
+          "butterfly_stock_fallback": 64
+        },
+        "cache_source_counts": {
+          "runtime": 8,
+          "dense_fallback": 64
+        },
+        "graph_seq_len_counts": {
+          "2048": 8,
+          "2049": 8,
+          "2050": 8,
+          "2051": 8,
+          "2052": 8,
+          "2053": 8,
+          "2054": 8,
+          "2055": 8,
+          "2056": 8
+        },
+        "q_len_counts": {
+          "2048": 8,
+          "1": 64
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 64
+        },
+        "stock_fallback_layer_observations": 64,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 64,
+        "prefill_layer_observations": 8,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 1,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.8888888888888888,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.8888888888888888,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.00016086093253559538,
+        "graph_build_ms_p95": 0.0011249929666519165,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.016232057164112728,
+        "attention_ms_p95": 0.10670900344848633,
+        "total_ms_mean": 0.06434838991198275,
+        "total_ms_p95": 0.26133300364017487
+      },
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.00016086093253559538,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.016232057164112728,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.08378950000042096,
+        "prompt_tokenize_sec": 0.08378950000042096,
+        "prefill_sec": 1.8466412499983562,
+        "decode_sec": 0.10523137499694712,
+        "writeout_sec": 0.0005477090016938746
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

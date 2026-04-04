@@ -1,0 +1,27 @@
+{
+  "label": "llama_cpp_metal",
+  "repo_root": "/Volumes/VIXinSSD/butterfly",
+  "llama_root": "/Volumes/VIXinSSD/toolchains/llama.cpp-metal-current",
+  "model": "/Volumes/VIXinSSD/qwen/models/Qwen3.5-4B-Q8_0.gguf",
+  "hf_repo": null,
+  "hf_file": null,
+  "threads": 10,
+  "n_gpu_layers": 999,
+  "cache_type_k": "f16",
+  "cache_type_v": "f16",
+  "flash_attn": "on",
+  "repetitions": 1,
+  "mmap": true,
+  "prompt_lengths": [
+    2048,
+    8192
+  ],
+  "gen_lengths": [
+    8
+  ],
+  "ctx_sizes": [
+    32768,
+    65536,
+    98304
+  ]
+}

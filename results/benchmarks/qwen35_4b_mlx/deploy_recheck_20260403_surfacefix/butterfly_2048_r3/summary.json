@@ -1,0 +1,95 @@
+{
+  "created_at": "2026-04-04T02:47:04.507599+00:00",
+  "mode": "butterfly",
+  "butterfly_decode_backend": "stock",
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_count": 8,
+    "debug_override_layer_indices": null,
+    "config": {
+      "window": 64,
+      "landmark_stride": 64,
+      "num_cycles": 1,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true
+    }
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 1,
+      "prefill_sec": 1.8767225000046892,
+      "ttft_sec": 0.028978874994209036,
+      "decode_tok_s": 76.09472365418132,
+      "e2e_sec": 1.9818546250171494,
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 2,
+      "prefill_sec": 1.8643771250062855,
+      "ttft_sec": 0.034426750004058704,
+      "decode_tok_s": 70.96995974415773,
+      "e2e_sec": 1.9771008750103647,
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 8,
+      "repeat": 3,
+      "prefill_sec": 1.8466412499983562,
+      "ttft_sec": 0.029884291987400502,
+      "decode_tok_s": 76.02295418293345,
+      "e2e_sec": 1.9518726249953033,
+      "path_counts": {
+        "butterfly_attention": 8,
+        "butterfly_stock_fallback": 64
+      },
+      "stock_fallback_share_run": 0.8888888888888888,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    }
+  ]
+}
