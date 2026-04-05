@@ -1,4 +1,4 @@
-"""MLX-first Wayfinder runtime."""
+"""MLX runtime for Butterfly Network Attention (BNA)."""
 
 from .attention import WayfinderAttentionMLX, dense_causal_attention
 from .graph_abi import MLXGraphABI, to_mlx_graph_abi

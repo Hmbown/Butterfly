@@ -1,4 +1,4 @@
-"""HCSA: Hamiltonian Cycle Sparse Attention for language models."""
+"""Butterfly Network Attention (BNA): training-free sparse attention for long-context inference."""
 
 from .model import GPT, GPTConfig
 from .topology import Topology, TopologyGraph

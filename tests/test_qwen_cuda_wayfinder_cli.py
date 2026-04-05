@@ -68,6 +68,16 @@ class _FakeConfig:
         self.text_config = None
 
 
+class _FakeBitsAndBytesConfig:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = dict(kwargs)
+
+
+class _FakeTorchAoConfig:
+    def __init__(self, **kwargs) -> None:
+        self.kwargs = dict(kwargs)
+
+
 def _fake_transformers_module(
     *,
     config: _FakeConfig | None = None,
@@ -85,6 +95,8 @@ def _fake_transformers_module(
             return config or _FakeConfig()
 
     module.AutoConfig = _FakeAutoConfig
+    module.BitsAndBytesConfig = _FakeBitsAndBytesConfig
+    module.TorchAoConfig = _FakeTorchAoConfig
     return module
 
 
@@ -243,7 +255,7 @@ def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> 
     cfg = captured["cfg"]
     assert cfg.path == "block_sparse"
     assert cfg.block_size == 256
-    assert cfg.engine == "triton"
+    assert cfg.engine in {"triton", "sdpa"}
 
 
 def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Path) -> None:
@@ -721,6 +733,75 @@ def test_bench_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
     assert kwargs["quantization_config"] is None
 
 
+def test_bench_qwen_cli_builds_bitsandbytes_4bit_config(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    import bna.integrations.qwen_torch as qwen_torch
+
+    module = _load_script_module(
+        "bench_qwen35_cuda_wayfinder_bnb4_test",
+        "scripts/bench_qwen35_cuda_wayfinder.py",
+    )
+
+    @contextmanager
+    def _fake_lock(_path):
+        yield
+
+    def _capture_swap(model, cfg):
+        del model, cfg
+        raise _StopAfterConfig
+
+    _FakeModel.last_from_pretrained_kwargs = None
+    monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
+    monkeypatch.setattr(qwen_torch, "get_cuda_arch_support_diagnostics", lambda *_: {
+        "capability": None,
+        "supported_arch_list": [],
+        "exact_match": True,
+    })
+    monkeypatch.setattr(qwen_torch, "swap_qwen_attention_with_wayfinder_cuda", _capture_swap)
+    monkeypatch.setattr(module, "_exclusive_lock", _fake_lock)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "bench_qwen35_cuda_wayfinder.py",
+            "--model-path",
+            "fake-model",
+            "--seq-lens",
+            "8",
+            "--warmup",
+            "1",
+            "--repeats",
+            "1",
+            "--phases",
+            "wayfinder",
+            "--skip-divergence",
+            "--quantize",
+            "bnb-4bit",
+            "--dtype",
+            "float16",
+            "--output",
+            str(tmp_path / "bench.ndjson"),
+            "--lock-file",
+            str(tmp_path / "bench.lock"),
+        ],
+    )
+
+    with pytest.raises(_StopAfterConfig):
+        module.main()
+
+    kwargs = _FakeModel.last_from_pretrained_kwargs
+    assert kwargs is not None
+    assert kwargs["dtype"] == torch.float16
+    assert isinstance(kwargs["quantization_config"], _FakeBitsAndBytesConfig)
+    assert kwargs["quantization_config"].kwargs["load_in_4bit"] is True
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_compute_dtype"] == torch.float16
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_quant_type"] == "nf4"
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_use_double_quant"] is True
+
+
 def test_bench_qwen_cli_rejects_runtime_quantization_on_native_fp8_checkpoint(
     monkeypatch,
     tmp_path: Path,
@@ -859,6 +940,58 @@ def test_serve_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
     assert kwargs["quantization_config"] is None
 
 
+def test_serve_qwen_cli_builds_bitsandbytes_4bit_config(
+    monkeypatch,
+) -> None:
+    _FakeModel.last_from_pretrained_kwargs = None
+    monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
+    module = _load_script_module(
+        "serve_qwen_wayfinder_cuda_bnb4_test",
+        "scripts/serve_qwen_wayfinder_cuda.py",
+    )
+
+    def _capture_swap(model, cfg):
+        del model, cfg
+        return [3, 7]
+
+    monkeypatch.setattr(module, "get_cuda_arch_support_diagnostics", lambda *_: {
+        "capability": None,
+        "supported_arch_list": [],
+        "exact_match": True,
+    })
+    monkeypatch.setattr(module, "swap_qwen_attention_with_wayfinder_cuda", _capture_swap)
+    monkeypatch.setattr(module.uvicorn, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "serve_qwen_wayfinder_cuda.py",
+            "--model-path",
+            "fake-model",
+            "--mode",
+            "wayfinder",
+            "--quantize",
+            "bnb-4bit",
+            "--dtype",
+            "float16",
+            "--port",
+            "9999",
+        ],
+    )
+
+    module.main()
+
+    kwargs = _FakeModel.last_from_pretrained_kwargs
+    assert kwargs is not None
+    assert kwargs["dtype"] == torch.float16
+    assert isinstance(kwargs["quantization_config"], _FakeBitsAndBytesConfig)
+    assert kwargs["quantization_config"].kwargs["load_in_4bit"] is True
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_compute_dtype"] == torch.float16
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_quant_type"] == "nf4"
+    assert kwargs["quantization_config"].kwargs["bnb_4bit_use_double_quant"] is True
+
+
 def test_serve_qwen_cli_wires_block_sparse_smoke_on_unsupported_arch(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
     module = _load_script_module(
@@ -904,7 +1037,7 @@ def test_serve_qwen_cli_wires_block_sparse_smoke_on_unsupported_arch(monkeypatch
 
     cfg = captured["cfg"]
     assert cfg.path == "block_sparse"
-    assert cfg.engine == "flex"
+    assert cfg.engine in {"triton", "sdpa"}
 
 
 def test_serve_qwen_cli_wires_wayfinder_block_topology_on_unsupported_arch(monkeypatch) -> None:
@@ -960,7 +1093,7 @@ def test_serve_qwen_cli_wires_wayfinder_block_topology_on_unsupported_arch(monke
 
     cfg = captured["cfg"]
     assert cfg.path == "block_sparse"
-    assert cfg.engine == "flex"
+    assert cfg.engine in {"triton", "sdpa"}
     assert cfg.block_local_window_blocks == 2
     assert cfg.block_partner_count == 2
     assert cfg.block_sink_blocks == 1
@@ -1006,6 +1139,8 @@ def test_serve_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(mon
             "9999",
             "--path",
             "block_sparse",
+            "--engine",
+            "flex",
             "--allow-unsupported-arch",
             "--max-input-tokens",
             "32768",
@@ -1049,6 +1184,8 @@ def test_serve_qwen_cli_rejects_wayfinder_block_sparse_longrun_without_unsafe_ov
             "9999",
             "--path",
             "block_sparse",
+            "--engine",
+            "flex",
             "--allow-unsupported-arch",
             "--max-input-tokens",
             "32768",

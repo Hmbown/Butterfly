@@ -38,7 +38,7 @@ def _now_ms() -> float:
 
 
 def _pad_value_dim(values: mx.array, target_dim: int) -> mx.array:
-    """Pad MLA latent values to match q/k dim expected by Wayfinder kernels."""
+    """Pad MLA latent values to match q/k dim expected by Butterfly kernels."""
     dv = int(values.shape[-1])
     if dv == target_dim:
         return values
@@ -97,7 +97,7 @@ class GLMWayfinderConfig:
                 "GLMWayfinderConfig(path='dense') is unsupported. "
                 "Use stock GLM attention (no swap) for dense mode."
             )
-        raise ValueError(f"Unknown GLM Wayfinder path: {self.path!r}")
+        raise ValueError(f"Unknown GLM Butterfly path: {self.path!r}")
 
 
 def extract_qkv_from_glm_attention(
@@ -380,7 +380,7 @@ class GLMWayfinderAttention(nn.Module):
             and q_len > int(max(1, self.query_chunk_size))
             and not self._fast_graph_build
         )
-        # Wayfinder decode policy: route active decode to dense SDPA for higher
+        # Butterfly decode policy: route active decode to dense SDPA for higher
         # fidelity.  The permute-active path has quality degradation at q_len=1.
         force_dense_wayfinder_decode = (
             active_mode
@@ -715,7 +715,7 @@ class GLMWayfinderAttention(nn.Module):
                 keep_mask,
             )
 
-        # Wayfinder kernels use padded value dim for MLA compatibility. Slice back
+        # Butterfly kernels use padded value dim for MLA compatibility. Slice back
         # to kv_lora_rank before GLM's unembed_out projection.
         y_latent = y_h[..., : self.value_dim]
         y_proj = self.unembed_out(y_latent)

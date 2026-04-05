@@ -264,8 +264,15 @@ def main() -> None:
     p.add_argument("--device", type=str, default="cuda")
     p.add_argument("--graph-spec", type=Path, default=None)
     p.add_argument("--compile-out-root", type=Path, default=Path(".cache/wayfinder_torch"))
+    p.add_argument("--mode", type=str, default=None,
+                   choices=["dense", "wayfinder_sparse", "wayfinder_permute", "butterfly"],
+                   help="Run only this attention mode. 'butterfly' is an alias for 'wayfinder_permute'.")
     p.add_argument("--out-dir", type=Path, default=None)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder_permute" for backward-compatible internal use
+    if args.mode == "butterfly":
+        args.mode = "wayfinder_permute"
 
     device = torch.device(args.device)
     if device.type == "cuda" and not torch.cuda.is_available():
@@ -293,7 +300,7 @@ def main() -> None:
             compiled_dirs[t] = str(result["artifact"]["artifact_dir"])
 
     rows: list[Dict[str, Any]] = []
-    modes = ["dense", "wayfinder_sparse", "wayfinder_permute"]
+    modes = [args.mode] if args.mode else ["dense", "wayfinder_sparse", "wayfinder_permute"]
     for t in seq_lens:
         for mode in modes:
             row = _bench_attention_mode(

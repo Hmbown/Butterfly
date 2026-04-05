@@ -1007,7 +1007,7 @@ def sparse_row_attention_gqa_precomputed(
 
 
 class WayfinderAttentionTorch(nn.Module):
-    """PyTorch Wayfinder attention with shared graph ABI and cache semantics."""
+    """PyTorch Butterfly attention with shared graph ABI and cache semantics."""
 
     def __init__(
         self,

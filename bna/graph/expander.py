@@ -1,4 +1,4 @@
-"""Expander quality analysis for Wayfinder attention graphs.
+"""Expander quality analysis for Butterfly attention graphs.
 
 This module provides graph-theoretic diagnostics that operate directly
 on the ``neigh_idx [T, D]`` format produced by ``WayfinderGraphABI``.

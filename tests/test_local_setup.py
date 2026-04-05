@@ -28,6 +28,22 @@ def test_support_matrix_marks_qwen_as_supported_now() -> None:
     assert spec.repo_id == "mlx-community/Qwen3.5-9B-MLX-4bit"
 
 
+def test_support_matrix_includes_qwen35_2b_mlx() -> None:
+    spec = model_spec_by_alias("qwen35_2b_mlx_4bit")
+
+    assert spec.support == "supported"
+    assert spec.runner == "mlx_wayfinder"
+    assert spec.repo_id == "mlx-community/Qwen3.5-2B-MLX-4bit"
+
+
+def test_support_matrix_includes_qwen35_2b_cuda_profile() -> None:
+    spec = model_spec_by_alias("qwen35_2b_hf")
+
+    assert spec.support == "supported"
+    assert spec.runner == "cuda_wayfinder"
+    assert spec.repo_id == "Qwen/Qwen3.5-2B"
+
+
 def test_support_matrix_marks_gemma4_mlx_as_blocked() -> None:
     spec = model_spec_by_alias("gemma4_31b_mlx_4bit")
 

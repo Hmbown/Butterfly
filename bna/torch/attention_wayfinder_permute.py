@@ -480,7 +480,7 @@ def _wayfinder_partner_block(
         reversed_idx = _bit_reverse(int(block_idx), int(width))
         partner = _bit_reverse(reversed_idx ^ (1 << int(bit_idx)), int(width))
     else:
-        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
+        raise ValueError(f"Unsupported block-sparse Butterfly partner rule: {partner_rule!r}")
     if partner < 0 or partner >= int(num_blocks) or partner > int(block_idx):
         return None
     return int(partner)
@@ -592,7 +592,7 @@ def build_block_wayfinder_layout(
     partner_rule: str = "xor",
     device: torch.device | None = None,
 ) -> BlockHamiltonianLayout:
-    """Build the staged Wayfinder block topology for static sparse attention.
+    """Build the staged Butterfly block topology for static sparse attention.
 
     Each block attends to:
       - itself
@@ -618,7 +618,7 @@ def build_block_wayfinder_layout(
     if partner_count < 0:
         raise ValueError("partner_count must be >= 0")
     if partner_rule not in {"xor", "bit_reversal", "benes"}:
-        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
+        raise ValueError(f"Unsupported block-sparse Butterfly partner rule: {partner_rule!r}")
 
     target_device = device or torch.device("cpu")
     num_blocks = num_blocks_for_seq_len(seq_len, block_size)

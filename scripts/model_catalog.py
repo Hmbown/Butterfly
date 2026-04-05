@@ -112,7 +112,7 @@ def cmd_download(args: argparse.Namespace) -> None:
         from huggingface_hub.errors import LocalEntryNotFoundError
     except ImportError as exc:  # pragma: no cover
         raise SystemExit(
-            "huggingface_hub is required. Run scripts/bootstrap_macos_metal.sh first."
+            "huggingface_hub is required. Install the repo bootstrap environment first."
         ) from exc
 
     paths = default_local_paths(REPO_ROOT)
@@ -168,7 +168,7 @@ def cmd_link_local(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="List and stage local model aliases for Apple Silicon workflows."
+        description="List and stage local model aliases for Butterfly workflows."
     )
     sub = parser.add_subparsers(dest="cmd", required=True)
 

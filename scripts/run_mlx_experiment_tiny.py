@@ -293,7 +293,8 @@ def main() -> None:
         "--wayfinder-attn",
         type=str,
         default="wayfinder_sparse",
-        choices=["wayfinder_sparse", "wayfinder_permute"],
+        choices=["wayfinder_sparse", "wayfinder_permute", "butterfly"],
+        help="Wayfinder attention variant. 'butterfly' is an alias for 'wayfinder_sparse'.",
     )
     p.add_argument("--lr", type=float, default=1e-3)
     p.add_argument("--eval-every", type=int, default=50)
@@ -309,6 +310,10 @@ def main() -> None:
     p.add_argument("--retro-backfill-training-only", type=_parse_bool, default=True)
     p.add_argument("--retro-backfill-causal-only", type=_parse_bool, default=True)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder_sparse" for backward-compatible internal use
+    if args.wayfinder_attn == "butterfly":
+        args.wayfinder_attn = "wayfinder_sparse"
 
     np.random.seed(args.seed)
     mx.random.seed(args.seed)

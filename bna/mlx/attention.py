@@ -430,7 +430,7 @@ def sparse_gather_attention(
     edge_type_bias_offset: Optional[mx.array] = None,
     window_drop_mask: Optional[mx.array] = None,
 ) -> Tuple[mx.array, mx.array | None]:
-    """General sparse-row gather path using Wayfinder graph ABI.
+    """General sparse-row gather path using Butterfly graph ABI.
 
     Optional precomputed_safe_idx / precomputed_causal_mask skip recomputation.
     edge_type_bias: [4] learnable bias for [CYCLE, WINDOW, LANDMARK, REWIRE].
@@ -1691,7 +1691,7 @@ def wayfinder_permute_window_attention_active_batched(
 
 
 class WayfinderAttentionMLX(nn.Module):
-    """Wayfinder sparse attention in MLX with ABI-driven graph construction."""
+    """Butterfly sparse attention in MLX with ABI-driven graph construction."""
 
     def __init__(
         self,

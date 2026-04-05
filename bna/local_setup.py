@@ -119,6 +119,18 @@ def default_local_paths(
 def list_model_specs() -> List[ModelSpec]:
     return [
         ModelSpec(
+            alias="qwen35_2b_mlx_4bit",
+            family="Qwen 3.5",
+            size="2B",
+            backend="mlx",
+            repo_kind="mlx",
+            runner="mlx_wayfinder",
+            support="supported",
+            local_name="Qwen3.5-2B-MLX-4bit",
+            repo_id="mlx-community/Qwen3.5-2B-MLX-4bit",
+            notes="Lower-memory Apple Silicon target for Qwen 3.5 long-context Butterfly runs.",
+        ),
+        ModelSpec(
             alias="qwen35_4b_mlx_4bit",
             family="Qwen 3.5",
             size="4B",
@@ -153,6 +165,36 @@ def list_model_specs() -> List[ModelSpec]:
             local_name="qwen35_35b_a3b_mlx_4bit",
             repo_id="mlx-community/Qwen3.5-35B-A3B-4bit",
             notes="Large MLX baseline for Apple Silicon if memory permits.",
+        ),
+        ModelSpec(
+            alias="qwen35_2b_hf",
+            family="Qwen 3.5",
+            size="2B",
+            backend="cuda",
+            repo_kind="hf",
+            runner="cuda_wayfinder",
+            support="supported",
+            local_name="qwen35_2b_hf",
+            repo_id="Qwen/Qwen3.5-2B",
+            notes=(
+                "Recommended 10GB consumer-GPU target. "
+                "Use with scripts/bench_qwen35_cuda_wayfinder.py --quantize bnb-4bit."
+            ),
+        ),
+        ModelSpec(
+            alias="qwen35_4b_hf",
+            family="Qwen 3.5",
+            size="4B",
+            backend="cuda",
+            repo_kind="hf",
+            runner="cuda_wayfinder",
+            support="experimental",
+            local_name="qwen35_4b_hf",
+            repo_id="Qwen/Qwen3.5-4B",
+            notes=(
+                "Higher-quality CUDA alternative, but long-context headroom is tight on 10GB GPUs "
+                "even with 4-bit runtime quantization."
+            ),
         ),
         ModelSpec(
             alias="qwen35_9b_hf",

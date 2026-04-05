@@ -332,7 +332,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Serve Qwen + Wayfinder as an OpenAI-compatible endpoint.")
     p.add_argument("--model-path", type=str, required=True)
     p.add_argument("--model-id", type=str, default="")
-    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense"])
+    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense", "stock", "butterfly"],
+                    help="'butterfly'/'wayfinder' = BNA sparse prefill. 'stock'/'dense' = native Qwen hybrid.")
     p.add_argument("--host", type=str, default="127.0.0.1")
     p.add_argument("--port", type=int, default=8012)
     p.add_argument("--log-level", type=str, default="info")
@@ -351,6 +352,10 @@ def main() -> None:
     p.add_argument("--allow-non-hamiltonian", action="store_true", default=False)
     p.add_argument("--disable-edge-disjoint", action="store_true", default=False)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder"
+    if args.mode == "butterfly":
+        args.mode = "wayfinder"
 
     cache_cfg = _configure_hf_cache(
         hf_home=(str(args.hf_home).strip() or None),

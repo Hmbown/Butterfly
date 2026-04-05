@@ -1,7 +1,7 @@
-"""Wayfinder CUDA overlay for Qwen3.5 full-attention layers.
+"""Butterfly CUDA overlay for Qwen3.5 full-attention layers.
 
 Mirrors the Nemotron-H integration pattern: wraps stock ``Qwen3_5Attention``
-modules with Wayfinder attention while leaving linear-attention and MLP layers
+modules with Butterfly attention while leaving linear-attention and MLP layers
 untouched.
 
 Conservative by design:
@@ -246,7 +246,7 @@ def _resolve_sparse_compute_dtype(
 
 @dataclass
 class QwenCUDAWayfinderConfig:
-    """Configuration for Qwen3.5 Wayfinder CUDA overlay."""
+    """Configuration for Qwen3.5 Butterfly CUDA overlay."""
 
     path: WayfinderPath = "permute"
     strategy: WayfinderStrategy = "random"
@@ -261,7 +261,7 @@ class QwenCUDAWayfinderConfig:
     edge_bias: bool = False
     window_drop: float = 0.0
     compiled_graph_dir: Optional[str] = None
-    engine: str = "auto"  # "auto" | "flex" | "batched" | "legacy"
+    engine: str = "auto"  # "auto" | "flex" | "batched" | "legacy" | "sdpa" | "triton"
     dense_fallback_q_len: int = 1
     fallback_on_output_attentions: bool = True
     fallback_on_mask: bool = True
@@ -285,13 +285,19 @@ class QwenCUDAWayfinderConfig:
 
     def __post_init__(self) -> None:
         if self.path not in {"permute", "sparse", "block_sparse"}:
-            raise ValueError(f"Unsupported Wayfinder path: {self.path!r}")
+            raise ValueError(f"Unsupported Butterfly path: {self.path!r}")
+        if self.engine not in {"auto", "flex", "batched", "legacy", "sdpa", "triton"}:
+            raise ValueError(f"Unsupported Butterfly engine: {self.engine!r}")
         if self.strategy not in {"random", "regular_partition", "greedy", "online_insertion"}:
-            raise ValueError(f"Unsupported Wayfinder strategy: {self.strategy!r}")
+            raise ValueError(f"Unsupported Butterfly strategy: {self.strategy!r}")
         if self.path == "block_sparse" and self.strategy in _DYNAMIC_STRATEGIES:
             raise ValueError(
                 "block_sparse currently supports only static strategies "
                 "('random', 'regular_partition')"
+            )
+        if self.path != "block_sparse" and self.engine in {"sdpa", "triton"}:
+            raise ValueError(
+                f"Engine {self.engine!r} is supported only for the block_sparse Butterfly path"
             )
         if int(self.window) < 0:
             raise ValueError("window must be >= 0")
@@ -562,7 +568,7 @@ def extract_qkv_from_qwen_attention(
 
 
 class QwenCUDAWayfinderAttention(nn.Module):
-    """Wrap a stock Qwen3.5 full-attention layer with Wayfinder prefill attention."""
+    """Wrap a stock Qwen3.5 full-attention layer with Butterfly prefill attention."""
 
     def __init__(self, fallback_attention: nn.Module, cfg: QwenCUDAWayfinderConfig):
         super().__init__()
@@ -762,7 +768,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
             compiled = str(Path(self.cfg.compiled_graph_dir).expanduser().resolve())
         wayfinder_stage_idx, wayfinder_stage_count = self._wayfinder_stage_meta(seq_len)
         if self.cfg.path == "block_sparse":
-            # Block-sparse path uses only Wayfinder topology controls;
+            # Block-sparse path uses only Butterfly topology controls;
             # the old hamiltonian-specific fields (strategy, num_cycles, etc.)
             # are irrelevant and omitted from the key.
             strategy = None
@@ -1368,7 +1374,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
             }
             if cached_block_sparse:
                 if cache.block_layout is None:
-                    raise RuntimeError("Cached Wayfinder block_sparse path requires a block layout")
+                    raise RuntimeError("Cached Butterfly block_sparse path requires a block layout")
                 sparse_dtype = _resolve_sparse_compute_dtype(
                     self.cfg.sparse_compute_dtype,
                     hidden_dtype=hidden_states.dtype,
@@ -1513,7 +1519,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
                     training=False,
                 )
         else:
-            raise ValueError(f"Unknown Wayfinder path: {self.cfg.path!r}")
+            raise ValueError(f"Unknown Butterfly path: {self.cfg.path!r}")
 
         input_shape = hidden_states.shape[:-1]
         attn_output = wayfinder_out.transpose(1, 2).contiguous().view(*input_shape, -1)
@@ -1555,7 +1561,7 @@ class QwenCUDAWayfinderAttention(nn.Module):
 
 
 def restore_qwen_dense_attention(model: nn.Module) -> list[int]:
-    """Remove Wayfinder wrappers and restore stock Qwen attention in-place.
+    """Remove Butterfly wrappers and restore stock Qwen attention in-place.
 
     Returns the layer indices that were restored.
     """
@@ -1588,7 +1594,7 @@ def swap_qwen_attention_with_wayfinder_cuda(
     *,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> list[int]:
-    """Replace Qwen3.5 full-attention layers with Wayfinder wrappers in-place.
+    """Replace Qwen3.5 full-attention layers with Butterfly wrappers in-place.
 
     Only layers with ``layer_type == "full_attention"`` are swapped.
 

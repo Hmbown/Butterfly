@@ -1,8 +1,10 @@
+> **Naming note:** This document uses the legacy name "Wayfinder" for the
+> block-sparse attention mechanism now branded **Butterfly**. Internal code
+> identifiers remain `wayfinder` for backward compatibility.
+
 # Butterfly Block-Sparse Attention
 
 This note describes the staged `block_sparse_topology=wayfinder` path used by the Qwen CUDA integration.
-
-Naming note: the runtime is now presented publicly as `Butterfly` / `BNA`. This document keeps the `wayfinder` path name where it is part of the actual CLI, config, or cache surface.
 
 ## Goal
 
@@ -41,13 +43,19 @@ All support is filtered causally at token level.
 
 ### Prefill
 
-Prefill uses the existing flex-attention block mask path. The block mask is compiled from the static Wayfinder block layout and reused through the shared cache.
+Prefill supports three backends on the static Butterfly block layout:
+
+- `triton`: fused Triton block-sparse kernel
+- `flex`: flex-attention block mask path
+- `sdpa`: block-filtered SDPA fallback
+
+`engine="auto"` resolves to `triton` first when available, then `flex` on supported CUDA arches, and finally `sdpa` as the conservative fallback.
 
 ### Cached Decode / Cached Prefill
 
-When `k_len > q_len`, the Butterfly block path switches to a sparse gather backend. It precomputes exact token indices from the selected block support and runs exact softmax over that sparse support via grouped-query sparse attention.
+When `k_len > q_len`, the Butterfly block path switches to a sparse gather backend. It precomputes exact token indices from the selected block support and runs exact softmax over that sparse support via grouped-query sparse attention, independent of the prefill backend.
 
-This is what removes the old “prefill-only” limitation for the new Wayfinder block topology.
+This is what removes the old “prefill-only” limitation for the new Butterfly block topology.
 
 ## Qwen Integration Surface
 
@@ -75,6 +83,7 @@ python scripts/bench_qwen35_cuda_wayfinder.py \
   --block-partner-count 1 \
   --block-sink-blocks 1 \
   --block-partner-rule xor \
+  --engine triton \
   --forward-target backbone \
   --seq-lens 512 4096
 ```

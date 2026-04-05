@@ -261,7 +261,9 @@ def main() -> None:
     p.add_argument("--eval-batches", type=int, default=8)
     p.add_argument("--seed", type=int, default=1337)
     p.add_argument("--strategy", type=str, default="random", choices=["random", "greedy", "online_insertion"])
-    p.add_argument("--wayfinder-attn", type=str, default="wayfinder_sparse", choices=["wayfinder_sparse", "wayfinder_permute"])
+    p.add_argument("--wayfinder-attn", type=str, default="wayfinder_sparse",
+                   choices=["wayfinder_sparse", "wayfinder_permute", "butterfly"],
+                   help="Wayfinder attention variant. 'butterfly' is an alias for 'wayfinder_sparse'.")
     p.add_argument("--window-sizes", type=int, nargs="+", default=[8, 16, 32])
     p.add_argument("--window-drop-max", type=float, nargs="+", default=[0.0, 0.25, 0.5, 0.7])
     p.add_argument("--bias-cycle-max", type=float, nargs="+", default=[0.0, 0.2, 0.4, 0.8])
@@ -274,6 +276,10 @@ def main() -> None:
     p.add_argument("--graph-spec", type=Path, default=None)
     p.add_argument("--graph-cache-root", type=Path, default=Path(".cache/wayfinder"))
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder_sparse" for backward-compatible internal use
+    if args.wayfinder_attn == "butterfly":
+        args.wayfinder_attn = "wayfinder_sparse"
 
     np.random.seed(args.seed)
     mx.random.seed(args.seed)

@@ -216,8 +216,8 @@ def main() -> None:
                     help="Local path or HF model ID")
     p.add_argument("--model-id", type=str, default="",
                     help="Model ID exposed in API (default: auto from path)")
-    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense"],
-                    help="Attention mode: wayfinder (sparse prefill) or dense")
+    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense", "butterfly"],
+                    help="Attention mode: wayfinder (sparse prefill) or dense. 'butterfly' is an alias for 'wayfinder'.")
     p.add_argument("--dtype", type=str, default="bfloat16",
                     choices=["bfloat16", "float16", "float32"])
     p.add_argument("--host", type=str, default="0.0.0.0")
@@ -236,6 +236,10 @@ def main() -> None:
                     help="Wayfinder engine: auto, flex, batched, or legacy.")
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder"
+    if args.mode == "butterfly":
+        args.mode = "wayfinder"
 
     dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
 

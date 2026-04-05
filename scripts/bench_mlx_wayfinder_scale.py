@@ -364,7 +364,9 @@ def main() -> None:
     args = p.parse_args()
 
     seq_lens = [t for t in args.seq_lens if (t != 4096 or not args.skip_4096)]
+    # "butterfly_sparse" / "butterfly_permute" are accepted aliases for the wayfinder variants.
     modes = ["dense", "wayfinder_sparse", "wayfinder_permute"]
+    modes = [m.replace("butterfly_", "wayfinder_") for m in modes]
 
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     out_dir = args.out_dir or Path("benchmarks/mlx") / f"scale_{stamp}"

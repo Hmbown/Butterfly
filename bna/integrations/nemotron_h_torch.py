@@ -31,7 +31,7 @@ _EDGE_TYPE_IDS = {"cycle": 0, "window": 1, "landmark": 2, "rewire": 3}
 
 @dataclass
 class NemotronHWayfinderConfig:
-    """Configuration for the Nemotron-H / Nemotron 3 Super Wayfinder CUDA overlay.
+    """Configuration for the Nemotron-H / Nemotron 3 Super Butterfly CUDA overlay.
 
     This adapter is intentionally conservative:
 
@@ -62,9 +62,9 @@ class NemotronHWayfinderConfig:
 
     def __post_init__(self) -> None:
         if self.path not in {"permute", "sparse"}:
-            raise ValueError(f"Unsupported Wayfinder path: {self.path!r}")
+            raise ValueError(f"Unsupported Butterfly path: {self.path!r}")
         if self.strategy not in {"random", "regular_partition", "greedy", "online_insertion"}:
-            raise ValueError(f"Unsupported Wayfinder strategy: {self.strategy!r}")
+            raise ValueError(f"Unsupported Butterfly strategy: {self.strategy!r}")
         if int(self.window) < 0:
             raise ValueError("window must be >= 0")
         if int(self.num_cycles) <= 0:
@@ -148,7 +148,7 @@ def _ensure_nemotron_attention_attrs(module: nn.Module) -> bool:
 
     The native transformers NemotronHAttention stores config values on the
     config object rather than as direct attributes. This helper promotes
-    them so the Wayfinder adapter can read them uniformly.
+    them so the Butterfly adapter can read them uniformly.
     """
     if not all(hasattr(module, p) for p in ("q_proj", "k_proj", "v_proj", "o_proj")):
         return False
@@ -275,7 +275,7 @@ def extract_qkv_from_nemotron_h_attention(
 
 
 class NemotronHWayfinderAttention(nn.Module):
-    """Wrap a stock Nemotron-H attention mixer with Wayfinder prefill attention."""
+    """Wrap a stock Nemotron-H attention mixer with Butterfly prefill attention."""
 
     def __init__(self, fallback_attention: nn.Module, cfg: NemotronHWayfinderConfig):
         super().__init__()
@@ -391,7 +391,7 @@ class NemotronHWayfinderAttention(nn.Module):
     def _routing_by_head(self, hidden_states: torch.Tensor) -> Optional[list[torch.Tensor]]:
         if self.routing_proj is None:
             return None
-        # Wayfinder's torch path uses the first sample to drive per-head dynamic routing.
+        # Butterfly's torch path uses the first sample to drive per-head dynamic routing.
         routing = self.routing_proj(hidden_states[0])
         routing = routing.reshape(hidden_states.shape[1], self.num_key_value_heads, self.routing_dim).permute(1, 0, 2)
         routing = routing.detach().float().cpu()
@@ -624,7 +624,7 @@ class NemotronHWayfinderAttention(nn.Module):
         k_len_after: int,
         output_attentions: bool,
     ) -> Optional[str]:
-        # Wayfinder is intended as an inference-time prefill optimization.
+        # Butterfly is intended as an inference-time prefill optimization.
         if self.training:
             return "training"
         if self.layer_idx is None:
@@ -767,7 +767,7 @@ class NemotronHWayfinderAttention(nn.Module):
                     training=self.training,
                 )
         else:
-            raise ValueError(f"Unknown Wayfinder path: {self.cfg.path!r}")
+            raise ValueError(f"Unknown Butterfly path: {self.cfg.path!r}")
 
         batch_size = hidden_states.shape[0]
         attn_output = wayfinder_out.transpose(1, 2).contiguous().view(batch_size, q_len, -1)
@@ -833,14 +833,14 @@ def swap_nemotron_h_attention_with_wayfinder(
     *,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> list[int]:
-    """Replace Nemotron-H attention mixers with Wayfinder wrappers in-place.
+    """Replace Nemotron-H attention mixers with Butterfly wrappers in-place.
 
     Parameters
     ----------
     model:
         A loaded Hugging Face Nemotron-H / Nemotron 3 Super model.
     cfg:
-        Wayfinder adapter configuration. Defaults to ``NemotronHWayfinderConfig()``.
+        Butterfly adapter configuration. Defaults to ``NemotronHWayfinderConfig()``.
     layer_indices:
         Optional subset of decoder layer indices to swap.
 

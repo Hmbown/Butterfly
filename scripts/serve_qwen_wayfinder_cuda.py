@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""OpenAI-compatible server for Qwen3.5 + Wayfinder on CUDA.
+"""OpenAI-compatible server for Qwen3.5 + BNA (Butterfly Network Attention) on CUDA.
 
-Loads the model once, optionally swaps in Wayfinder attention, and serves
-an OpenAI chat-completions endpoint. Dense decode is always used for
-autoregressive token generation (Wayfinder only activates during prefill).
+Loads the model once, optionally swaps the 8 quadratic attention layers with
+BNA, and serves an OpenAI chat-completions endpoint. Stock quadratic decode
+is always used for autoregressive token generation (BNA only activates during
+prefill).
 
 Usage:
     python scripts/serve_qwen_wayfinder_cuda.py \
@@ -16,6 +17,7 @@ Usage:
         -H "Content-Type: application/json" \
         -d '{"model":"qwen3.5-9b-wayfinder","messages":[{"role":"user","content":"Hello"}]}'
 """
+
 from __future__ import annotations
 
 import argparse
@@ -237,10 +239,12 @@ def create_app(state: ServerState) -> FastAPI:
         messages: List[Dict[str, str]] = []
         for m in messages_raw:
             if isinstance(m, dict):
-                messages.append({
-                    "role": str(m.get("role", "user")),
-                    "content": str(m.get("content", "")),
-                })
+                messages.append(
+                    {
+                        "role": str(m.get("role", "user")),
+                        "content": str(m.get("content", "")),
+                    }
+                )
         if not messages:
             raise HTTPException(status_code=400, detail="No valid messages found.")
 
@@ -256,7 +260,9 @@ def create_app(state: ServerState) -> FastAPI:
         try:
             # Build prompt via chat template
             prompt_text = state.tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True,
+                messages,
+                tokenize=False,
+                add_generation_prompt=True,
             )
             inputs = state.tokenizer(prompt_text, return_tensors="pt")
             prompt_len = int(inputs["input_ids"].shape[1])
@@ -303,12 +309,14 @@ def create_app(state: ServerState) -> FastAPI:
             wayfinder_profiles = []
             for layer in iter_qwen_wayfinder_layers(state.model):
                 p = layer.last_profile
-                wayfinder_profiles.append({
-                    "layer_idx": p.get("layer_idx"),
-                    "mode": p.get("mode"),
-                    "reason": p.get("reason"),
-                    "elapsed_ms": p.get("elapsed_ms"),
-                })
+                wayfinder_profiles.append(
+                    {
+                        "layer_idx": p.get("layer_idx"),
+                        "mode": p.get("mode"),
+                        "reason": p.get("reason"),
+                        "elapsed_ms": p.get("elapsed_ms"),
+                    }
+                )
 
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Generation failed: {exc}") from exc
@@ -331,19 +339,23 @@ def create_app(state: ServerState) -> FastAPI:
         }
 
         if not stream:
-            return JSONResponse({
-                "id": completion_id,
-                "object": "chat.completion",
-                "created": created,
-                "model": state.model_id,
-                "choices": [{
-                    "index": 0,
-                    "message": {"role": "assistant", "content": text},
-                    "finish_reason": "stop",
-                }],
-                "usage": usage,
-                "wayfinder_meta": meta,
-            })
+            return JSONResponse(
+                {
+                    "id": completion_id,
+                    "object": "chat.completion",
+                    "created": created,
+                    "model": state.model_id,
+                    "choices": [
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": text},
+                            "finish_reason": "stop",
+                        }
+                    ],
+                    "usage": usage,
+                    "wayfinder_meta": meta,
+                }
+            )
 
         def _stream():
             yield f"data: {json.dumps({'id': completion_id, 'object': 'chat.completion.chunk', 'created': created, 'model': state.model_id, 'choices': [{'index': 0, 'delta': {'role': 'assistant'}, 'finish_reason': None}]})}\n\n"
@@ -357,21 +369,28 @@ def create_app(state: ServerState) -> FastAPI:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Serve Qwen3.5 + Wayfinder on CUDA (OpenAI-compatible)")
-    p.add_argument("--model-path", type=str, required=True,
-                    help="Local path or HF model ID")
-    p.add_argument("--model-id", type=str, default="",
-                    help="Model ID exposed in API (default: auto from path)")
-    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense"],
-                    help="Attention mode: wayfinder (sparse prefill) or dense")
-    p.add_argument("--dtype", type=str, default="bfloat16",
-                    choices=["bfloat16", "float16", "float32"])
+    p.add_argument("--model-path", type=str, required=True, help="Local path or HF model ID")
+    p.add_argument(
+        "--model-id", type=str, default="", help="Model ID exposed in API (default: auto from path)"
+    )
+    p.add_argument(
+        "--mode",
+        type=str,
+        default="wayfinder",
+        choices=["wayfinder", "dense", "stock", "butterfly"],
+        help="Attention mode: 'butterfly'/'wayfinder' = BNA sparse prefill. 'stock'/'dense' = native Qwen hybrid.",
+    )
+    p.add_argument(
+        "--dtype", type=str, default="bfloat16", choices=["bfloat16", "float16", "float32"]
+    )
     p.add_argument(
         "--quantize",
         type=str,
         default="none",
-        choices=["none", "fp8-weight-only", "fp8-dynamic"],
+        choices=["none", "bnb-4bit", "fp8-weight-only", "fp8-dynamic"],
         help=(
-            "Post-training quantization: none (BF16), "
+            "Post-training quantization: none (BF16/FP16), "
+            "bnb-4bit (bitsandbytes NF4 + double quant for consumer GPUs), "
             "fp8-weight-only (FP8 weights, BF16 compute), "
             "fp8-dynamic (FP8 weights + activations, tensor core compute)"
         ),
@@ -384,61 +403,141 @@ def main() -> None:
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument("--num-cycles", type=int, default=1)
-    p.add_argument("--strategy", type=str, default="random",
-                    choices=["random", "regular_partition", "greedy", "online_insertion"])
-    p.add_argument("--path", type=str, default="sparse", choices=["permute", "sparse", "block_sparse"],
-                    help="Wayfinder path: `sparse` uses the full HCSA graph; "
-                         "`permute` uses the cycle-window surrogate; "
-                         "`block_sparse` uses flex-attention over a static block layout.")
-    p.add_argument("--engine", type=str, default="auto",
-                    choices=["auto", "flex", "batched", "legacy"],
-                    help="Wayfinder engine for the permute path: auto, flex, batched, or legacy.")
-    p.add_argument("--block-size", type=int, default=128,
-                    help="Block size for the `block_sparse` path.")
+    p.add_argument(
+        "--strategy",
+        type=str,
+        default="random",
+        choices=["random", "regular_partition", "greedy", "online_insertion"],
+    )
+    p.add_argument(
+        "--path",
+        type=str,
+        default="sparse",
+        choices=["permute", "sparse", "block_sparse"],
+        help="Wayfinder path: `sparse` uses the full HCSA graph; "
+        "`permute` uses the cycle-window surrogate; "
+        "`block_sparse` uses flex-attention over a static block layout.",
+    )
+    p.add_argument(
+        "--engine",
+        type=str,
+        default="auto",
+        choices=["auto", "flex", "batched", "legacy", "sdpa", "triton"],
+        help="Wayfinder engine: auto, flex, batched, legacy, sdpa, or triton. "
+        "sdpa uses F.scaled_dot_product_attention for block_sparse (no torch.compile). "
+        "triton uses a fused Triton block-sparse kernel for block_sparse.",
+    )
+    p.add_argument(
+        "--block-size", type=int, default=128, help="Block size for the `block_sparse` path."
+    )
     # Block-sparse topology is always "wayfinder" now; the old "hamiltonian"
     # option has been archived.  Hidden arg for backwards compat.
-    p.add_argument("--block-sparse-topology", type=str, default="wayfinder",
-                    help=argparse.SUPPRESS)
-    p.add_argument("--block-local-window-blocks", type=int, default=1,
-                    help="Number of causal predecessor blocks kept per query block for Wayfinder block topology.")
-    p.add_argument("--block-partner-count", type=int, default=1,
-                    help="Number of deterministic partner blocks kept per query block for Wayfinder block topology.")
-    p.add_argument("--block-sink-blocks", type=int, default=1,
-                    help="Number of fixed sink blocks exposed to every later block for Wayfinder block topology.")
-    p.add_argument("--block-partner-rule", type=str, default="xor",
-                    choices=["xor", "bit_reversal", "benes"],
-                    help="Deterministic partner rule used by the Wayfinder block topology.")
-    p.add_argument("--allow-unsupported-arch", action="store_true",
-                    help="Allow `--engine flex` even when the current CUDA capability is not "
-                         "explicitly supported by this PyTorch build.")
-    p.add_argument("--allow-unsafe-unsupported-flex-longrun", "--unsafe-longrun",
-                    dest="allow_unsafe_unsupported_flex_longrun", action="store_true",
-                    help="Allow unsupported-arch flex service configs above the validated smoke cap "
-                         "(permute: 8k, block_sparse: 4k). Unsafe and may fault the driver.")
+    p.add_argument("--block-sparse-topology", type=str, default="wayfinder", help=argparse.SUPPRESS)
+    p.add_argument(
+        "--block-local-window-blocks",
+        type=int,
+        default=1,
+        help="Number of causal predecessor blocks kept per query block for Wayfinder block topology.",
+    )
+    p.add_argument(
+        "--block-partner-count",
+        type=int,
+        default=1,
+        help="Number of deterministic partner blocks kept per query block for Wayfinder block topology.",
+    )
+    p.add_argument(
+        "--block-sink-blocks",
+        type=int,
+        default=1,
+        help="Number of fixed sink blocks exposed to every later block for Wayfinder block topology.",
+    )
+    p.add_argument(
+        "--block-partner-rule",
+        type=str,
+        default="xor",
+        choices=["xor", "bit_reversal", "benes"],
+        help="Deterministic partner rule used by the Wayfinder block topology.",
+    )
+    p.add_argument(
+        "--allow-unsupported-arch",
+        action="store_true",
+        help="Allow `--engine flex` even when the current CUDA capability is not "
+        "explicitly supported by this PyTorch build.",
+    )
+    p.add_argument(
+        "--allow-unsafe-unsupported-flex-longrun",
+        "--unsafe-longrun",
+        dest="allow_unsafe_unsupported_flex_longrun",
+        action="store_true",
+        help="Allow unsupported-arch flex service configs above the validated smoke cap "
+        "(permute: 8k, block_sparse: 4k). Unsafe and may fault the driver.",
+    )
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--max-input-tokens", type=int, default=16384,
-                    help="Reject prompts longer than this many tokens. Set <=0 to disable.")
-    p.add_argument("--max-total-tokens", type=int, default=20480,
-                    help="Reject requests where prompt + completion tokens exceed this cap. Set <=0 to disable.")
+    p.add_argument(
+        "--max-input-tokens",
+        type=int,
+        default=16384,
+        help="Reject prompts longer than this many tokens. Set <=0 to disable.",
+    )
+    p.add_argument(
+        "--max-total-tokens",
+        type=int,
+        default=20480,
+        help="Reject requests where prompt + completion tokens exceed this cap. Set <=0 to disable.",
+    )
     args = p.parse_args()
 
     dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
     arch_diag = get_cuda_arch_support_diagnostics(0 if torch.cuda.is_available() else None)
-    if args.path == "permute" and args.engine == "flex" and torch.cuda.is_available() and not arch_diag["exact_match"]:
+    if (
+        args.path == "permute"
+        and args.engine == "flex"
+        and torch.cuda.is_available()
+        and not arch_diag["exact_match"]
+    ):
         message = _unsupported_flex_message(arch_diag)
         if not args.allow_unsupported_arch:
             raise SystemExit(message)
         _log(f"WARNING: {message}")
-    if args.path == "block_sparse" and args.engine not in {"auto", "flex"}:
-        raise SystemExit(f"`--path {args.path}` supports only `--engine auto` or `--engine flex`.")
-    if args.path == "block_sparse" and torch.cuda.is_available() and not arch_diag["exact_match"]:
-        message = _unsupported_flex_message(arch_diag)
-        if not args.allow_unsupported_arch:
-            raise SystemExit(message)
-        _log(f"WARNING: {message}")
-        if args.engine == "auto":
-            _log(f"Forcing `--engine flex` for `--path {args.path}` on an unsupported arch.")
-            args.engine = "flex"
+    if args.path != "block_sparse" and args.engine in {"sdpa", "triton"}:
+        raise SystemExit(
+            f"`--engine {args.engine}` is supported only with `--path block_sparse`."
+        )
+    if args.path == "block_sparse" and args.engine not in {"auto", "flex", "sdpa", "triton"}:
+        raise SystemExit(
+            f"`--path {args.path}` supports only `--engine auto`, `--engine flex`, `--engine sdpa`, or `--engine triton`."
+        )
+    if (
+        args.path == "block_sparse"
+        and args.engine in {"auto", "flex"}
+        and torch.cuda.is_available()
+        and not arch_diag["exact_match"]
+    ):
+        if args.engine == "flex":
+            message = _unsupported_flex_message(arch_diag)
+            if not args.allow_unsupported_arch:
+                _log(f"WARNING: {message}")
+                _log("Falling back to `--engine sdpa` (safe on unsupported archs).")
+                args.engine = "sdpa"
+            else:
+                _log(f"WARNING: {message}")
+        elif args.engine == "auto":
+            try:
+                from bna.torch.triton_block_sparse_attn import TRITON_AVAILABLE
+
+                _triton_ok = TRITON_AVAILABLE
+            except ImportError:
+                _triton_ok = False
+            if _triton_ok:
+                _log(
+                    f"Auto-selecting `--engine triton` for `--path {args.path}` on unsupported arch."
+                )
+                args.engine = "triton"
+            else:
+                _log(
+                    f"Auto-selecting `--engine sdpa` for `--path {args.path}` on unsupported arch (sm_121)."
+                )
+                args.engine = "sdpa"
     if args.path == "sparse" and args.engine != "auto":
         _log("Note: --engine is ignored for --path sparse.")
     _guard_unsupported_flex_longrun(
@@ -464,20 +563,40 @@ def main() -> None:
                 f"(quant_method={native_quant_method!r}); refusing to stack "
                 f"`--quantize {args.quantize}` on top. Use `--quantize none`."
             )
-        from transformers import TorchAoConfig
+        if args.quantize == "bnb-4bit":
+            try:
+                from transformers import BitsAndBytesConfig
+            except ImportError as exc:
+                raise SystemExit(
+                    "bitsandbytes 4-bit support is unavailable. "
+                    "Install the CUDA extras first (for example `pip install -e \".[cuda]\"`)."
+                ) from exc
 
-        if args.quantize == "fp8-weight-only":
-            from torchao.quantization import Float8WeightOnlyConfig
-
-            quantization_config = TorchAoConfig(quant_type=Float8WeightOnlyConfig())
-            _log("Quantization: FP8 weight-only (memory savings, BF16 compute)")
-        elif args.quantize == "fp8-dynamic":
-            from torchao.quantization import Float8DynamicActivationFloat8WeightConfig
-
-            quantization_config = TorchAoConfig(
-                quant_type=Float8DynamicActivationFloat8WeightConfig()
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=dtype_map[args.dtype],
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_use_double_quant=True,
             )
-            _log("Quantization: FP8 dynamic (FP8 weights + activations, tensor core compute)")
+            _log("Quantization: bitsandbytes 4-bit (NF4 + double quant, consumer-GPU profile)")
+        else:
+            from transformers import TorchAoConfig
+
+            if args.quantize == "fp8-weight-only":
+                from torchao.quantization import Float8WeightOnlyConfig
+
+                quantization_config = TorchAoConfig(quant_type=Float8WeightOnlyConfig())
+                _log("Quantization: FP8 weight-only (memory savings, BF16 compute)")
+            elif args.quantize == "fp8-dynamic":
+                from torchao.quantization import Float8DynamicActivationFloat8WeightConfig
+
+                quantization_config = TorchAoConfig(
+                    quant_type=Float8DynamicActivationFloat8WeightConfig()
+                )
+                _log(
+                    "Quantization: FP8 dynamic "
+                    "(FP8 weights + activations, tensor core compute)"
+                )
 
     load_dtype: torch.dtype | str = dtype_map[args.dtype]
     if native_quantization is not None:
@@ -524,13 +643,15 @@ def main() -> None:
         )
         replaced_layers = swap_qwen_attention_with_wayfinder_cuda(model, wf_cfg)
         _log(f"Wayfinder swap: {len(replaced_layers)} layers replaced {replaced_layers}")
-        _log(f"  path={wf_cfg.path} strategy={wf_cfg.strategy} "
-             f"window={wf_cfg.window} landmark_stride={wf_cfg.landmark_stride} "
-             f"block_topology=wayfinder "
-             f"block_local={wf_cfg.block_local_window_blocks} "
-             f"block_partners={wf_cfg.block_partner_count} "
-             f"block_sinks={wf_cfg.block_sink_blocks} "
-             f"block_partner_rule={wf_cfg.block_partner_rule}")
+        _log(
+            f"  path={wf_cfg.path} strategy={wf_cfg.strategy} "
+            f"window={wf_cfg.window} landmark_stride={wf_cfg.landmark_stride} "
+            f"block_topology=wayfinder "
+            f"block_local={wf_cfg.block_local_window_blocks} "
+            f"block_partners={wf_cfg.block_partner_count} "
+            f"block_sinks={wf_cfg.block_sink_blocks} "
+            f"block_partner_rule={wf_cfg.block_partner_rule}"
+        )
     else:
         _log("Dense mode — no Wayfinder swap.")
 

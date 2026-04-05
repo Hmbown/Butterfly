@@ -192,6 +192,8 @@ def _normalize_qwen35_weight_keys(weights: Dict[str, Any]) -> Dict[str, Any]:
             new_key.startswith("model.visual.")
             or new_key.startswith("visual.")
             or new_key.startswith("vision.")
+            or new_key.startswith("model.vision_tower.")
+            or new_key.startswith("vision_tower.")
             or new_key.startswith("multi_modal_projector.")
         ):
             continue

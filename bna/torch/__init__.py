@@ -1,4 +1,4 @@
-"""PyTorch Wayfinder backend."""
+"""PyTorch backend for Butterfly Network Attention (BNA)."""
 
 from .attention_dense import DenseCausalAttentionTorch, dense_causal_attention
 from .attention_wayfinder_sparse import (

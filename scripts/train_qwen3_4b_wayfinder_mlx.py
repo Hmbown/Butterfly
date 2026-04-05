@@ -164,7 +164,9 @@ def main() -> None:
     p.add_argument("--run-dir", type=Path, default=None)
     p.add_argument("--resume-adapter-file", type=Path, default=None)
 
-    p.add_argument("--wayfinder-mode", type=str, default="permute", choices=["none", "sparse", "permute"])
+    p.add_argument("--wayfinder-mode", type=str, default="permute",
+                   choices=["none", "sparse", "permute", "butterfly"],
+                   help="Wayfinder mode. 'butterfly' is an alias for 'permute'.")
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument("--num-cycles", type=int, default=1)
@@ -188,6 +190,10 @@ def main() -> None:
     p.add_argument("--lora-dropout", type=float, default=0.0)
     p.add_argument("--num-lora-layers", type=int, default=8)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "permute" for backward-compatible internal use
+    if args.wayfinder_mode == "butterfly":
+        args.wayfinder_mode = "permute"
 
     np.random.seed(args.seed)
     rng = np.random.default_rng(args.seed)

@@ -32,14 +32,17 @@ Validated default path for current release:
 The initial forward pass over prompt tokens (`q_len > 2` in practical flow), where Butterfly currently targets most acceleration.
 
 ## Decode
-Autoregressive generation steps (`q_len <= 2` in this release posture), routed dense-first by policy for stability.
+Autoregressive generation steps (`q_len <= 2` in this release posture), routed to stock quadratic attention by default for stability.
+
+## Stock (mode)
+The native model attention configuration with no BNA modifications. For Qwen 3.5, this is the hybrid GatedDeltaNet + quadratic architecture (NOT dense attention — only 8 of 32 layers are quadratic). For GLM and GPT-2, stock IS dense attention. In CLI args, `--mode stock` and `--mode dense` are aliases. Internal code uses `"dense"` as the enum value for backward compatibility with existing results.
 
 ## Dense fallback
-Runtime behavior where Butterfly routes a step to dense SDPA due to configured thresholds or decode policy.
+Runtime behavior where Butterfly routes a step to stock quadratic SDPA due to configured thresholds or decode policy.
 
 ## Memory reduction convention
 Release convention for memory reporting:
-- `reduction % = 100 * (1 - wayfinder / dense)`
+- `reduction % = 100 * (1 - butterfly / stock)`
 - Positive values mean Butterfly uses less memory.
 
 ## Retro/backfill

@@ -529,9 +529,10 @@ def main() -> None:
         "--quantize",
         type=str,
         default="none",
-        choices=["none", "fp8-weight-only", "fp8-dynamic"],
+        choices=["none", "bnb-4bit", "fp8-weight-only", "fp8-dynamic"],
         help=(
-            "Post-training quantization: none (BF16), "
+            "Post-training quantization: none (BF16/FP16), "
+            "bnb-4bit (bitsandbytes NF4 + double quant for consumer GPUs), "
             "fp8-weight-only (FP8 weights, BF16 compute — memory savings only), "
             "fp8-dynamic (FP8 weights + activations — memory + speed via tensor cores)"
         ),
@@ -682,8 +683,8 @@ def main() -> None:
         type=str,
         nargs="+",
         default=["wayfinder", "dense", "divergence"],
-        choices=["dense", "wayfinder", "divergence"],
-        help="Benchmark phases to execute.",
+        choices=["dense", "stock", "wayfinder", "divergence", "butterfly"],
+        help="Benchmark phases to execute. 'stock'/'dense' = native Qwen hybrid. 'butterfly'/'wayfinder' = BNA.",
     )
     p.add_argument(
         "--resume",
@@ -728,6 +729,9 @@ def main() -> None:
         help="Path to save results (ndjson). Default: auto-generated.",
     )
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder" in phases list
+    args.phases = ["wayfinder" if ph == "butterfly" else ph for ph in args.phases]
 
     import transformers as transformers_module
     from transformers import AutoConfig, AutoTokenizer
@@ -778,6 +782,10 @@ def main() -> None:
         if not args.allow_unsupported_arch:
             raise SystemExit(message)
         _log(f"WARNING: {message}")
+    if args.path != "block_sparse" and args.engine in {"sdpa", "triton"}:
+        raise SystemExit(
+            f"`--engine {args.engine}` is supported only with `--path block_sparse`."
+        )
     if args.path == "block_sparse" and args.engine not in {"auto", "flex", "sdpa", "triton"}:
         raise SystemExit(
             f"`--path {args.path}` supports only `--engine auto`, `--engine flex`, `--engine sdpa`, or `--engine triton`."
@@ -920,20 +928,43 @@ def main() -> None:
         # ── Load model once for all phases ───────────────────────────────
         quantization_config = None
         if args.quantize != "none":
-            from transformers import TorchAoConfig
+            if args.quantize == "bnb-4bit":
+                try:
+                    from transformers import BitsAndBytesConfig
+                except ImportError as exc:
+                    raise SystemExit(
+                        "bitsandbytes 4-bit support is unavailable. "
+                        "Install the CUDA extras first (for example `pip install -e \".[cuda]\"`)."
+                    ) from exc
 
-            if args.quantize == "fp8-weight-only":
-                from torchao.quantization import Float8WeightOnlyConfig
-
-                quantization_config = TorchAoConfig(quant_type=Float8WeightOnlyConfig())
-                _log("Quantization: FP8 weight-only (memory savings, BF16 compute)")
-            elif args.quantize == "fp8-dynamic":
-                from torchao.quantization import Float8DynamicActivationFloat8WeightConfig
-
-                quantization_config = TorchAoConfig(
-                    quant_type=Float8DynamicActivationFloat8WeightConfig()
+                quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=dtype,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_use_double_quant=True,
                 )
-                _log("Quantization: FP8 dynamic (FP8 weights + activations, tensor core compute)")
+                _log(
+                    "Quantization: bitsandbytes 4-bit "
+                    "(NF4 + double quant, consumer-GPU profile)"
+                )
+            else:
+                from transformers import TorchAoConfig
+
+                if args.quantize == "fp8-weight-only":
+                    from torchao.quantization import Float8WeightOnlyConfig
+
+                    quantization_config = TorchAoConfig(quant_type=Float8WeightOnlyConfig())
+                    _log("Quantization: FP8 weight-only (memory savings, BF16 compute)")
+                elif args.quantize == "fp8-dynamic":
+                    from torchao.quantization import Float8DynamicActivationFloat8WeightConfig
+
+                    quantization_config = TorchAoConfig(
+                        quant_type=Float8DynamicActivationFloat8WeightConfig()
+                    )
+                    _log(
+                        "Quantization: FP8 dynamic "
+                        "(FP8 weights + activations, tensor core compute)"
+                    )
 
         _log("\nLoading model...")
         model = model_loader.from_pretrained(

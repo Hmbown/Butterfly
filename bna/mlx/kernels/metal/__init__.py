@@ -1,4 +1,4 @@
-"""Metal kernel seam for future fused Wayfinder ops.
+"""Metal kernel seam for future fused Butterfly ops.
 
 Current runtime uses MLX Python primitives. This module defines the explicit
 signatures expected for a future custom-op drop-in.

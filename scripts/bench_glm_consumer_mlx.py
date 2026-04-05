@@ -842,8 +842,12 @@ def _resolve_primary_mode(args: argparse.Namespace, parser: argparse.ArgumentPar
 
     if mode_arg is None:
         return legacy_mode or "wayfinder"
+    if mode_arg == "butterfly":
+        mode_arg = "wayfinder"
     if mode_arg not in {"dense", "wayfinder", "sparse"}:
-        parser.error(f"--mode must be one of ['dense', 'wayfinder', 'sparse']; got {mode_arg!r}")
+        parser.error(
+            f"--mode must be one of ['dense', 'wayfinder'/'butterfly', 'sparse']; got {mode_arg!r}"
+        )
     if legacy_mode is not None and legacy_mode != mode_arg:
         parser.error(
             f"Conflicting mode selectors: --mode {mode_arg} vs legacy selector {legacy_mode}. "
@@ -860,9 +864,9 @@ def main() -> None:
     p.add_argument(
         "--mode",
         type=str,
-        choices=["dense", "wayfinder", "sparse"],
+        choices=["dense", "wayfinder", "sparse", "butterfly"],
         default=None,
-        help="Primary attention mode selector for benchmark UX.",
+        help="Primary attention mode selector. 'butterfly' is an alias for 'wayfinder'.",
     )
     p.add_argument("--seq-lens", type=int, nargs="+", default=[2048, 8192, 32768, 65536])
     p.add_argument("--decode-len", type=int, default=256)

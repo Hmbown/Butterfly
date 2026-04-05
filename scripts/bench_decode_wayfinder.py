@@ -292,7 +292,8 @@ def main() -> None:
         "--mode-matrix",
         nargs="+",
         default=["dense", "wayfinder", "wayfinder_triton", "wayfinder_recuda"],
-        choices=["dense", "wayfinder", "wayfinder_triton", "wayfinder_recuda"],
+        choices=["dense", "stock", "wayfinder", "wayfinder_triton", "wayfinder_recuda", "butterfly"],
+        help="Decode modes to benchmark. 'stock'/'dense' = native attention. 'butterfly'/'wayfinder' = BNA.",
     )
     p.add_argument("--path", type=str, default="block_sparse", choices=["block_sparse", "sparse"])
     p.add_argument("--engine", type=str, default="triton")
@@ -304,6 +305,9 @@ def main() -> None:
     p.add_argument("--block-chunk-size", type=int, default=64)
     p.add_argument("--output", type=Path, default=None)
     args = p.parse_args()
+
+    # Alias: "butterfly" -> "wayfinder" in mode-matrix
+    args.mode_matrix = ["wayfinder" if m == "butterfly" else m for m in args.mode_matrix]
 
     from bna.integrations.qwen_torch import (
         QwenCUDAWayfinderConfig,

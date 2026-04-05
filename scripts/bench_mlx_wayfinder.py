@@ -229,7 +229,7 @@ def _format_bytes(n: int) -> str:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Benchmark MLX Wayfinder attention paths")
+    p = argparse.ArgumentParser(description="Benchmark MLX Butterfly attention paths")
     p.add_argument("--seq-lens", type=int, nargs="+", default=[128, 256, 512, 1024, 2048])
     p.add_argument("--batch", type=int, default=4)
     p.add_argument("--heads", type=int, default=8)
@@ -248,7 +248,9 @@ def main() -> None:
     p.add_argument("--out", type=Path, default=Path("benchmarks/mlx/bench_results.json"))
     args = p.parse_args()
 
+    # "butterfly_sparse" / "butterfly_permute" are accepted aliases for the wayfinder variants.
     modes = ["dense", "wayfinder_sparse", "wayfinder_permute"]
+    modes = [m.replace("butterfly_", "wayfinder_") for m in modes]
     lm_stride = None if args.landmark_stride <= 0 else int(args.landmark_stride)
 
     rows: list[Dict[str, Any]] = []
@@ -319,7 +321,7 @@ def main() -> None:
     }
     args.out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    print("MLX Wayfinder attention benchmark")
+    print("MLX Butterfly attention benchmark")
     print(
         "mode                T      tok/s      total_ms  graph_1st  graph_cached  permute_ms"
         "  attention_ms  peak_mem"

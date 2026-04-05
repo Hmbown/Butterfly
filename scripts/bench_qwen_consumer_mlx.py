@@ -134,6 +134,42 @@ def _iter_model_layers(model: Any) -> Sequence[Any]:
     raise ValueError("Unable to locate model layers for Qwen benchmark.")
 
 
+def _resolve_position_limit(model_config: Any, tokenizer: Any = None) -> Optional[int]:
+    candidates: List[Any] = []
+    if isinstance(model_config, dict):
+        text_cfg = model_config.get("text_config")
+        if isinstance(text_cfg, dict):
+            candidates.extend(
+                [
+                    text_cfg.get("max_position_embeddings"),
+                    text_cfg.get("model_max_length"),
+                ]
+            )
+        candidates.extend(
+            [
+                model_config.get("max_position_embeddings"),
+                model_config.get("model_max_length"),
+            ]
+        )
+    if tokenizer is not None:
+        candidates.extend(
+            [
+                getattr(tokenizer, "model_max_length", None),
+                getattr(getattr(tokenizer, "tokenizer", None), "model_max_length", None),
+                getattr(getattr(tokenizer, "_tokenizer", None), "model_max_length", None),
+            ]
+        )
+
+    for raw_value in candidates:
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if 0 < value < 10_000_000:
+            return value
+    return None
+
+
 def _collect_hsa_trace_snapshot(
     model: Any,
     *,
@@ -911,13 +947,29 @@ def _run_multi_turn(
     decode_len: int,
     chunk_size: int,
     kv_step: int,
+    position_limit: Optional[int] = None,
     on_turn: Any = None,
 ) -> Dict[str, Any]:
     per_turn: List[Dict[str, Any]] = []
     history = "System: You are a concise assistant.\n"
     total_e2e = 0.0
+    prompt_budget_limit = None
+    if position_limit is not None:
+        prompt_budget_limit = int(position_limit) - int(decode_len)
+        if prompt_budget_limit <= 0:
+            raise ValueError(
+                f"decode_len={int(decode_len)} leaves no prompt budget within max_position_embeddings={int(position_limit)}"
+            )
     for t in range(1, turns + 1):
-        target_len = max(1024, int(target_total_context * t / turns))
+        requested_target_len = max(1024, int(target_total_context * t / turns))
+        target_len = requested_target_len
+        if prompt_budget_limit is not None:
+            target_len = min(target_len, prompt_budget_limit)
+            if target_len != requested_target_len:
+                _log(
+                    f"multi_turn t={t}/{turns}: clamped prompt target from {requested_target_len} to {target_len} "
+                    f"to reserve decode headroom within max_position_embeddings={int(position_limit)}"
+                )
         turn_prompt = (
             history
             + f"User turn {t}: extract ID, date, and checksum from prior context and explain in one line.\nAssistant:"
@@ -957,6 +1009,8 @@ def _run_multi_turn(
         "turns": turns,
         "target_total_context": target_total_context,
         "decode_len_per_turn": decode_len,
+        "max_position_embeddings": int(position_limit) if position_limit is not None else None,
+        "prompt_budget_limit": int(prompt_budget_limit) if prompt_budget_limit is not None else None,
         "session_e2e_sec": float(total_e2e),
         "per_turn": per_turn,
     }
@@ -1355,6 +1409,12 @@ def main() -> None:
         p.error(
             "--butterfly-decode-backend must be one of ['stock', 'experimental'] plus legacy aliases ['dense', 'active_permute']"
         )
+    if mode == "butterfly" and int(args.chunk_size) > int(max(1, args.query_chunk_size)):
+        p.error(
+            "--chunk-size exceeds --query-chunk-size in butterfly mode; "
+            "prefill chunks after the first will fall back to stock attention "
+            "(active_large_q), so this is not a valid butterfly benchmark."
+        )
     cache_cfg = _configure_hf_cache(
         hf_home=(str(args.hf_home).strip() or None),
         hf_hub_cache=(str(args.hf_hub_cache).strip() or None),
@@ -1371,13 +1431,34 @@ def main() -> None:
         _log(f"Resolved text-only checkpoint: {resolved_model_path}")
 
     _log(f"Loading model {resolved_model_path}")
-    model, tokenizer, _ = load_qwen_mlx_model(
+    model, tokenizer, model_config = load_qwen_mlx_model(
         resolved_model_path,
         return_config=True,
         lazy=True,
         tokenizer_config={"trust_remote_code": True},
     )
     _log("Model loaded")
+    position_limit = _resolve_position_limit(model_config, tokenizer)
+    if position_limit is not None:
+        _log(f"Model max_position_embeddings={position_limit}")
+        if not args.skip_single_turn:
+            invalid_seq_lens = [
+                int(seq_len)
+                for seq_len in args.seq_lens
+                if int(seq_len) + int(args.decode_len) > int(position_limit)
+            ]
+            if invalid_seq_lens:
+                p.error(
+                    "--seq-lens plus --decode-len exceed model max_position_embeddings="
+                    f"{int(position_limit)} for seq_lens={invalid_seq_lens}."
+                )
+        if not args.skip_multi_turn and int(args.multi_decode_len) >= int(position_limit):
+            p.error(
+                "--multi-decode-len must be smaller than model max_position_embeddings="
+                f"{int(position_limit)}."
+            )
+    else:
+        _log("WARNING: unable to resolve max_position_embeddings; decode headroom will not be validated.")
 
     try:
         full_attention_layer_indices = validate_qwen35_full_attention_layers(
@@ -1467,6 +1548,9 @@ def main() -> None:
         "created_at": datetime.now(UTC).isoformat(),
         "command": " ".join(sys.argv),
         "model_path": args.model_path,
+        "model_config": {
+            "max_position_embeddings": int(position_limit) if position_limit is not None else None,
+        },
         "hf_cache": cache_cfg,
         "mode": mode,
         "butterfly_decode_backend": butterfly_decode_backend_public,
@@ -1609,6 +1693,12 @@ def main() -> None:
                 "turns": int(args.turns),
                 "target_total_context": int(args.multi_target_context),
                 "decode_len_per_turn": int(args.multi_decode_len),
+                "max_position_embeddings": int(position_limit) if position_limit is not None else None,
+                "prompt_budget_limit": (
+                    int(position_limit) - int(args.multi_decode_len)
+                    if position_limit is not None
+                    else None
+                ),
                 "session_e2e_sec": 0.0,
                 "per_turn": [],
             }
@@ -1634,6 +1724,7 @@ def main() -> None:
                 decode_len=int(args.multi_decode_len),
                 chunk_size=int(args.chunk_size),
                 kv_step=int(args.kv_step),
+                position_limit=position_limit,
                 on_turn=_on_multi_turn,
             )
             _flush()
