@@ -263,6 +263,22 @@ def extract_qkv_from_qwen_attention(
     return queries, keys, values
 
 
+def _cache_tensor_seq_len(keys: Any, cache: Optional[Any]) -> int:
+    if isinstance(keys, mx.array):
+        return int(keys.shape[2])
+    cache_offset = getattr(cache, "offset", None) if cache is not None else None
+    if cache_offset is not None:
+        try:
+            return int(cache_offset)
+        except Exception:
+            pass
+    if isinstance(keys, (list, tuple)) and keys:
+        head = keys[0]
+        if isinstance(head, mx.array):
+            return int(head.shape[2])
+    raise TypeError(f"Unable to resolve cache sequence length from {type(keys).__name__}.")
+
+
 class _QwenGraphRuntime:
     """Minimal graph/cache runtime for Qwen attention swap."""
 
@@ -973,15 +989,23 @@ class QwenWayfinderAttention(nn.Module):
             return_gate=True,
         )
         q_len = int(queries.shape[2])
-        k_len = int(keys.shape[2])
-        sparse_active_mode = self.path == "sparse" and cache is not None and q_len < k_len
-        active_mode = self.path == "permute" and cache is not None and q_len < k_len
+        k_len = _cache_tensor_seq_len(keys, cache)
+        quantized_kv_cache = not isinstance(keys, mx.array)
+        sparse_active_mode = (
+            self.path == "sparse" and cache is not None and q_len < k_len and not quantized_kv_cache
+        )
+        active_mode = (
+            self.path == "permute" and cache is not None and q_len < k_len and not quantized_kv_cache
+        )
         force_dense_large_active = active_mode and q_len > int(max(1, self.query_chunk_size))
         force_dense_active = (
             active_mode
             and self.active_dense_threshold is not None
             and k_len <= self.active_dense_threshold
             and q_len > 2
+        )
+        force_dense_quantized_kv = bool(
+            quantized_kv_cache and cache is not None and q_len < k_len
         )
         force_dense_wayfinder_decode = (
             active_mode
@@ -994,14 +1018,26 @@ class QwenWayfinderAttention(nn.Module):
         sparse_active_positions: Optional[mx.array] = None
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
-        if force_dense_active or force_dense_large_active or (
+        if force_dense_quantized_kv or force_dense_active or force_dense_large_active or (
             force_dense_wayfinder_decode
             or (q_len != k_len and not (use_active_permute or sparse_active_mode))
         ):
-            fallback_reason = "active_dense_threshold" if force_dense_active else (
-                "active_large_q"
-                if force_dense_large_active
-                else ("wayfinder_decode_dense" if force_dense_wayfinder_decode else "q_len_mismatch")
+            fallback_reason = (
+                "quantized_kv_cache"
+                if force_dense_quantized_kv
+                else (
+                    "active_dense_threshold"
+                    if force_dense_active
+                    else (
+                        "active_large_q"
+                        if force_dense_large_active
+                        else (
+                            "wayfinder_decode_dense"
+                            if force_dense_wayfinder_decode
+                            else "q_len_mismatch"
+                        )
+                    )
+                )
             )
             fallback_graph_seq_len = (
                 self._adaptive_graph_seq_len(k_len=k_len, q_len=q_len, cache=cache)
@@ -1028,6 +1064,7 @@ class QwenWayfinderAttention(nn.Module):
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
                     "active_large_q_dense_triggered": bool(force_dense_large_active),
+                    "quantized_kv_cache": bool(quantized_kv_cache),
                     "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
                     "wayfinder_decode_backend": self.wayfinder_decode_backend,
                     "adaptive_graph_reuse": bool(int(fallback_graph_seq_len) != int(k_len)),
@@ -1185,6 +1222,7 @@ class QwenWayfinderAttention(nn.Module):
                             "dense_fallback_reason": "active_runtime_error",
                             "active_dense_triggered": False,
                             "active_large_q_dense_triggered": bool(force_dense_large_active),
+                            "quantized_kv_cache": bool(quantized_kv_cache),
                             "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
                             "wayfinder_decode_backend": self.wayfinder_decode_backend,
                             "adaptive_graph_reuse": bool(graph_T != T),
@@ -1278,6 +1316,7 @@ class QwenWayfinderAttention(nn.Module):
                 "dense_fallback_reason": None,
                 "active_dense_triggered": False,
                 "active_large_q_dense_triggered": bool(force_dense_large_active),
+                "quantized_kv_cache": bool(quantized_kv_cache),
                 "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
                 "wayfinder_decode_backend": self.wayfinder_decode_backend,
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),

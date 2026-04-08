@@ -26,6 +26,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from bna.integrations.mlx_kv_quant import (  # noqa: E402
+    MLXKVQuantizationConfig,
+    maybe_quantize_mlx_prompt_cache,
+    summarize_mlx_prompt_cache_quantization,
+    validate_mlx_kv_quantization_config,
+)
 from bna.integrations.qwen_mlx import (  # noqa: E402
     QwenWayfinderAttention,
     QwenWayfinderConfig,
@@ -229,6 +235,7 @@ def _public_stock_fallback_reason(
             "wayfinder_decode_dense": "decode_backend_stock",
             "active_dense_threshold": "stock_threshold",
             "active_large_q": "stock_large_query",
+            "quantized_kv_cache": "quantized_kv_stock_decode",
             "q_len_mismatch": "sequence_shape_guard",
             "active_runtime_error": "butterfly_runtime_guard",
             "unspecified": "stock_fallback",
@@ -320,7 +327,12 @@ def _resolve_cache_dtype_nbytes(model: Any) -> int:
     return 2
 
 
-def _estimate_kv_bytes_per_token(model: Any) -> int:
+def _estimate_kv_bytes_per_token(
+    model: Any,
+    *,
+    kv_bits: Optional[int] = None,
+    kv_group_size: int = 64,
+) -> int:
     full_attention_layers = []
     for layer in getattr(model, "layers", []) or []:
         if getattr(layer, "is_linear", None) is False and getattr(layer, "self_attn", None) is not None:
@@ -342,7 +354,13 @@ def _estimate_kv_bytes_per_token(model: Any) -> int:
     if head_dim <= 0:
         return 0
     dtype_nbytes = _resolve_cache_dtype_nbytes(model)
-    return int(2 * len(full_attention_layers) * n_kv_heads * head_dim * dtype_nbytes)
+    element_nbytes = float(dtype_nbytes)
+    if kv_bits is not None:
+        element_nbytes = (float(kv_bits) / 8.0) + (
+            2.0 * float(dtype_nbytes) / float(max(1, kv_group_size))
+        )
+    total = 2.0 * float(len(full_attention_layers) * n_kv_heads * head_dim) * element_nbytes
+    return int(round(total))
 
 
 def _collect_wayfinder_trace_snapshot(
@@ -374,6 +392,7 @@ def _collect_wayfinder_trace_snapshot(
         "dense_fallback_reason",
         "active_dense_triggered",
         "active_large_q_dense_triggered",
+        "quantized_kv_cache",
         "wayfinder_decode_dense_triggered",
         "wayfinder_decode_backend",
         "adaptive_graph_reuse",
@@ -762,10 +781,13 @@ class ServerState:
     max_input_tokens: Optional[int]
     max_total_tokens: Optional[int]
     prefill_chunk_size: int
+    query_chunk_size: int
     memory_budget_bytes: int
     memory_reserve_bytes: int
     memory_estimate_multiplier: float
-    kv_bytes_per_token: int
+    kv_quantization: MLXKVQuantizationConfig
+    kv_bytes_per_token_dense: int
+    kv_bytes_per_token_quantized: Optional[int]
     prompt_cache_store: PromptCacheStore
     warmup_seq_lens: List[int]
     warmup_status: Dict[str, Any] = field(default_factory=dict)
@@ -824,7 +846,9 @@ def _admission_check(
     snapshot = _memory_snapshot(state.memory_budget_bytes)
     incremental_tokens = max(1, int(prompt_tokens) - int(cached_prefix_tokens)) + int(max_tokens)
     estimated_request_bytes = int(
-        max(0.0, state.memory_estimate_multiplier) * float(state.kv_bytes_per_token) * float(incremental_tokens)
+        max(0.0, state.memory_estimate_multiplier)
+        * float(state.kv_bytes_per_token_dense)
+        * float(incremental_tokens)
     )
     required_bytes = (
         int(snapshot["active_memory_bytes"])
@@ -848,6 +872,7 @@ def _build_request_meta(
     *,
     state: ServerState,
     trace_samples: Sequence[Dict[str, Any]],
+    working_cache: Sequence[Any],
     prompt_tokens: int,
     completion_tokens: int,
     cache_meta: Dict[str, Any],
@@ -859,6 +884,10 @@ def _build_request_meta(
     itl_values: Sequence[float],
 ) -> Dict[str, Any]:
     trace_summary = _summarize_wayfinder_trace(trace_samples)
+    kv_quantization_meta = summarize_mlx_prompt_cache_quantization(
+        working_cache,
+        config=state.kv_quantization,
+    )
     peak_memory_bytes = _peak_memory()
     e2e_sec = float(time.perf_counter() - request_started_at)
     return {
@@ -874,9 +903,12 @@ def _build_request_meta(
         "completion_tokens": int(completion_tokens),
         "total_tokens": int(prompt_tokens + completion_tokens),
         "stock_fallback_share_run": trace_summary.get("stock_fallback_share_run"),
+        "stock_fallback_share_decode_layers": trace_summary.get("stock_fallback_share_decode_layers"),
+        "stock_fallback_share_prefill_layers": trace_summary.get("stock_fallback_share_prefill_layers"),
         "stock_fallback_share_decode_steps": trace_summary.get("stock_fallback_share_decode_steps"),
         "stock_fallback_share_prefill_steps": trace_summary.get("stock_fallback_share_prefill_steps"),
         "stock_fallback_reason_counts": dict(trace_summary.get("stock_fallback_reason_counts", {})),
+        "fallback_share_known": bool(trace_summary.get("fallback_share_known")),
         "graph_build_ms_mean": trace_summary.get("graph_build_ms_mean"),
         "butterfly_ms_mean": trace_summary.get("butterfly_ms_mean"),
         "butterfly_ms_decode_mean": trace_summary.get("butterfly_ms_decode_mean"),
@@ -890,6 +922,22 @@ def _build_request_meta(
             "target_prefill_layer_indices": [int(x) for x in state.full_attention_layer_indices],
             "active_prefill_layer_indices": [int(x) for x in state.replaced_layer_indices],
             "active_prefill_layer_count": int(len(state.replaced_layer_indices)),
+            "prefill_chunk_size": int(state.prefill_chunk_size),
+            "query_chunk_size": int(state.query_chunk_size),
+        },
+        "kv_quantization": {
+            **state.kv_quantization.to_dict(),
+            "policy": "post_prefill_before_decode",
+            "preserve_dense_prefix_cache": True,
+            "working_cache": kv_quantization_meta,
+            "estimated_full_attention_kv_bytes_per_token_dense": int(
+                state.kv_bytes_per_token_dense
+            ),
+            "estimated_full_attention_kv_bytes_per_token_quantized": (
+                None
+                if state.kv_bytes_per_token_quantized is None
+                else int(state.kv_bytes_per_token_quantized)
+            ),
         },
         "cache": {
             "hit": bool(cache_meta.get("cache_hit", False)),
@@ -953,6 +1001,7 @@ def create_app(state: ServerState) -> FastAPI:
                         prompt_cache=prompt_cache,
                         chunk_size=state.prefill_chunk_size,
                     )
+                maybe_quantize_mlx_prompt_cache(prompt_cache, config=state.kv_quantization)
                 warm_iter = stream_generate(
                     state.model,
                     state.tokenizer,
@@ -960,6 +1009,9 @@ def create_app(state: ServerState) -> FastAPI:
                     max_tokens=1,
                     sampler=_make_openai_sampler(0.0, 1.0),
                     prompt_cache=prompt_cache,
+                    kv_bits=state.kv_quantization.bits,
+                    kv_group_size=state.kv_quantization.group_size,
+                    quantized_kv_start=state.kv_quantization.quantized_kv_start,
                 )
                 for _ in warm_iter:
                     pass
@@ -987,12 +1039,32 @@ def create_app(state: ServerState) -> FastAPI:
                 "target_prefill_layer_indices": [int(x) for x in state.full_attention_layer_indices],
                 "active_prefill_layer_indices": [int(x) for x in state.replaced_layer_indices],
                 "active_prefill_layer_count": int(len(state.replaced_layer_indices)),
+                "prefill_chunk_size": int(state.prefill_chunk_size),
+                "query_chunk_size": int(state.query_chunk_size),
             },
             "busy": bool(state.lock.locked()),
             "caps": {
                 "max_input_tokens": state.max_input_tokens,
                 "max_total_tokens": state.max_total_tokens,
                 "prefill_chunk_size": state.prefill_chunk_size,
+                "query_chunk_size": state.query_chunk_size,
+                "prefill_chunk_valid_for_butterfly": bool(
+                    state.mode != "butterfly"
+                    or state.prefill_chunk_size <= state.query_chunk_size
+                ),
+            },
+            "kv_quantization": {
+                **state.kv_quantization.to_dict(),
+                "policy": "post_prefill_before_decode",
+                "preserve_dense_prefix_cache": True,
+                "estimated_full_attention_kv_bytes_per_token_dense": int(
+                    state.kv_bytes_per_token_dense
+                ),
+                "estimated_full_attention_kv_bytes_per_token_quantized": (
+                    None
+                    if state.kv_bytes_per_token_quantized is None
+                    else int(state.kv_bytes_per_token_quantized)
+                ),
             },
             "memory": _memory_snapshot(state.memory_budget_bytes),
             "prompt_cache": state.prompt_cache_store.stats(),
@@ -1089,6 +1161,7 @@ def create_app(state: ServerState) -> FastAPI:
         sampler = _make_openai_sampler(temperature, top_p)
         request_started_at = time.perf_counter()
         trace_samples: List[Dict[str, Any]] = []
+        working_cache: List[Any] = []
         cache_meta: Dict[str, Any] = {
             "cache_hit": False,
             "prefix_tokens": 0,
@@ -1147,6 +1220,7 @@ def create_app(state: ServerState) -> FastAPI:
             else:
                 cache_store_meta = {"stored": False, "reason": "exact_prefix_hit"}
 
+            maybe_quantize_mlx_prompt_cache(working_cache, config=state.kv_quantization)
             generation_prompt = prompt_ids[-1:] if prompt_len > 1 else prompt_ids
 
             def _iter_generation():
@@ -1157,6 +1231,9 @@ def create_app(state: ServerState) -> FastAPI:
                     max_tokens=max_tokens,
                     sampler=sampler,
                     prompt_cache=working_cache,
+                    kv_bits=state.kv_quantization.bits,
+                    kv_group_size=state.kv_quantization.group_size,
+                    quantized_kv_start=state.kv_quantization.quantized_kv_start,
                 )
 
             eos_token_ids = set(int(x) for x in getattr(state.tokenizer, "eos_token_ids", []) or [])
@@ -1208,6 +1285,7 @@ def create_app(state: ServerState) -> FastAPI:
                 butterfly_meta = _build_request_meta(
                     state=state,
                     trace_samples=trace_samples,
+                    working_cache=working_cache,
                     prompt_tokens=prompt_len,
                     completion_tokens=completion_tokens,
                     cache_meta=cache_meta,
@@ -1317,6 +1395,7 @@ def create_app(state: ServerState) -> FastAPI:
                                 butterfly_meta = _build_request_meta(
                                     state=state,
                                     trace_samples=trace_samples,
+                                    working_cache=working_cache,
                                     prompt_tokens=prompt_len,
                                     completion_tokens=completion_tokens,
                                     cache_meta=cache_meta,
@@ -1379,6 +1458,24 @@ def main() -> None:
     parser.add_argument("--max-input-tokens", type=int, default=131072)
     parser.add_argument("--max-total-tokens", type=int, default=131584)
     parser.add_argument("--prefill-chunk-size", type=int, default=4096)
+    parser.add_argument(
+        "--kv-bits",
+        type=int,
+        default=None,
+        help="Enable MLX-LM KV cache quantization for full-attention layers only.",
+    )
+    parser.add_argument(
+        "--kv-group-size",
+        type=int,
+        default=64,
+        help="Group size for MLX KV cache quantization.",
+    )
+    parser.add_argument(
+        "--quantized-kv-start",
+        type=int,
+        default=0,
+        help="Quantize the full-attention KV cache once offset >= this token count.",
+    )
 
     parser.add_argument("--memory-budget-gb", type=float, default=0.0)
     parser.add_argument("--memory-budget-fraction", type=float, default=0.9)
@@ -1442,6 +1539,26 @@ def main() -> None:
         decode_backend_arg = "active_permute"
     if decode_backend_arg not in {"active_permute", "dense"}:
         parser.error("--butterfly-decode-backend must be one of ['stock', 'experimental'] plus legacy aliases ['dense', 'active_permute']")
+    kv_quantization = MLXKVQuantizationConfig(
+        bits=(None if args.kv_bits is None else int(args.kv_bits)),
+        group_size=int(args.kv_group_size),
+        quantized_kv_start=int(args.quantized_kv_start),
+    )
+    try:
+        validate_mlx_kv_quantization_config(kv_quantization)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if kv_quantization.enabled and mode == "butterfly" and decode_backend_arg != "dense":
+        parser.error(
+            "--kv-bits currently requires --butterfly-decode-backend stock "
+            "because the experimental Butterfly decode path does not support quantized KV."
+        )
+    if mode == "butterfly" and int(args.prefill_chunk_size) > int(max(1, args.query_chunk_size)):
+        parser.error(
+            "--prefill-chunk-size exceeds --query-chunk-size in butterfly mode; "
+            "later prefill chunks would fall back to stock attention (active_large_q), "
+            "so this is not a valid Butterfly prefill server configuration."
+        )
 
     cache_cfg = _configure_hf_cache(
         hf_home=(str(args.hf_home).strip() or None),
@@ -1505,7 +1622,16 @@ def main() -> None:
         memory_budget_bytes = int(float(max(1, recommended)) * float(max(0.1, args.memory_budget_fraction)))
     memory_reserve_bytes = int(float(max(0.0, args.memory_reserve_gb)) * float(1024**3))
     prompt_cache_max_bytes = int(float(max(0.0, args.prompt_cache_max_bytes_gb)) * float(1024**3))
-    kv_bytes_per_token = _estimate_kv_bytes_per_token(model)
+    kv_bytes_per_token_dense = _estimate_kv_bytes_per_token(model)
+    kv_bytes_per_token_quantized = (
+        _estimate_kv_bytes_per_token(
+            model,
+            kv_bits=int(kv_quantization.bits),
+            kv_group_size=int(kv_quantization.group_size),
+        )
+        if kv_quantization.enabled
+        else None
+    )
 
     model_id = str(args.model_id).strip() or f"{Path(args.model_path).name}-{mode}"
     warmup_seq_lens = [] if bool(args.disable_startup_warmup) else [int(x) for x in args.warmup_seq_lens if int(x) > 0]
@@ -1527,10 +1653,15 @@ def main() -> None:
         max_input_tokens=(int(args.max_input_tokens) if int(args.max_input_tokens) > 0 else None),
         max_total_tokens=(int(args.max_total_tokens) if int(args.max_total_tokens) > 0 else None),
         prefill_chunk_size=int(max(1, args.prefill_chunk_size)),
+        query_chunk_size=int(max(1, args.query_chunk_size)),
         memory_budget_bytes=int(memory_budget_bytes),
         memory_reserve_bytes=int(memory_reserve_bytes),
         memory_estimate_multiplier=float(max(0.0, args.memory_estimate_multiplier)),
-        kv_bytes_per_token=int(kv_bytes_per_token),
+        kv_quantization=kv_quantization,
+        kv_bytes_per_token_dense=int(kv_bytes_per_token_dense),
+        kv_bytes_per_token_quantized=(
+            None if kv_bytes_per_token_quantized is None else int(kv_bytes_per_token_quantized)
+        ),
         prompt_cache_store=PromptCacheStore(
             max_entries=int(args.prompt_cache_max_entries),
             max_bytes=int(prompt_cache_max_bytes),
@@ -1546,7 +1677,15 @@ def main() -> None:
         f"prefill_chunk_size={state.prefill_chunk_size} "
         f"memory_budget_gb={_bytes_to_gib(state.memory_budget_bytes)} "
         f"memory_reserve_gb={_bytes_to_gib(state.memory_reserve_bytes)} "
-        f"kv_bytes_per_token={state.kv_bytes_per_token}"
+        f"kv_bytes_per_token_dense={state.kv_bytes_per_token_dense} "
+        f"kv_bytes_per_token_quantized={state.kv_bytes_per_token_quantized}"
+    )
+    _log(
+        "KV quantization: "
+        f"enabled={state.kv_quantization.enabled} bits={state.kv_quantization.bits} "
+        f"group_size={state.kv_quantization.group_size} "
+        f"quantized_kv_start={state.kv_quantization.quantized_kv_start} "
+        "policy=post_prefill_before_decode preserve_dense_prefix_cache=True"
     )
     _log(
         "Prompt cache store: "

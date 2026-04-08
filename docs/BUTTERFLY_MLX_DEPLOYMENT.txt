@@ -6,7 +6,9 @@ Scope
 This path is now framed as a direct comparison between:
 
 - `stock` attention for Qwen 3.5 4B
+- `stock` attention for Qwen 3.5 4B with MLX KV quantization
 - `butterfly` attention for Qwen 3.5 4B prefill
+- `butterfly` attention for Qwen 3.5 4B prefill with stock decode and MLX KV quantization
 
 The public deployment surface should use that language. Legacy names remain compatibility aliases only.
 
@@ -21,6 +23,7 @@ The MLX server now provides:
 - real OpenAI-compatible SSE streaming
 - prompt length and total token caps
 - prompt/KV cache reuse with eviction
+- optional MLX-LM KV quantization on the full-attention KV cache
 - startup warmup
 - serial admission control with memory checks
 - `/health`
@@ -41,13 +44,47 @@ source ./scripts/macos_local_env.sh
   --port 8012 \
   --max-input-tokens 131072 \
   --max-total-tokens 131584 \
-  --prefill-chunk-size 4096 \
+  --prefill-chunk-size 384 \
+  --query-chunk-size 384 \
   --memory-budget-fraction 0.9 \
   --memory-reserve-gb 1.5 \
   --prompt-cache-max-entries 4 \
   --prompt-cache-max-bytes-gb 2.5 \
   --warmup-seq-lens 2048 8192 16384
 ```
+
+Optional long-context KV-quantized server trial:
+
+```bash
+source ./scripts/macos_local_env.sh
+
+./.venv-macos-metal/bin/python scripts/serve_qwen_butterfly_mlx.py \
+  --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit \
+  --model-id Qwen3.5-4B-MLX-4bit-butterfly-kv4 \
+  --mode butterfly \
+  --butterfly-decode-backend stock \
+  --hf-offline \
+  --host 0.0.0.0 \
+  --port 8012 \
+  --max-input-tokens 131072 \
+  --max-total-tokens 131584 \
+  --prefill-chunk-size 384 \
+  --query-chunk-size 384 \
+  --kv-bits 4 \
+  --kv-group-size 64 \
+  --quantized-kv-start 0 \
+  --memory-budget-fraction 0.9 \
+  --memory-reserve-gb 1.5 \
+  --prompt-cache-max-entries 4 \
+  --prompt-cache-max-bytes-gb 2.5 \
+  --warmup-seq-lens 2048 8192 16384
+```
+
+Notes:
+
+- In `--mode butterfly`, the server now rejects `--prefill-chunk-size > --query-chunk-size`.
+- KV quantization is applied to the working full-attention KV cache after prefill and before stock decode.
+- Stored prompt-cache entries remain dense so later prefix extension can still use Butterfly prefill safely.
 
 Health check
 
@@ -62,6 +99,9 @@ Health output should surface:
 - `butterfly.prefill_scope`
 - `butterfly.target_prefill_layer_indices`
 - `butterfly.active_prefill_layer_indices`
+- `butterfly.prefill_chunk_size`
+- `butterfly.query_chunk_size`
+- `kv_quantization`
 
 Streaming smoke
 
@@ -81,6 +121,8 @@ curl -N http://127.0.0.1:8012/v1/chat/completions \
 
 Benchmark commands
 
+Use the same `--chunk-size` across the matrix. For Butterfly rows it must not exceed `--query-chunk-size`.
+
 Stock attention baseline:
 
 ```bash
@@ -90,13 +132,34 @@ Stock attention baseline:
   --seq-lens 2048 8192 \
   --decode-len 8 \
   --repeats 1 \
-  --chunk-size 4096 \
+  --chunk-size 384 \
   --kv-step 4096 \
   --cooldown-sec 1 \
   --skip-multi-turn \
   --skip-quality \
   --hf-offline \
   --out-dir results/benchmarks/qwen35_4b_mlx/deploy_smoke_manual/stock
+```
+
+Stock attention + MLX KV quantization:
+
+```bash
+./.venv-macos-metal/bin/python scripts/bench_qwen_consumer_mlx.py \
+  --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit \
+  --mode stock \
+  --seq-lens 2048 8192 \
+  --decode-len 8 \
+  --repeats 1 \
+  --chunk-size 384 \
+  --kv-step 4096 \
+  --kv-bits 4 \
+  --kv-group-size 64 \
+  --quantized-kv-start 0 \
+  --cooldown-sec 1 \
+  --skip-multi-turn \
+  --skip-quality \
+  --hf-offline \
+  --out-dir results/benchmarks/qwen35_4b_mlx/deploy_smoke_manual/stock_kv4
 ```
 
 Butterfly prefill, stock decode:
@@ -109,7 +172,7 @@ Butterfly prefill, stock decode:
   --seq-lens 2048 8192 \
   --decode-len 8 \
   --repeats 1 \
-  --chunk-size 4096 \
+  --chunk-size 384 \
   --kv-step 4096 \
   --cooldown-sec 1 \
   --window 64 \
@@ -123,17 +186,17 @@ Butterfly prefill, stock decode:
   --out-dir results/benchmarks/qwen35_4b_mlx/deploy_smoke_manual/butterfly
 ```
 
-Butterfly prefill, experimental Butterfly decode:
+Butterfly prefill, stock decode, MLX KV quantization:
 
 ```bash
 ./.venv-macos-metal/bin/python scripts/bench_qwen_consumer_mlx.py \
   --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit \
   --mode butterfly \
-  --butterfly-decode-backend experimental \
+  --butterfly-decode-backend stock \
   --seq-lens 2048 8192 \
   --decode-len 8 \
   --repeats 1 \
-  --chunk-size 4096 \
+  --chunk-size 384 \
   --kv-step 4096 \
   --cooldown-sec 1 \
   --window 64 \
@@ -141,10 +204,13 @@ Butterfly prefill, experimental Butterfly decode:
   --num-cycles 1 \
   --head-chunk-size 2 \
   --query-chunk-size 384 \
+  --kv-bits 4 \
+  --kv-group-size 64 \
+  --quantized-kv-start 0 \
   --skip-multi-turn \
   --skip-quality \
   --hf-offline \
-  --out-dir results/benchmarks/qwen35_4b_mlx/deploy_smoke_manual/butterfly_experimental_decode
+  --out-dir results/benchmarks/qwen35_4b_mlx/deploy_smoke_manual/butterfly_kv4
 ```
 
 llama.cpp Metal baseline:
@@ -232,6 +298,8 @@ Recommendation
 - go for internal deployment only
 - deploy `--mode butterfly`
 - keep `--butterfly-decode-backend stock`
+- keep `--prefill-chunk-size <= --query-chunk-size`
+- treat `--kv-bits 4 --kv-group-size 64 --quantized-kv-start 0` as an MLX-native prototype path for decision-grade cache experiments, not a locked production default
 - keep serial inference and the current safety caps
 
 9B deployment:

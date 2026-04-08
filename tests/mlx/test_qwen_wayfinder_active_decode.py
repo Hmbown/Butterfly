@@ -70,6 +70,7 @@ def test_qwen_wayfinder_active_decode_avoids_dense_fallback():
         edge_bias=False,
         compute_edge_utilization_proxy=False,
         compute_graph_metrics=False,
+        use_fused_dispatch=False,
     )
     attn = QwenWayfinderAttention(base_attn, cfg)
     cache = _MockKVCache()

@@ -157,6 +157,32 @@ python scripts/bench_qwen_consumer_mlx.py \
 
 The `--mode dense` flag runs the stock attention baseline for comparison. Add `--skip-quality` to benchmark only throughput.
 
+Optional MLX-native KV-cache trial for decode-path evaluation:
+
+```bash
+python scripts/bench_qwen_consumer_mlx.py \
+    --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit \
+    --mode butterfly \
+    --butterfly-decode-backend stock \
+    --seq-lens 2048 8192 \
+    --decode-len 8 \
+    --repeats 1 \
+    --chunk-size 384 \
+    --query-chunk-size 384 \
+    --kv-bits 4 \
+    --kv-group-size 64 \
+    --quantized-kv-start 0 \
+    --skip-multi-turn \
+    --skip-quality \
+    --hf-offline \
+    --out-dir results/benchmarks/qwen35_4b_mlx/kv4_trial
+```
+
+Notes:
+
+- In `--mode butterfly`, keep `--chunk-size <= --query-chunk-size`. The benchmark now rejects invalid settings because later prefill chunks would otherwise fall back to stock attention.
+- The MLX KV quantization prototype reuses MLX-LM cache quantization on the full-attention layers only. Butterfly prefill remains dense; the working KV cache is quantized after prefill and before stock decode.
+
 ### Basic checks
 
 ```bash

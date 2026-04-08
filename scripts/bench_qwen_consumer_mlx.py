@@ -22,6 +22,12 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from bna.integrations.mlx_kv_quant import (  # noqa: E402
+    MLXKVQuantizationConfig,
+    maybe_quantize_mlx_prompt_cache,
+    summarize_mlx_prompt_cache_quantization,
+    validate_mlx_kv_quantization_config,
+)
 from bna.integrations.qwen_mlx import (  # noqa: E402
     QwenWayfinderAttention,
     QwenWayfinderConfig,
@@ -165,6 +171,7 @@ def _collect_hsa_trace_snapshot(
         "dense_fallback_reason",
         "active_dense_triggered",
         "active_large_q_dense_triggered",
+        "quantized_kv_cache",
         "adaptive_graph_reuse",
         "decode_local_tail_tokens",
     )
@@ -226,6 +233,7 @@ def _public_stock_fallback_reason(
             "wayfinder_decode_dense": "decode_backend_stock",
             "active_dense_threshold": "stock_threshold",
             "active_large_q": "stock_large_query",
+            "quantized_kv_cache": "quantized_kv_stock_decode",
             "q_len_mismatch": "sequence_shape_guard",
             "active_runtime_error": "butterfly_runtime_guard",
             "unspecified": "stock_fallback",
@@ -565,7 +573,8 @@ def _run_decode(
     *,
     batch: int,
     decode_len: int,
-    cache: Sequence[Any],
+    cache: List[Any],
+    kv_quantization: MLXKVQuantizationConfig,
     heartbeat_sec: float = 0.0,
     heartbeat_prefix: str = "",
     trace_enabled: bool = False,
@@ -586,6 +595,10 @@ def _run_decode(
             "itl_p95_sec": None,
             "token_ids": [],
             "trace": [],
+            "kv_quantization": summarize_mlx_prompt_cache_quantization(
+                cache,
+                config=kv_quantization,
+            ),
         }
 
     per_token_sec: List[float] = []
@@ -655,6 +668,7 @@ def _run_decode(
                     "topk": top_candidates,
                 }
             )
+        maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
         per_token_sec.append(time.perf_counter() - t_step)
         token_ids.append(int(next_token[0, 0].item()))
         now = time.perf_counter()
@@ -677,6 +691,10 @@ def _run_decode(
         "itl_p95_sec": _percentile(itl_values, 95.0),
         "token_ids": token_ids,
         "trace": trace_rows,
+        "kv_quantization": summarize_mlx_prompt_cache_quantization(
+            cache,
+            config=kv_quantization,
+        ),
     }
 
 
@@ -741,6 +759,8 @@ def _run_single_turn(
     tokenizer: Any,
     *,
     mode: str,
+    butterfly_decode_backend: str,
+    kv_quantization: MLXKVQuantizationConfig,
     seq_lens: List[int],
     decode_len: int,
     repeats: int,
@@ -778,11 +798,13 @@ def _run_single_turn(
                 heartbeat_sec=heartbeat_sec,
                 heartbeat_prefix=f"T={seq_len} warmup",
             )
+            maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
             _run_decode(
                 model,
                 batch=1,
                 decode_len=min(16, decode_len),
                 cache=cache,
+                kv_quantization=kv_quantization,
                 heartbeat_sec=heartbeat_sec,
                 heartbeat_prefix=f"T={seq_len} warmup",
             )
@@ -829,6 +851,7 @@ def _run_single_turn(
                     hsa_trace_max_layers=hsa_trace_max_layers,
                     observability_default_path=expected_primary_path,
                 )
+            pre_kv_quant = maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
             with _stage_timeout(
                 stage_timeout_sec,
                 stage="decode",
@@ -840,6 +863,7 @@ def _run_single_turn(
                     batch=1,
                     decode_len=decode_len,
                     cache=cache,
+                    kv_quantization=kv_quantization,
                     heartbeat_sec=heartbeat_sec,
                     heartbeat_prefix=f"T={seq_len} r={r}",
                     hsa_trace_samples=hsa_trace_samples,
@@ -863,6 +887,9 @@ def _run_single_turn(
                 "decode_tok_s": dec["decode_tok_s"],
                 "peak_memory_bytes": int(_peak_memory()),
                 "sample_output_text": _decode_tokens(tokenizer, dec["token_ids"][:32]),
+                "decode_backend": str(butterfly_decode_backend),
+                "kv_quantization": dict(dec.get("kv_quantization") or pre_kv_quant),
+                "kv_quantization_after_prefill": dict(pre_kv_quant),
                 "expected_primary_path": expected_primary_path,
                 "hsa_trace_summary": hsa_summary,
                 "path_counts": dict(hsa_summary.get("path_counts", {})),
@@ -870,6 +897,12 @@ def _run_single_turn(
                     hsa_summary.get("stock_fallback_reason_counts", {})
                 ),
                 "stock_fallback_share_run": hsa_summary.get("stock_fallback_share_run"),
+                "stock_fallback_share_decode_layers": hsa_summary.get(
+                    "stock_fallback_share_decode_layers"
+                ),
+                "stock_fallback_share_prefill_layers": hsa_summary.get(
+                    "stock_fallback_share_prefill_layers"
+                ),
                 "stock_fallback_share_decode_steps": hsa_summary.get(
                     "stock_fallback_share_decode_steps"
                 ),
@@ -906,6 +939,7 @@ def _run_multi_turn(
     model: Any,
     tokenizer: Any,
     *,
+    kv_quantization: MLXKVQuantizationConfig,
     turns: int,
     target_total_context: int,
     decode_len: int,
@@ -931,7 +965,14 @@ def _run_multi_turn(
             chunk_size=chunk_size,
             cache=cache,
         )
-        dec = _run_decode(model, batch=1, decode_len=decode_len, cache=cache)
+        pre_kv_quant = maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
+        dec = _run_decode(
+            model,
+            batch=1,
+            decode_len=decode_len,
+            cache=cache,
+            kv_quantization=kv_quantization,
+        )
         e2e = float(pre["prefill_sec"] + dec["decode_sec"])
         total_e2e += e2e
         out_text = _decode_tokens(tokenizer, dec["token_ids"])
@@ -946,6 +987,7 @@ def _run_multi_turn(
             "e2e_sec": e2e,
             "decode_tok_s": dec["decode_tok_s"],
             "peak_memory_bytes": int(_peak_memory()),
+            "kv_quantization": dict(dec.get("kv_quantization") or pre_kv_quant),
         }
         per_turn.append(turn_row)
         if on_turn is not None:
@@ -966,6 +1008,7 @@ def _run_quality(
     model: Any,
     tokenizer: Any,
     *,
+    kv_quantization: MLXKVQuantizationConfig,
     dataset_path: Path,
     decode_len: int,
     chunk_size: int,
@@ -1000,11 +1043,13 @@ def _run_quality(
             chunk_size=chunk_size,
             cache=cache,
         )
+        pre_kv_quant = maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
         dec = _run_decode(
             model,
             batch=1,
             decode_len=decode_len,
             cache=cache,
+            kv_quantization=kv_quantization,
             trace_enabled=bool(trace_task_id) and task_id == str(trace_task_id),
             trace_topk=int(trace_topk),
             trace_max_steps=int(trace_max_steps),
@@ -1021,6 +1066,7 @@ def _run_quality(
             "ttft_sec": dec["ttft_sec"],
             "itl_p95_sec": dec["itl_p95_sec"],
             "peak_memory_bytes": int(_peak_memory()),
+            "kv_quantization": dict(dec.get("kv_quantization") or pre_kv_quant),
         }
         if dec.get("trace"):
             row["decode_trace"] = dec["trace"]
@@ -1089,8 +1135,11 @@ def _build_single_turn_summary_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict
                 "ttft_sec": row.get("ttft_sec"),
                 "decode_tok_s": row.get("decode_tok_s"),
                 "e2e_sec": row.get("e2e_sec"),
+                "decode_backend": row.get("decode_backend"),
                 "path_counts": dict(row.get("path_counts", {})),
                 "stock_fallback_share_run": row.get("stock_fallback_share_run"),
+                "stock_fallback_share_prefill_layers": row.get("stock_fallback_share_prefill_layers"),
+                "stock_fallback_share_decode_layers": row.get("stock_fallback_share_decode_layers"),
                 "stock_fallback_share_prefill_steps": row.get("stock_fallback_share_prefill_steps"),
                 "stock_fallback_share_decode_steps": row.get("stock_fallback_share_decode_steps"),
             }
@@ -1100,17 +1149,23 @@ def _build_single_turn_summary_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict
 
 def _render_summary_markdown(payload: Dict[str, Any]) -> str:
     butterfly_meta = payload.get("butterfly") or {}
+    kv_quantization = payload.get("kv_quantization") or {}
     lines = [
         "# Qwen MLX Summary",
         "",
         f"- mode: `{payload.get('mode')}`",
         f"- butterfly decode backend: `{payload.get('butterfly_decode_backend')}`",
+        f"- kv quantization enabled: `{kv_quantization.get('enabled')}`",
+        f"- kv quantization bits: `{kv_quantization.get('bits')}`",
+        f"- kv quantization group size: `{kv_quantization.get('group_size')}`",
+        f"- kv quantization start: `{kv_quantization.get('quantized_kv_start')}`",
+        f"- kv quantization policy: `{kv_quantization.get('policy')}`",
         f"- butterfly prefill scope: `{butterfly_meta.get('prefill_scope')}`",
         f"- butterfly prefill target layers: `{butterfly_meta.get('target_prefill_layer_indices')}`",
         f"- butterfly prefill active layers: `{butterfly_meta.get('active_prefill_layer_indices')}`",
         "",
-        "| Prompt | Prefill s | TTFT s | Decode tok/s | E2E s | Stock fallback share |",
-        "| ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Prompt | Prefill s | TTFT s | Decode tok/s | E2E s | Decode backend | Stock fallback share |",
+        "| ---: | ---: | ---: | ---: | ---: | :--- | ---: |",
     ]
     for row in _build_single_turn_summary_rows(payload.get("single_turn") or []):
         stock_share = row.get("stock_fallback_share_run")
@@ -1124,6 +1179,7 @@ def _render_summary_markdown(payload: Dict[str, Any]) -> str:
             f"{float(row.get('ttft_sec', 0.0)):.4f} | "
             f"{decode_tok_s_str} | "
             f"{float(row.get('e2e_sec', 0.0)):.4f} | "
+            f"{str(row.get('decode_backend') or 'n/a')} | "
             f"{stock_share_str} |"
         )
     lines.append("")
@@ -1173,6 +1229,24 @@ def main() -> None:
     p.add_argument("--multi-target-context", type=int, default=65536)
     p.add_argument("--chunk-size", type=int, default=4096)
     p.add_argument("--kv-step", type=int, default=4096)
+    p.add_argument(
+        "--kv-bits",
+        type=int,
+        default=None,
+        help="Enable MLX-LM KV cache quantization for full-attention layers only.",
+    )
+    p.add_argument(
+        "--kv-group-size",
+        type=int,
+        default=64,
+        help="Group size for MLX KV cache quantization.",
+    )
+    p.add_argument(
+        "--quantized-kv-start",
+        type=int,
+        default=0,
+        help="Quantize the full-attention KV cache once offset >= this token count.",
+    )
     p.add_argument("--cooldown-sec", type=float, default=60.0)
     p.add_argument(
         "--stage-timeout-sec",
@@ -1355,6 +1429,28 @@ def main() -> None:
         p.error(
             "--butterfly-decode-backend must be one of ['stock', 'experimental'] plus legacy aliases ['dense', 'active_permute']"
         )
+    kv_quantization = MLXKVQuantizationConfig(
+        bits=(None if args.kv_bits is None else int(args.kv_bits)),
+        group_size=int(args.kv_group_size),
+        quantized_kv_start=int(args.quantized_kv_start),
+    )
+    try:
+        validate_mlx_kv_quantization_config(kv_quantization)
+    except ValueError as exc:
+        p.error(str(exc))
+    if kv_quantization.enabled and mode == "sparse":
+        p.error("--kv-bits is not supported with the legacy sparse Qwen path on MLX.")
+    if kv_quantization.enabled and mode == "butterfly" and decode_backend != "dense":
+        p.error(
+            "--kv-bits currently requires --butterfly-decode-backend stock "
+            "because the experimental Butterfly decode path does not support quantized KV."
+        )
+    if mode == "butterfly" and int(args.chunk_size) > int(max(1, args.query_chunk_size)):
+        p.error(
+            "--chunk-size exceeds --query-chunk-size in butterfly mode; "
+            "prefill chunks after the first will fall back to stock attention "
+            "(active_large_q), so this is not a valid butterfly benchmark."
+        )
     cache_cfg = _configure_hf_cache(
         hf_home=(str(args.hf_home).strip() or None),
         hf_hub_cache=(str(args.hf_hub_cache).strip() or None),
@@ -1458,6 +1554,13 @@ def main() -> None:
             f"(scope={active_prefill_scope}, layers={replaced_indices}, "
             f"decode_backend={'stock' if decode_backend == 'dense' else 'experimental'})"
         )
+    _log(
+        "KV quantization: "
+        f"enabled={kv_quantization.enabled} bits={kv_quantization.bits} "
+        f"group_size={kv_quantization.group_size} "
+        f"quantized_kv_start={kv_quantization.quantized_kv_start} "
+        "policy=post_prefill_before_decode"
+    )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     butterfly_decode_backend_public = (
@@ -1470,6 +1573,11 @@ def main() -> None:
         "hf_cache": cache_cfg,
         "mode": mode,
         "butterfly_decode_backend": butterfly_decode_backend_public,
+        "kv_quantization": {
+            **kv_quantization.to_dict(),
+            "policy": "post_prefill_before_decode",
+            "preserve_dense_prefix_cache": True,
+        },
         "retro_backfill_enabled": bool(args.retro_backfill),
         "butterfly": {
             "enabled": bool(not baseline_mode),
@@ -1488,6 +1596,7 @@ def main() -> None:
                         None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
                     ),
                     "num_cycles": int(max(0, args.num_cycles)),
+                    "prefill_chunk_size": int(max(1, args.chunk_size)),
                     "head_chunk_size": int(max(1, args.head_chunk_size)),
                     "query_chunk_size": int(max(1, args.query_chunk_size)),
                     "decode_backend": butterfly_decode_backend_public,
@@ -1535,6 +1644,7 @@ def main() -> None:
             "created_at": payload.get("created_at"),
             "mode": payload.get("mode"),
             "butterfly_decode_backend": payload.get("butterfly_decode_backend"),
+            "kv_quantization": payload.get("kv_quantization"),
             "butterfly": payload.get("butterfly"),
             "status": payload.get("status"),
             "status_reason": payload.get("status_reason"),
@@ -1588,6 +1698,8 @@ def main() -> None:
                 model,
                 tokenizer,
                 mode=mode,
+                butterfly_decode_backend=butterfly_decode_backend_public,
+                kv_quantization=kv_quantization,
                 seq_lens=[int(x) for x in args.seq_lens],
                 decode_len=int(args.decode_len),
                 repeats=int(args.repeats),
@@ -1629,6 +1741,7 @@ def main() -> None:
             payload["multi_turn"] = _run_multi_turn(
                 model,
                 tokenizer,
+                kv_quantization=kv_quantization,
                 turns=int(args.turns),
                 target_total_context=int(args.multi_target_context),
                 decode_len=int(args.multi_decode_len),
@@ -1646,6 +1759,7 @@ def main() -> None:
             payload["quality"] = _run_quality(
                 model,
                 tokenizer,
+                kv_quantization=kv_quantization,
                 dataset_path=args.quality_dataset,
                 decode_len=min(64, int(args.decode_len)),
                 chunk_size=int(args.chunk_size),
