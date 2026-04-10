@@ -20,7 +20,9 @@ surrogate operator under several deterministic weighting families.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -677,7 +679,7 @@ def _markdown_summary(results: Sequence[ExperimentCaseResult]) -> str:
                 "of any single row-normalization rule."
             ),
             "",
-            "## What This Still Does Not Support",
+            "## What This Still Does Not Prove",
             "",
             (
                 f"- Stronger mixing claims are not robust. Across "
@@ -686,6 +688,11 @@ def _markdown_summary(results: Sequence[ExperimentCaseResult]) -> str:
                 f"effective-support AUC {overall['effective_support_wins']} times, on TV-to-uniform "
                 f"AUC {overall['tv_wins']} times, on max-mass AUC {overall['max_mass_wins']} times, "
                 f"and on effective-rank-ratio AUC {overall['spectral_wins']} times."
+            ),
+            (
+                "- Even on support, this is not an optimality theorem over all possible "
+                "long-range schedules. It only compares the tested staged production topology "
+                "against local-only and the best frozen reuse of one production stage."
             ),
             (
                 "- That means the paper-safe claim is narrow: the staged schedule robustly expands "
@@ -700,6 +707,48 @@ def _markdown_summary(results: Sequence[ExperimentCaseResult]) -> str:
         ]
     )
     return "\n".join(lines)
+
+
+def _git_commit() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def _config_slug(*, num_blocks: Sequence[int], partner_rules: Sequence[str]) -> str:
+    block_slug = "-".join(str(int(value)) for value in num_blocks)
+    rule_slug = "-".join(str(value) for value in partner_rules)
+    return f"blocks-{block_slug}_rules-{rule_slug}"
+
+
+def _write_outputs(
+    *,
+    out_dir: Path,
+    payload: dict[str, object],
+    markdown: str,
+    run_label: str,
+) -> tuple[Path, Path, Path, Path]:
+    json_path = out_dir / "summary.json"
+    md_path = out_dir / "summary.md"
+    json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    md_path.write_text(markdown, encoding="utf-8")
+
+    runs_dir = out_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_json_path = runs_dir / f"{run_label}.json"
+    snapshot_md_path = runs_dir / f"{run_label}.md"
+    snapshot_json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    snapshot_md_path.write_text(markdown, encoding="utf-8")
+    return json_path, md_path, snapshot_json_path, snapshot_md_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -742,6 +791,11 @@ def main() -> None:
     args = parse_args()
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    generated_at_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_label = (
+        f"{generated_at_utc}_"
+        f"{_config_slug(num_blocks=args.num_blocks, partner_rules=args.partner_rules)}"
+    )
 
     configs = [
         ExperimentConfig(
@@ -772,6 +826,8 @@ def main() -> None:
             "of the weight model."
         ),
         "weight_models": WEIGHT_MODEL_DESCRIPTIONS,
+        "generated_at_utc": generated_at_utc,
+        "git_commit": _git_commit(),
         "config": {
             "num_blocks": [int(x) for x in args.num_blocks],
             "partner_rules": [str(x) for x in args.partner_rules],
@@ -786,16 +842,20 @@ def main() -> None:
         "overall": _overall_counts(results),
     }
 
-    json_path = out_dir / "summary.json"
-    md_path = out_dir / "summary.md"
     markdown = _markdown_summary(results) + "\n"
-    json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    md_path.write_text(markdown, encoding="utf-8")
+    json_path, md_path, snapshot_json_path, snapshot_md_path = _write_outputs(
+        out_dir=out_dir,
+        payload=payload,
+        markdown=markdown,
+        run_label=run_label,
+    )
 
     print(markdown, end="")
     print()
     print(f"Saved JSON: {json_path}")
     print(f"Saved Markdown: {md_path}")
+    print(f"Saved Snapshot JSON: {snapshot_json_path}")
+    print(f"Saved Snapshot Markdown: {snapshot_md_path}")
 
 
 if __name__ == "__main__":

@@ -22,7 +22,9 @@ surrogate spread/conditioning diagnostics explicitly secondary.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -196,7 +198,27 @@ def _table_secondary_spectrum(results: Sequence[ExperimentResult]) -> list[str]:
     return lines
 
 
+def _overall_counts(results: Sequence[ExperimentResult]) -> dict[str, int]:
+    total_cases = len(results)
+    butterfly_full_support = sum(
+        1 for row in results if float(row.butterfly.support_coverage_last_row) >= 1.0
+    )
+    local_full_support = sum(
+        1 for row in results if float(row.local_only.support_coverage_last_row) >= 1.0
+    )
+    random_full_support = sum(
+        1 for row in results if float(row.random_predecessor.support_coverage_last_row) >= 1.0
+    )
+    return {
+        "total_cases": total_cases,
+        "butterfly_full_support": butterfly_full_support,
+        "local_full_support": local_full_support,
+        "random_full_support": random_full_support,
+    }
+
+
 def _markdown_summary(results: Sequence[ExperimentResult]) -> str:
+    overall = _overall_counts(results)
     lines = [
         "# Butterfly Causal Support Experiment",
         "",
@@ -215,9 +237,23 @@ def _markdown_summary(results: Sequence[ExperimentResult]) -> str:
             "",
             "## Primary Claim Supported",
             "",
-            "- On this topology-only operator, all tested Butterfly rules (`xor`, `bit_reversal`, `benes`) give full last-row causal-prefix support by `L = ceil(log2 N)` for the tested block counts.",
-            "- At the same max-degree budget, the local-only baseline leaves substantial prefix mass unreachable at that horizon.",
-            "- The random-predecessor control can approach Butterfly on some diagnostics, but it does not reliably match Butterfly's full log-depth support coverage.",
+            (
+                f"- Staged Butterfly reached full last-row causal-prefix support by "
+                f"`L = ceil(log2 N)` in {overall['butterfly_full_support']}/"
+                f"{overall['total_cases']} tested (rule, block-count) cases."
+            ),
+            (
+                f"- At the same max-degree budget, the local-only baseline reached full "
+                f"last-row support in {overall['local_full_support']}/"
+                f"{overall['total_cases']} cases."
+            ),
+            (
+                f"- The deterministic random-predecessor control reached full last-row "
+                f"support in {overall['random_full_support']}/"
+                f"{overall['total_cases']} cases, so this experiment supports support "
+                f"sufficiency for the real Butterfly schedule, not uniqueness against "
+                f"every matched-degree long-range control."
+            ),
             "",
             "## Secondary Diagnostics (Non-Durable Claims)",
             "",
@@ -226,12 +262,55 @@ def _markdown_summary(results: Sequence[ExperimentResult]) -> str:
             "",
             "## What This Still Does Not Prove",
             "",
+            "- The primary support metric is last-row causal-prefix reachability at a fixed log-depth horizon. It is not a proof that every row, every horizon, or every admissible weighting rule yields comparable spread.",
             "- These are not learned attention weights. The operator uses uniform row normalization, so it only tests what the topology makes possible, not what a trained model will choose.",
             "- Singular values and condition numbers show that all of these operators are smoothing maps and become increasingly ill-conditioned with depth. That means this experiment does not establish end-to-end task quality, optimization behavior, or dense-attention equivalence.",
             "- This remains a block-level communication argument, not a theorem about token-level semantics or model accuracy.",
         ]
     )
     return "\n".join(lines)
+
+
+def _git_commit() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=REPO_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except Exception:
+        return None
+    commit = result.stdout.strip()
+    return commit or None
+
+
+def _config_slug(*, num_blocks: Sequence[int], partner_rules: Sequence[str]) -> str:
+    block_slug = "-".join(str(int(value)) for value in num_blocks)
+    rule_slug = "-".join(str(value) for value in partner_rules)
+    return f"blocks-{block_slug}_rules-{rule_slug}"
+
+
+def _write_outputs(
+    *,
+    out_dir: Path,
+    payload: dict[str, object],
+    markdown: str,
+    run_label: str,
+) -> tuple[Path, Path, Path, Path]:
+    json_path = out_dir / "summary.json"
+    md_path = out_dir / "summary.md"
+    json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    md_path.write_text(markdown, encoding="utf-8")
+
+    runs_dir = out_dir / "runs"
+    runs_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_json_path = runs_dir / f"{run_label}.json"
+    snapshot_md_path = runs_dir / f"{run_label}.md"
+    snapshot_json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    snapshot_md_path.write_text(markdown, encoding="utf-8")
+    return json_path, md_path, snapshot_json_path, snapshot_md_path
 
 
 def parse_args() -> argparse.Namespace:
@@ -274,6 +353,11 @@ def main() -> None:
     args = parse_args()
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    generated_at_utc = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_label = (
+        f"{generated_at_utc}_"
+        f"{_config_slug(num_blocks=args.num_blocks, partner_rules=args.partner_rules)}"
+    )
 
     configs = [
         ExperimentConfig(
@@ -305,6 +389,8 @@ def main() -> None:
             "Each block row uniformly averages over its exact admissible predecessors. "
             "This is a topology-only surrogate, not learned attention."
         ),
+        "generated_at_utc": generated_at_utc,
+        "git_commit": _git_commit(),
         "config": {
             "num_blocks": [int(x) for x in args.num_blocks],
             "partner_rules": [str(x) for x in args.partner_rules],
@@ -316,18 +402,23 @@ def main() -> None:
             "analysis_layers": "ceil(log2(num_blocks))",
         },
         "results": [asdict(row) for row in results],
+        "overall": _overall_counts(results),
     }
 
-    json_path = out_dir / "summary.json"
-    md_path = out_dir / "summary.md"
     markdown = _markdown_summary(results) + "\n"
-    json_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    md_path.write_text(markdown, encoding="utf-8")
+    json_path, md_path, snapshot_json_path, snapshot_md_path = _write_outputs(
+        out_dir=out_dir,
+        payload=payload,
+        markdown=markdown,
+        run_label=run_label,
+    )
 
     print(markdown, end="")
     print()
     print(f"Saved JSON: {json_path}")
     print(f"Saved Markdown: {md_path}")
+    print(f"Saved Snapshot JSON: {snapshot_json_path}")
+    print(f"Saved Snapshot Markdown: {snapshot_md_path}")
 
 
 if __name__ == "__main__":

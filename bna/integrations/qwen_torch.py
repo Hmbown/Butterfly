@@ -27,10 +27,10 @@ import torch.nn as nn
 
 from bna.graph.abi import graph_metrics
 from bna.topology import Topology, TopologyGraph
+from bna.topology.butterfly import butterfly_stage_meta
 from bna.torch.attention_wayfinder_permute import (
     BlockHamiltonianLayout,
     FLEX_ATTENTION_AVAILABLE,
-    _wayfinder_stage_meta as _wayfinder_stage_meta_standalone,
     build_block_butterfly_layout,
     build_block_hamiltonian_mask,
     build_flex_block_mask,
@@ -660,7 +660,7 @@ class QwenCUDAButterflyAttention(nn.Module):
             return None, None
         num_blocks = (int(seq_len) + int(self.cfg.block_size) - 1) // int(self.cfg.block_size)
         layer_idx = 0 if self.layer_idx is None else int(self.layer_idx)
-        stage_idx, stage_count = _wayfinder_stage_meta_standalone(
+        stage_idx, stage_count = butterfly_stage_meta(
             num_blocks=num_blocks,
             layer_idx=layer_idx,
             partner_rule=self.cfg.block_partner_rule,
