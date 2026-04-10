@@ -21,9 +21,9 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from bna.integrations.glm_mlx import (
-    GLMWayfinderAttention,
-    GLMWayfinderConfig,
-    swap_glm_attention_with_wayfinder,
+    GLMButterflyAttention,
+    GLMButterflyConfig,
+    swap_glm_attention_with_butterfly,
 )
 
 
@@ -70,7 +70,7 @@ def _collect_hsa_layer_snapshot(
         selected = [
             i
             for i, layer in enumerate(layers)
-            if isinstance(getattr(layer, "self_attn", None), GLMWayfinderAttention)
+            if isinstance(getattr(layer, "self_attn", None), GLMButterflyAttention)
         ]
     if int(max_layers) > 0:
         selected = selected[: int(max_layers)]
@@ -93,7 +93,7 @@ def _collect_hsa_layer_snapshot(
     )
     for idx in selected:
         attn = getattr(layers[idx], "self_attn", None)
-        if not isinstance(attn, GLMWayfinderAttention):
+        if not isinstance(attn, GLMButterflyAttention):
             continue
         profile = attn.last_profile.to_dict() if hasattr(attn, "last_profile") else {}
         notes_obj = profile.get("notes")
@@ -301,7 +301,7 @@ def _summarize_hsa_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
 
 def _expected_primary_path_for_mode(mode: str) -> str:
     mode_s = str(mode).strip().lower()
-    if mode_s == "wayfinder":
+    if mode_s in {"wayfinder", "butterfly"}:
         return "permute"
     if mode_s == "sparse":
         return "sparse"
@@ -838,12 +838,16 @@ def _resolve_primary_mode(args: argparse.Namespace, parser: argparse.ArgumentPar
     elif path_arg == "sparse":
         legacy_mode = "sparse"
     elif path_arg == "permute":
-        legacy_mode = "wayfinder"
+        legacy_mode = "butterfly"
 
     if mode_arg is None:
-        return legacy_mode or "wayfinder"
-    if mode_arg not in {"dense", "wayfinder", "sparse"}:
-        parser.error(f"--mode must be one of ['dense', 'wayfinder', 'sparse']; got {mode_arg!r}")
+        return legacy_mode or "butterfly"
+    if mode_arg == "wayfinder":
+        mode_arg = "butterfly"
+    if mode_arg not in {"dense", "butterfly", "sparse"}:
+        parser.error(
+            f"--mode must be one of ['dense', 'butterfly', 'sparse'] plus legacy alias ['wayfinder']; got {mode_arg!r}"
+        )
     if legacy_mode is not None and legacy_mode != mode_arg:
         parser.error(
             f"Conflicting mode selectors: --mode {mode_arg} vs legacy selector {legacy_mode}. "
@@ -860,7 +864,7 @@ def main() -> None:
     p.add_argument(
         "--mode",
         type=str,
-        choices=["dense", "wayfinder", "sparse"],
+        choices=["dense", "butterfly", "wayfinder", "sparse"],
         default=None,
         help="Primary attention mode selector for benchmark UX.",
     )
@@ -903,11 +907,20 @@ def main() -> None:
         help="Debug-only: re-enable dense-like decode local-tail shortcut.",
     )
     p.add_argument(
-        "--debug-wayfinder-decode-backend",
+        "--debug-butterfly-decode-backend",
+        dest="debug_butterfly_decode_backend",
         type=str,
         default="dense",
         choices=["active_permute", "dense"],
-        help="Debug-only: wayfinder decode backend policy (default: dense).",
+        help="Debug-only: Butterfly decode backend policy (default: dense).",
+    )
+    p.add_argument(
+        "--debug-wayfinder-decode-backend",
+        dest="debug_butterfly_decode_backend",
+        type=str,
+        default=argparse.SUPPRESS,
+        choices=["active_permute", "dense"],
+        help=argparse.SUPPRESS,
     )
     p.add_argument("--active-dense-threshold", type=int, default=0, help=argparse.SUPPRESS)
     p.add_argument(
@@ -962,7 +975,7 @@ def main() -> None:
     p.add_argument(
         "--hsa-trace",
         action="store_true",
-        help="Record per-step Wayfinder attention path snapshots.",
+        help="Record per-step Butterfly attention path snapshots.",
     )
     p.add_argument(
         "--hsa-trace-max-layers",
@@ -1027,9 +1040,10 @@ def main() -> None:
     _log("Model loaded")
 
     dense_mode = mode == "dense"
-    wf_cfg: Optional[GLMWayfinderConfig] = None
+    butterfly_cfg: Optional[GLMButterflyConfig] = None
+    butterfly_decode_backend_public = "stock"
     if not dense_mode:
-        wf_cfg = GLMWayfinderConfig(
+        butterfly_cfg = GLMButterflyConfig(
             path=mode,  # type: ignore[arg-type]
             strategy="random",
             window=int(args.window),
@@ -1056,14 +1070,19 @@ def main() -> None:
             use_discovered_active_row_kernel=not bool(debug_disable_discovered_active_row_kernel),
             use_fused_dispatch=not bool(debug_disable_fused_dispatch),
             enable_decode_local_tail_fastpath=bool(debug_enable_decode_local_tail_fastpath),
-            wayfinder_decode_backend=str(args.debug_wayfinder_decode_backend),
+            wayfinder_decode_backend=str(args.debug_butterfly_decode_backend),
         )
-        if mode == "wayfinder" and wf_cfg.enable_decode_local_tail_fastpath:
-            _log("Debug override: decode local-tail fastpath enabled for wayfinder mode.")
-        if mode == "wayfinder" and wf_cfg.active_dense_threshold is not None:
+        butterfly_decode_backend_public = (
+            "stock"
+            if str(args.debug_butterfly_decode_backend).strip().lower() == "dense"
+            else "experimental"
+        )
+        if mode == "butterfly" and butterfly_cfg.enable_decode_local_tail_fastpath:
+            _log("Debug override: decode local-tail fastpath enabled for butterfly mode.")
+        if mode == "butterfly" and butterfly_cfg.active_dense_threshold is not None:
             _log(
-                "Debug override: active_dense_threshold set in wayfinder mode "
-                f"({wf_cfg.active_dense_threshold})."
+                "Debug override: active_dense_threshold set in butterfly mode "
+                f"({butterfly_cfg.active_dense_threshold})."
             )
 
     replaced_layers = 0
@@ -1072,7 +1091,7 @@ def main() -> None:
     if dense_mode:
         _log("mode=dense: stock GLM attention baseline (no swap)")
     else:
-        assert wf_cfg is not None
+        assert butterfly_cfg is not None
         layers = list(_iter_model_layers(model))
         requested_layer_indices = _resolve_swap_layers(
             total_layers=len(layers),
@@ -1080,16 +1099,16 @@ def main() -> None:
             swap_last_n_layers=int(debug_swap_last_n_layers),
             swap_layer_indices=debug_swap_layer_indices,
         )
-        replaced = swap_glm_attention_with_wayfinder(
+        replaced = swap_glm_attention_with_butterfly(
             model,
-            cfg=wf_cfg,
+            cfg=butterfly_cfg,
             layer_indices=requested_layer_indices,
         )
         replaced_indices = [int(x) for x in replaced]
         replaced_layers = len(replaced_indices)
         for idx in replaced_indices:
             layer_attn = layers[idx].self_attn
-            if isinstance(layer_attn, GLMWayfinderAttention):
+            if isinstance(layer_attn, GLMButterflyAttention):
                 layer_attn.compute_edge_utilization_proxy = False
                 layer_attn.compute_graph_metrics = False
         scope = (
@@ -1100,14 +1119,57 @@ def main() -> None:
         _log(f"mode={mode}: swapped attention on {replaced_layers} layers ({scope})")
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
+    butterfly_config_payload = (
+        None
+        if dense_mode or butterfly_cfg is None
+        else {
+            "path": str(butterfly_cfg.path),
+            "strategy": str(butterfly_cfg.strategy),
+            "window": int(butterfly_cfg.window),
+            "landmark_stride": butterfly_cfg.landmark_stride,
+            "num_cycles": butterfly_cfg.num_cycles,
+            "edge_disjoint": bool(butterfly_cfg.edge_disjoint),
+            "enforce_hamiltonian": bool(butterfly_cfg.enforce_hamiltonian),
+            "regular_num_clusters": int(butterfly_cfg.regular_num_clusters),
+            "seed": int(butterfly_cfg.seed),
+            "edge_bias": bool(butterfly_cfg.edge_bias),
+            "window_drop": float(butterfly_cfg.window_drop),
+            "permute_head_chunk_size": int(butterfly_cfg.permute_head_chunk_size),
+            "query_chunk_size": int(butterfly_cfg.query_chunk_size),
+            "permute_prepermute_mode": str(butterfly_cfg.permute_prepermute_mode),
+            "active_dense_threshold": butterfly_cfg.active_dense_threshold,
+            "use_discovered_active_row_kernel": bool(
+                butterfly_cfg.use_discovered_active_row_kernel
+            ),
+            "circular": bool(butterfly_cfg.circular),
+            "multi_cycle_mode": str(butterfly_cfg.multi_cycle_mode),
+            "use_fused_dispatch": bool(butterfly_cfg.use_fused_dispatch),
+            "enable_decode_local_tail_fastpath": bool(
+                butterfly_cfg.enable_decode_local_tail_fastpath
+            ),
+            "decode_backend": butterfly_decode_backend_public,
+            "butterfly_decode_backend": butterfly_decode_backend_public,
+        }
+    )
+    wayfinder_config_payload = (
+        None
+        if butterfly_config_payload is None
+        else {
+            **butterfly_config_payload,
+            "wayfinder_decode_backend": butterfly_decode_backend_public,
+        }
+    )
     payload: Dict[str, Any] = {
         "created_at": datetime.now(UTC).isoformat(),
         "command": " ".join(sys.argv),
         "model_path": args.model_path,
         "mode": mode,
+        "butterfly_decode_backend": butterfly_decode_backend_public,
+        "wayfinder_decode_backend": butterfly_decode_backend_public,
         "no_swap": bool(dense_mode),
         "retro_backfill_enabled": False,
-        "wayfinder_config": None if dense_mode else wf_cfg.__dict__,
+        "butterfly_config": butterfly_config_payload,
+        "wayfinder_config": wayfinder_config_payload,
         "swap": {
             "replaced_layers": int(replaced_layers),
             "replaced_layer_indices": replaced_indices,

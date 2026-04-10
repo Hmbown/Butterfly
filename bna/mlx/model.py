@@ -6,10 +6,16 @@ from typing import Any, Dict, List, Literal, Optional
 import mlx.core as mx
 import mlx.nn as nn
 
-from bna.mlx.attention import WayfinderAttentionMLX, dense_causal_attention
+from bna.mlx.attention import ButterflyAttentionMLX, dense_causal_attention
 
 
-AttnMode = Literal["dense", "wayfinder_sparse", "wayfinder_permute"]
+AttnMode = Literal[
+    "dense",
+    "butterfly_sparse",
+    "butterfly_permute",
+    "wayfinder_sparse",
+    "wayfinder_permute",
+]
 
 
 @dataclass
@@ -23,7 +29,7 @@ class GPTConfigMLX:
 
     attn: AttnMode = "dense"
 
-    # Wayfinder-specific
+    # Butterfly-specific
     strategy: str = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
@@ -101,9 +107,9 @@ class BlockMLX(nn.Module):
 
         if cfg.attn == "dense":
             self.attn = DenseCausalAttentionMLX(cfg.n_embd, cfg.n_heads, dropout=cfg.dropout)
-        elif cfg.attn in ("wayfinder_sparse", "wayfinder_permute"):
-            path = "sparse" if cfg.attn == "wayfinder_sparse" else "permute"
-            self.attn = WayfinderAttentionMLX(
+        elif cfg.attn in ("butterfly_sparse", "butterfly_permute", "wayfinder_sparse", "wayfinder_permute"):
+            path = "sparse" if cfg.attn in {"butterfly_sparse", "wayfinder_sparse"} else "permute"
+            self.attn = ButterflyAttentionMLX(
                 cfg.n_embd,
                 cfg.n_heads,
                 routing_dim=cfg.routing_dim,
@@ -157,7 +163,7 @@ class GPTMLX(nn.Module):
         self.ln_f = nn.LayerNorm(cfg.n_embd)
         self.lm_head = nn.Linear(cfg.n_embd, cfg.vocab_size, bias=False)
 
-    def set_wayfinder_runtime_controls(
+    def set_butterfly_runtime_controls(
         self,
         *,
         window_drop: Optional[float] = None,
@@ -165,14 +171,28 @@ class GPTMLX(nn.Module):
     ) -> None:
         for block in self.blocks:
             attn = getattr(block, "attn", None)
-            if isinstance(attn, WayfinderAttentionMLX):
+            if isinstance(attn, ButterflyAttentionMLX):
                 attn.set_runtime_controls(window_drop=window_drop, schedule_bias=schedule_bias)
 
-    def clear_wayfinder_runtime_controls(self) -> None:
+    def clear_butterfly_runtime_controls(self) -> None:
         for block in self.blocks:
             attn = getattr(block, "attn", None)
-            if isinstance(attn, WayfinderAttentionMLX):
+            if isinstance(attn, ButterflyAttentionMLX):
                 attn.clear_runtime_controls()
+
+    def set_wayfinder_runtime_controls(
+        self,
+        *,
+        window_drop: Optional[float] = None,
+        schedule_bias: Optional[Dict[str, float]] = None,
+    ) -> None:
+        self.set_butterfly_runtime_controls(
+            window_drop=window_drop,
+            schedule_bias=schedule_bias,
+        )
+
+    def clear_wayfinder_runtime_controls(self) -> None:
+        self.clear_butterfly_runtime_controls()
 
     def __call__(
         self,

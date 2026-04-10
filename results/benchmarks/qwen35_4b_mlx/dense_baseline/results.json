@@ -1,0 +1,704 @@
+{
+  "created_at": "2026-04-03T22:18:09.939996+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path mlx-community/Qwen3.5-4B-MLX-4bit --hf-offline --mode dense --seq-lens 512 1024 2048 --decode-len 64 --repeats 3 --skip-quality --cooldown-sec 2 --out-dir results/benchmarks/qwen35_4b_mlx/dense_baseline",
+  "model_path": "mlx-community/Qwen3.5-4B-MLX-4bit",
+  "hf_cache": {
+    "hf_home": "None",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": "1"
+  },
+  "mode": "dense",
+  "no_swap": true,
+  "retro_backfill_enabled": false,
+  "wayfinder_config": null,
+  "swap": {
+    "replaced_layers": 0,
+    "replaced_layer_indices": [],
+    "requested_layer_indices": null,
+    "debug_swap_first_n_layers": 0,
+    "debug_swap_last_n_layers": 0,
+    "debug_swap_layer_indices_arg": "",
+    "debug_disable_fused_dispatch": false,
+    "debug_wayfinder_decode_backend": "dense"
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 9,
+    "multi_turns_completed": 8,
+    "quality_tasks_completed": 0,
+    "last_stage": "multi_turn_turn_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 3
+  },
+  "timing": {
+    "writeout_sec_last": 0.0008473749912809581,
+    "writeout_sec_total": 0.08747916895663366,
+    "script_start_unix_sec": 1775254689.940018,
+    "script_end_unix_sec": 1775255386.7199318
+  },
+  "single_turn": [
+    {
+      "seq_len": 512,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 0.45577604199934285,
+      "ttft_sec": 0.011180167013662867,
+      "itl_p50_sec": 0.010017874999903142,
+      "itl_p95_sec": 0.010248332997434773,
+      "decode_sec": 0.6461295000044629,
+      "e2e_sec": 1.1019055420038057,
+      "decode_tok_s": 99.05135116034471,
+      "peak_memory_bytes": 3586905786,
+      "sample_output_text": "[](https://i.imgur.com/1111111.png)\nUser: Summarize the policy and list three key constraints with exact numbers",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.005993500002659857,
+        "prompt_tokenize_sec": 0.005993500002659857,
+        "prefill_sec": 0.45577604199934285,
+        "decode_sec": 0.6461295000044629,
+        "writeout_sec": 0.00022583399550057948
+      }
+    },
+    {
+      "seq_len": 512,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 0.46436941700812895,
+      "ttft_sec": 0.01112916599959135,
+      "itl_p50_sec": 0.009991667000576854,
+      "itl_p95_sec": 0.010617292005917989,
+      "decode_sec": 0.6528729580022627,
+      "e2e_sec": 1.1172423750103917,
+      "decode_tok_s": 98.02825988663201,
+      "peak_memory_bytes": 3586905786,
+      "sample_output_text": "[](https://i.imgur.com/1111111.png)\nUser: Summarize the policy and list three key constraints with exact numbers",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.00583395900321193,
+        "prompt_tokenize_sec": 0.00583395900321193,
+        "prefill_sec": 0.46436941700812895,
+        "decode_sec": 0.6528729580022627,
+        "writeout_sec": 0.0002917499950854108
+      }
+    },
+    {
+      "seq_len": 512,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 0.46880866699211765,
+      "ttft_sec": 0.011114207998616621,
+      "itl_p50_sec": 0.009966958008590154,
+      "itl_p95_sec": 0.010821791001944803,
+      "decode_sec": 0.6481496670021443,
+      "e2e_sec": 1.116958333994262,
+      "decode_tok_s": 98.7426257518825,
+      "peak_memory_bytes": 3586905786,
+      "sample_output_text": "[](https://i.imgur.com/1111111.png)\nUser: Summarize the policy and list three key constraints with exact numbers",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.005859291995875537,
+        "prompt_tokenize_sec": 0.005859291995875537,
+        "prefill_sec": 0.46880866699211765,
+        "decode_sec": 0.6481496670021443,
+        "writeout_sec": 0.0003128749958705157
+      }
+    },
+    {
+      "seq_len": 1024,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 0.9320892500109039,
+      "ttft_sec": 0.0111836249998305,
+      "itl_p50_sec": 0.010171375004574656,
+      "itl_p95_sec": 0.010912083002040163,
+      "decode_sec": 0.6605408750037896,
+      "e2e_sec": 1.5926301250146935,
+      "decode_tok_s": 96.89029463866687,
+      "peak_memory_bytes": 4076400222,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints!\nAssistant:\nUser: Summarize the policy and list three key",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.020293333000154234,
+        "prompt_tokenize_sec": 0.020293333000154234,
+        "prefill_sec": 0.9320892500109039,
+        "decode_sec": 0.6605408750037896,
+        "writeout_sec": 0.0002997499977936968
+      }
+    },
+    {
+      "seq_len": 1024,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 0.9291245419881307,
+      "ttft_sec": 0.011558250000234693,
+      "itl_p50_sec": 0.010180417011724785,
+      "itl_p95_sec": 0.01094024999474641,
+      "decode_sec": 0.6625198340043426,
+      "e2e_sec": 1.5916443759924732,
+      "decode_tok_s": 96.60088153614508,
+      "peak_memory_bytes": 4076400222,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints!\nAssistant:\nUser: Summarize the policy and list three key",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.02012116699188482,
+        "prompt_tokenize_sec": 0.02012116699188482,
+        "prefill_sec": 0.9291245419881307,
+        "decode_sec": 0.6625198340043426,
+        "writeout_sec": 0.00029758299933746457
+      }
+    },
+    {
+      "seq_len": 1024,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 0.9321357089938829,
+      "ttft_sec": 0.012555166991660371,
+      "itl_p50_sec": 0.010226917002000846,
+      "itl_p95_sec": 0.010558916997979395,
+      "decode_sec": 0.6605227090039989,
+      "e2e_sec": 1.5926584179978818,
+      "decode_tok_s": 96.89295936017929,
+      "peak_memory_bytes": 4076400222,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints!\nAssistant:\nUser: Summarize the policy and list three key",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.020416375002241693,
+        "prompt_tokenize_sec": 0.020416375002241693,
+        "prefill_sec": 0.9321357089938829,
+        "decode_sec": 0.6605227090039989,
+        "writeout_sec": 0.0003516669967211783
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 1.8634715830121422,
+      "ttft_sec": 0.021187500009546056,
+      "itl_p50_sec": 0.010703874999308027,
+      "itl_p95_sec": 0.011276999997789972,
+      "decode_sec": 0.699206833000062,
+      "e2e_sec": 2.5626784160122043,
+      "decode_tok_s": 91.53228626985447,
+      "peak_memory_bytes": 4934925874,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07710762499482371,
+        "prompt_tokenize_sec": 0.07710762499482371,
+        "prefill_sec": 1.8634715830121422,
+        "decode_sec": 0.699206833000062,
+        "writeout_sec": 0.0004724589962279424
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 64,
+      "repeat": 2,
+      "prefill_sec": 1.9133201250078855,
+      "ttft_sec": 0.020377875000122003,
+      "itl_p50_sec": 0.010221000004094094,
+      "itl_p95_sec": 0.010643332992913201,
+      "decode_sec": 0.6699652920069639,
+      "e2e_sec": 2.5832854170148494,
+      "decode_tok_s": 95.52733665990381,
+      "peak_memory_bytes": 4934925874,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07580812499509193,
+        "prompt_tokenize_sec": 0.07580812499509193,
+        "prefill_sec": 1.9133201250078855,
+        "decode_sec": 0.6699652920069639,
+        "writeout_sec": 0.005636332993162796
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 64,
+      "repeat": 3,
+      "prefill_sec": 1.8691787920106435,
+      "ttft_sec": 0.018862166005419567,
+      "itl_p50_sec": 0.010043457994470373,
+      "itl_p95_sec": 0.010269125006743707,
+      "decode_sec": 0.6548675420053769,
+      "e2e_sec": 2.5240463340160204,
+      "decode_tok_s": 97.7296871425558,
+      "peak_memory_bytes": 4934925874,
+      "sample_output_text": "\nAssistant:\nUser: Summarize the policy and list three key constraints with exact numbers.\nAssistant:\nUser: Summarize the policy and",
+      "expected_primary_path": "dense",
+      "hsa_trace_summary": {
+        "sample_count": 65,
+        "layer_observations": 65,
+        "phase_counts": {
+          "prefill": 1,
+          "decode": 64
+        },
+        "path_counts": {
+          "dense": 65
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "dense_fallback_reason_counts": {},
+        "fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "decode_fallback_layer_observations": 0,
+        "prefill_layer_observations": 1,
+        "prefill_fallback_layer_observations": 0,
+        "decode_step_observations": 64,
+        "decode_fallback_steps": 0,
+        "prefill_step_observations": 1,
+        "prefill_fallback_steps": 0,
+        "dense_fallback_share_run": 0.0,
+        "dense_fallback_share_decode_layers": 0.0,
+        "dense_fallback_share_prefill_layers": 0.0,
+        "dense_fallback_share_decode_steps": 0.0,
+        "dense_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0
+      },
+      "path_counts": {
+        "dense": 65
+      },
+      "dense_fallback_reason_counts": {},
+      "dense_fallback_share_run": 0.0,
+      "dense_fallback_share_decode_steps": 0.0,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.07607804199506063,
+        "prompt_tokenize_sec": 0.07607804199506063,
+        "prefill_sec": 1.8691787920106435,
+        "decode_sec": 0.6548675420053769,
+        "writeout_sec": 0.00530741699913051
+      }
+    }
+  ],
+  "multi_turn": {
+    "turns": 8,
+    "target_total_context": 65536,
+    "decode_len_per_turn": 128,
+    "session_e2e_sec": 396.1659561669803,
+    "per_turn": [
+      {
+        "turn": 1,
+        "seq_len": 8192,
+        "decode_len": 128,
+        "ttft_sec": 0.037587916987831704,
+        "itl_p50_sec": 0.010673541997675784,
+        "itl_p95_sec": 0.011112332998891361,
+        "e2e_sec": 9.38042245899851,
+        "decode_tok_s": 90.18542175591648,
+        "peak_memory_bytes": 7875911196
+      },
+      {
+        "turn": 2,
+        "seq_len": 16384,
+        "decode_len": 128,
+        "ttft_sec": 0.048211625005933456,
+        "itl_p50_sec": 0.011500874999910593,
+        "itl_p95_sec": 0.01220475000445731,
+        "e2e_sec": 18.34384216699982,
+        "decode_tok_s": 82.99373308217905,
+        "peak_memory_bytes": 9268485660
+      },
+      {
+        "turn": 3,
+        "seq_len": 24576,
+        "decode_len": 128,
+        "ttft_sec": 0.07293633300287183,
+        "itl_p50_sec": 0.012467208012822084,
+        "itl_p95_sec": 0.013816250007948838,
+        "e2e_sec": 28.633972874988103,
+        "decode_tok_s": 75.10356074039237,
+        "peak_memory_bytes": 10610728472
+      },
+      {
+        "turn": 4,
+        "seq_len": 32768,
+        "decode_len": 128,
+        "ttft_sec": 0.12570299999788404,
+        "itl_p50_sec": 0.013567999994847924,
+        "itl_p95_sec": 0.014072375008254312,
+        "e2e_sec": 40.176545875001466,
+        "decode_tok_s": 68.03027354827474,
+        "peak_memory_bytes": 11986525720
+      },
+      {
+        "turn": 5,
+        "seq_len": 40960,
+        "decode_len": 128,
+        "ttft_sec": 0.3942260420008097,
+        "itl_p50_sec": 0.014641125002526678,
+        "itl_p95_sec": 0.015320999998948537,
+        "e2e_sec": 52.29185729099845,
+        "decode_tok_s": 55.72371126263288,
+        "peak_memory_bytes": 13362322968
+      },
+      {
+        "turn": 6,
+        "seq_len": 49152,
+        "decode_len": 128,
+        "ttft_sec": 0.49248241700115614,
+        "itl_p50_sec": 0.015519374996074475,
+        "itl_p95_sec": 0.016213791008340195,
+        "e2e_sec": 67.73514645799878,
+        "decode_tok_s": 51.019284591859034,
+        "peak_memory_bytes": 14737907224
+      },
+      {
+        "turn": 7,
+        "seq_len": 57344,
+        "decode_len": 128,
+        "ttft_sec": 0.5147358749964042,
+        "itl_p50_sec": 0.016130666001117788,
+        "itl_p95_sec": 0.016549041989492252,
+        "e2e_sec": 81.19585950000328,
+        "decode_tok_s": 49.063332738783934,
+        "peak_memory_bytes": 16113671704
+      },
+      {
+        "turn": 8,
+        "seq_len": 65536,
+        "decode_len": 128,
+        "ttft_sec": 0.6205245829914929,
+        "itl_p50_sec": 0.017216457999893464,
+        "itl_p95_sec": 0.01834954199148342,
+        "e2e_sec": 98.40830954199191,
+        "decode_tok_s": 44.281217679876335,
+        "peak_memory_bytes": 17481047576
+      }
+    ]
+  },
+  "quality": null
+}

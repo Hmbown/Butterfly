@@ -1,65 +1,65 @@
-"""Tests for W² Crossover Gate active_dense_threshold routing logic."""
+"""Tests for Butterfly W² crossover-gate routing logic."""
 import pytest
 
-from bna.integrations.glm_mlx import GLMWayfinderConfig, GLMWayfinderAttention
-from bna.integrations.qwen_mlx import QwenWayfinderConfig, QwenWayfinderAttention
+from bna.integrations.glm_mlx import GLMButterflyAttention, GLMButterflyConfig
+from bna.integrations.qwen_mlx import QwenButterflyAttention, QwenButterflyConfig
 
 
 class TestGLMActiveDenseThreshold:
-    """Test GLMWayfinderConfig and GLMWayfinderAttention active_dense_threshold."""
+    """Test GLMButterflyConfig and GLMButterflyAttention active_dense_threshold."""
 
     def test_auto_threshold_window_64(self):
         """active_dense_threshold='auto' with window=64 produces 16641."""
-        cfg = GLMWayfinderConfig(window=64, active_dense_threshold="auto")
+        cfg = GLMButterflyConfig(window=64, active_dense_threshold="auto")
         # Config stores "auto" string
         assert cfg.active_dense_threshold == "auto"
         # Attention module computes W² = (2*64 + 1)² = 129² = 16641
-        # We can't easily instantiate GLMWayfinderAttention without a base model,
+        # We can't easily instantiate GLMButterflyAttention without a base model,
         # but we can verify the formula
         expected = (2 * cfg.window + 1) ** 2
         assert expected == 16641
 
     def test_auto_threshold_window_32(self):
         """active_dense_threshold='auto' with window=32 produces 4225."""
-        cfg = GLMWayfinderConfig(window=32, active_dense_threshold="auto")
+        cfg = GLMButterflyConfig(window=32, active_dense_threshold="auto")
         expected = (2 * cfg.window + 1) ** 2
         assert expected == 4225  # (64 + 1)² = 65² = 4225
 
     def test_explicit_int_threshold(self):
         """Explicit int value is preserved."""
-        cfg = GLMWayfinderConfig(window=64, active_dense_threshold=10000)
+        cfg = GLMButterflyConfig(window=64, active_dense_threshold=10000)
         assert cfg.active_dense_threshold == 10000
 
     def test_none_disables_threshold(self):
         """None disables the threshold gate."""
-        cfg = GLMWayfinderConfig(window=64, active_dense_threshold=None)
+        cfg = GLMButterflyConfig(window=64, active_dense_threshold=None)
         assert cfg.active_dense_threshold is None
 
 
 class TestQwenActiveDenseThreshold:
-    """Test QwenWayfinderConfig and QwenWayfinderAttention active_dense_threshold."""
+    """Test QwenButterflyConfig and QwenButterflyAttention active_dense_threshold."""
 
     def test_auto_threshold_window_64(self):
         """active_dense_threshold='auto' with window=64 produces 16641."""
-        cfg = QwenWayfinderConfig(window=64, active_dense_threshold="auto")
+        cfg = QwenButterflyConfig(window=64, active_dense_threshold="auto")
         assert cfg.active_dense_threshold == "auto"
         expected = (2 * cfg.window + 1) ** 2
         assert expected == 16641
 
     def test_auto_threshold_window_32(self):
         """active_dense_threshold='auto' with window=32 produces 4225."""
-        cfg = QwenWayfinderConfig(window=32, active_dense_threshold="auto")
+        cfg = QwenButterflyConfig(window=32, active_dense_threshold="auto")
         expected = (2 * cfg.window + 1) ** 2
         assert expected == 4225
 
     def test_explicit_int_threshold(self):
         """Explicit int value is preserved."""
-        cfg = QwenWayfinderConfig(window=64, active_dense_threshold=10000)
+        cfg = QwenButterflyConfig(window=64, active_dense_threshold=10000)
         assert cfg.active_dense_threshold == 10000
 
     def test_none_disables_threshold(self):
         """None disables the threshold gate."""
-        cfg = QwenWayfinderConfig(window=64, active_dense_threshold=None)
+        cfg = QwenButterflyConfig(window=64, active_dense_threshold=None)
         assert cfg.active_dense_threshold is None
 
 

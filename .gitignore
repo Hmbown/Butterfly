@@ -57,11 +57,15 @@ runs/mlx/qwen_env_check_full.json
 !docs/RELEASE_GATE.md
 !docs/VISUAL_STORYBOARD.md
 !docs/APPLE_SILICON_SETUP.md
+!docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md
 !SECURITY.md
 !CONTRIBUTING.md
 
 # Local tool databases
 counterpoint.copilot.db
+
+# Playwright MCP cache
+.playwright-mcp/
 
 # IDE / editor
 .idea/

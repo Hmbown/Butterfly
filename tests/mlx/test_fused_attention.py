@@ -1,7 +1,7 @@
 """Correctness tests for the fused all-head permute-window attention dispatch.
 
-Compares ``wayfinder_fused_permute_window_attention`` against the existing
-chunked ``wayfinder_permute_window_attention_batched`` (with fused disabled)
+Compares ``butterfly_fused_permute_window_attention`` against the existing
+chunked ``butterfly_permute_window_attention_batched`` (with fused disabled)
 as the reference implementation.
 """
 from __future__ import annotations
@@ -12,13 +12,13 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 
 from bna.mlx.attention import (
-    wayfinder_permute_window_attention_active_batched,
-    wayfinder_permute_window_attention_batched,
+    butterfly_permute_window_attention_active_batched,
+    butterfly_permute_window_attention_batched,
 )
 from bna.mlx.fused_attention import (
     _fused_dispatch_eligible,
-    wayfinder_fused_permute_window_attention,
-    wayfinder_fused_permute_window_attention_active,
+    butterfly_fused_permute_window_attention,
+    butterfly_fused_permute_window_attention_active,
 )
 
 
@@ -54,7 +54,7 @@ def _run_comparison(
     all_perms, all_inv_perms = _random_perms(Hq, T, seed=seed + 1)
 
     # Fused path
-    y_fused = wayfinder_fused_permute_window_attention(
+    y_fused = butterfly_fused_permute_window_attention(
         q, k, v,
         all_perms=all_perms,
         all_inv_perms=all_inv_perms,
@@ -64,7 +64,7 @@ def _run_comparison(
     mx.eval(y_fused)
 
     # Chunked reference (fused disabled)
-    y_ref, _ = wayfinder_permute_window_attention_batched(
+    y_ref, _ = butterfly_permute_window_attention_batched(
         q, k, v,
         all_perms=all_perms,
         all_inv_perms=all_inv_perms,
@@ -156,7 +156,7 @@ class TestCausality:
         v = mx.array(v_np)
         all_perms, all_inv_perms = _random_perms(Hq, T, seed=99)
 
-        y = wayfinder_fused_permute_window_attention(
+        y = butterfly_fused_permute_window_attention(
             q, k, v,
             all_perms=all_perms,
             all_inv_perms=all_inv_perms,
@@ -289,12 +289,12 @@ class TestFallback:
         v = mx.array(rng.standard_normal((B, Hkv, T, dh)).astype(np.float32) * 0.1)
         perms, inv_perms = _random_perms(Hq, T, seed=7)
 
-        y1, _ = wayfinder_permute_window_attention_batched(
+        y1, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms,
             window=W, use_fused_dispatch=True,
         )
-        y2, _ = wayfinder_permute_window_attention_batched(
+        y2, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms,
             window=W, use_fused_dispatch=False, head_chunk_size=1,
@@ -358,7 +358,7 @@ def _run_active_comparison(
     q_positions = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
 
     # Fused path
-    y_fused, _ = wayfinder_permute_window_attention_active_batched(
+    y_fused, _ = butterfly_permute_window_attention_active_batched(
         q, k, v,
         all_perms=all_perms,
         all_inv_perms=all_inv_perms,
@@ -370,7 +370,7 @@ def _run_active_comparison(
     mx.eval(y_fused)
 
     # Chunked reference (fused disabled)
-    y_ref, _ = wayfinder_permute_window_attention_active_batched(
+    y_ref, _ = butterfly_permute_window_attention_active_batched(
         q, k, v,
         all_perms=all_perms,
         all_inv_perms=all_inv_perms,
@@ -467,7 +467,7 @@ class TestFusedActiveRowGQAPermExpansion:
         q_positions = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
 
         # Fused with Hp-shaped perms (exercises the GQA expansion fix)
-        y_hp = wayfinder_fused_permute_window_attention_active(
+        y_hp = butterfly_fused_permute_window_attention_active(
             q, k, v,
             all_perms=perms_hp,
             all_inv_perms=inv_hp,
@@ -477,7 +477,7 @@ class TestFusedActiveRowGQAPermExpansion:
         mx.eval(y_hp)
 
         # Reference with pre-expanded Hq-shaped perms
-        y_hq = wayfinder_fused_permute_window_attention_active(
+        y_hq = butterfly_fused_permute_window_attention_active(
             q, k, v,
             all_perms=perms_hq,
             all_inv_perms=inv_hq,
@@ -542,7 +542,7 @@ class TestFusedActiveRowCausality:
 
         q_positions = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
 
-        y = wayfinder_fused_permute_window_attention_active(
+        y = butterfly_fused_permute_window_attention_active(
             q, k, v,
             all_perms=all_perms,
             all_inv_perms=all_inv_perms,
@@ -579,7 +579,7 @@ class TestFusedActiveRowFallback:
         q_pos = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
 
         # With circular=True, fused should be ineligible but still produce output
-        y, _ = wayfinder_permute_window_attention_active_batched(
+        y, _ = butterfly_permute_window_attention_active_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms,
             query_positions=q_pos, window=W,
@@ -598,7 +598,7 @@ class TestFusedActiveRowFallback:
         perms, inv_perms = _random_perms(Hq, Tk, seed=56)
         q_pos = mx.arange(Tk - Tq, Tk, dtype=mx.int32)
 
-        y, _ = wayfinder_permute_window_attention_active_batched(
+        y, _ = butterfly_permute_window_attention_active_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms,
             query_positions=q_pos, window=W,

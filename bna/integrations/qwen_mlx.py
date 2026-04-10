@@ -17,11 +17,11 @@ from bna.graph.abi import WayfinderGraphABI, graph_metrics, validate_graph_abi
 from bna.graph.analysis import expansion_proxy, spectral_gap
 from bna.mlx.attention import (
     AttentionProfile,
+    butterfly_permute_window_attention_active_batched,
+    butterfly_permute_window_attention_batched,
     sparse_gather_attention_active,
     sparse_gather_attention,
     stable_masked_softmax,
-    wayfinder_permute_window_attention_active_batched,
-    wayfinder_permute_window_attention_batched,
 )
 from bna.mlx.graph_abi import (
     MLXGraphABI,
@@ -39,7 +39,7 @@ EXPECTED_QWEN35_FULL_ATTENTION_LAYERS: tuple[int, ...] = (3, 7, 11, 15, 19, 23, 
 
 
 @dataclass
-class QwenWayfinderConfig:
+class QwenButterflyConfig:
     path: Literal["sparse", "permute"] = "permute"
     strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
@@ -69,6 +69,14 @@ class QwenWayfinderConfig:
     use_fused_dispatch: bool = True
     active_dense_threshold: Optional[int | str] = None
     wayfinder_decode_backend: Literal["active_permute", "dense"] = "active_permute"
+
+    @property
+    def butterfly_decode_backend(self) -> Literal["active_permute", "dense"]:
+        return self.wayfinder_decode_backend
+
+    @butterfly_decode_backend.setter
+    def butterfly_decode_backend(self, value: Literal["active_permute", "dense"]) -> None:
+        self.wayfinder_decode_backend = value
 
 
 @dataclass(frozen=True)
@@ -660,10 +668,10 @@ def _edge_utilization_proxy(
     }
 
 
-class QwenWayfinderAttention(nn.Module):
-    """Qwen attention module with HCSA sparse/permute backend."""
+class QwenButterflyAttention(nn.Module):
+    """Qwen attention module with Butterfly sparse/permute backends."""
 
-    def __init__(self, base_attn: nn.Module, cfg: QwenWayfinderConfig):
+    def __init__(self, base_attn: nn.Module, cfg: QwenButterflyConfig):
         super().__init__()
 
         self.n_heads = _attn_num_heads(base_attn)
@@ -696,7 +704,8 @@ class QwenWayfinderAttention(nn.Module):
         self.circular = bool(cfg.circular)
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
-        self.wayfinder_decode_backend = str(cfg.wayfinder_decode_backend)
+        self.butterfly_decode_backend = str(cfg.butterfly_decode_backend)
+        self.wayfinder_decode_backend = self.butterfly_decode_backend
         if cfg.active_dense_threshold == "auto":
             self.active_dense_threshold = (2 * cfg.window + 1) ** 2
         elif cfg.active_dense_threshold is None:
@@ -1007,19 +1016,19 @@ class QwenWayfinderAttention(nn.Module):
         force_dense_quantized_kv = bool(
             quantized_kv_cache and cache is not None and q_len < k_len
         )
-        force_dense_wayfinder_decode = (
+        force_dense_butterfly_decode = (
             active_mode
             and q_len <= 2
             and self.path == "permute"
-            and self.wayfinder_decode_backend == "dense"
+            and self.butterfly_decode_backend == "dense"
         )
         use_active_permute = active_mode and not (force_dense_active or force_dense_large_active)
-        use_active_permute = use_active_permute and not force_dense_wayfinder_decode
+        use_active_permute = use_active_permute and not force_dense_butterfly_decode
         sparse_active_positions: Optional[mx.array] = None
 
         # During incremental decode, Q length != K length. Keep dense path for correctness.
         if force_dense_quantized_kv or force_dense_active or force_dense_large_active or (
-            force_dense_wayfinder_decode
+            force_dense_butterfly_decode
             or (q_len != k_len and not (use_active_permute or sparse_active_mode))
         ):
             fallback_reason = (
@@ -1032,8 +1041,8 @@ class QwenWayfinderAttention(nn.Module):
                         "active_large_q"
                         if force_dense_large_active
                         else (
-                            "wayfinder_decode_dense"
-                            if force_dense_wayfinder_decode
+                            "butterfly_decode_stock"
+                            if force_dense_butterfly_decode
                             else "q_len_mismatch"
                         )
                     )
@@ -1065,8 +1074,10 @@ class QwenWayfinderAttention(nn.Module):
                     "active_dense_triggered": bool(force_dense_active),
                     "active_large_q_dense_triggered": bool(force_dense_large_active),
                     "quantized_kv_cache": bool(quantized_kv_cache),
-                    "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
-                    "wayfinder_decode_backend": self.wayfinder_decode_backend,
+                    "butterfly_decode_stock_triggered": bool(force_dense_butterfly_decode),
+                    "butterfly_decode_backend": self.butterfly_decode_backend,
+                    "wayfinder_decode_dense_triggered": bool(force_dense_butterfly_decode),
+                    "wayfinder_decode_backend": self.butterfly_decode_backend,
                     "adaptive_graph_reuse": bool(int(fallback_graph_seq_len) != int(k_len)),
                     "sparse_active_mode": bool(sparse_active_mode),
                 },
@@ -1082,14 +1093,14 @@ class QwenWayfinderAttention(nn.Module):
         t_graph0 = _now_ms()
         if self.permute_log_chunks:
             print(
-                f"    qwen_wayfinder: requesting graph cache for T={graph_T} (seq_len={T})",
+                f"    qwen_butterfly: requesting graph cache for T={graph_T} (seq_len={T})",
                 flush=True,
             )
         graph_cache, cache_hit = self.graph_runtime.get_or_build_cache(id(self), graph_T)
         graph_ms = _now_ms() - t_graph0
         if self.permute_log_chunks:
             print(
-                "    qwen_wayfinder: graph cache ready "
+                "    qwen_butterfly: graph cache ready "
                 f"(hit={bool(cache_hit)}, source={graph_cache.source}, {graph_ms:.1f} ms)",
                 flush=True,
             )
@@ -1183,7 +1194,7 @@ class QwenWayfinderAttention(nn.Module):
                 active_start = T - q_len
                 active_positions = mx.arange(active_start, T, dtype=mx.int32)
                 try:
-                    y_h, _w = wayfinder_permute_window_attention_active_batched(
+                    y_h, _w = butterfly_permute_window_attention_active_batched(
                         queries,
                         keys,
                         values,
@@ -1223,8 +1234,10 @@ class QwenWayfinderAttention(nn.Module):
                             "active_dense_triggered": False,
                             "active_large_q_dense_triggered": bool(force_dense_large_active),
                             "quantized_kv_cache": bool(quantized_kv_cache),
-                            "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
-                            "wayfinder_decode_backend": self.wayfinder_decode_backend,
+                            "butterfly_decode_stock_triggered": bool(force_dense_butterfly_decode),
+                            "butterfly_decode_backend": self.butterfly_decode_backend,
+                            "wayfinder_decode_dense_triggered": bool(force_dense_butterfly_decode),
+                            "wayfinder_decode_backend": self.butterfly_decode_backend,
                             "adaptive_graph_reuse": bool(graph_T != T),
                             "sparse_active_mode": False,
                             "fallback_error": f"{type(exc).__name__}: {exc}",
@@ -1246,7 +1259,7 @@ class QwenWayfinderAttention(nn.Module):
                     log_progress=self.permute_log_chunks,
                 )
             else:
-                y_h, _w = wayfinder_permute_window_attention_batched(
+                y_h, _w = butterfly_permute_window_attention_batched(
                     queries,
                     keys,
                     values,
@@ -1317,8 +1330,10 @@ class QwenWayfinderAttention(nn.Module):
                 "active_dense_triggered": False,
                 "active_large_q_dense_triggered": bool(force_dense_large_active),
                 "quantized_kv_cache": bool(quantized_kv_cache),
-                "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
-                "wayfinder_decode_backend": self.wayfinder_decode_backend,
+                "butterfly_decode_stock_triggered": bool(force_dense_butterfly_decode),
+                "butterfly_decode_backend": self.butterfly_decode_backend,
+                "wayfinder_decode_dense_triggered": bool(force_dense_butterfly_decode),
+                "wayfinder_decode_backend": self.butterfly_decode_backend,
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "sparse_active_mode": bool(sparse_active_mode),
             },
@@ -1326,10 +1341,10 @@ class QwenWayfinderAttention(nn.Module):
         return out
 
 
-def swap_qwen_attention_with_wayfinder(
+def swap_qwen_attention_with_butterfly(
     model: nn.Module,
     *,
-    cfg: QwenWayfinderConfig,
+    cfg: QwenButterflyConfig,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> List[int]:
     """Replace selected Qwen attention blocks with Butterfly-backed attention modules.
@@ -1348,7 +1363,7 @@ def swap_qwen_attention_with_wayfinder(
         base_attn = getattr(layer, "self_attn", None)
         if base_attn is None:
             continue
-        layer.self_attn = QwenWayfinderAttention(base_attn, cfg)
+        layer.self_attn = QwenButterflyAttention(base_attn, cfg)
         replaced.append(i)
     return replaced
 
@@ -1384,10 +1399,31 @@ def validate_qwen35_full_attention_layers(
     return discovered
 
 
-def iter_qwen_wayfinder_layers(model: nn.Module) -> Iterable[QwenWayfinderAttention]:
+def iter_qwen_butterfly_layers(model: nn.Module) -> Iterable[QwenButterflyAttention]:
     if not hasattr(model, "layers"):
         raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
     for layer in model.layers:
         attn = getattr(layer, "self_attn", None)
-        if isinstance(attn, QwenWayfinderAttention):
+        if isinstance(attn, QwenButterflyAttention):
             yield attn
+
+
+QwenWayfinderConfig = QwenButterflyConfig
+QwenWayfinderAttention = QwenButterflyAttention
+swap_qwen_attention_with_wayfinder = swap_qwen_attention_with_butterfly
+iter_qwen_wayfinder_layers = iter_qwen_butterfly_layers
+
+__all__ = [
+    "EXPECTED_QWEN35_FULL_ATTENTION_LAYERS",
+    "QwenButterflyConfig",
+    "QwenButterflyAttention",
+    "QwenWayfinderConfig",
+    "QwenWayfinderAttention",
+    "extract_qkv_from_qwen_attention",
+    "swap_qwen_attention_with_butterfly",
+    "swap_qwen_attention_with_wayfinder",
+    "get_qwen_full_attention_layer_indices",
+    "validate_qwen35_full_attention_layers",
+    "iter_qwen_butterfly_layers",
+    "iter_qwen_wayfinder_layers",
+]

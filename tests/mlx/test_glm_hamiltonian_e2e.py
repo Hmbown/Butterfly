@@ -1,6 +1,6 @@
 """Lightweight E2E tests for GLM integration with Hamiltonian features.
 
-Tests the actual GLMWayfinderAttention code path with synthetic inputs
+Tests the actual GLMButterflyAttention code path with synthetic inputs
 that match GLM-4.7-Flash MLA dimensions — no model loading required.
 """
 from __future__ import annotations
@@ -12,8 +12,8 @@ mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
 from bna.integrations.glm_mlx import (  # noqa: E402
-    GLMWayfinderAttention,
-    GLMWayfinderConfig,
+    GLMButterflyAttention,
+    GLMButterflyConfig,
 )
 
 
@@ -90,7 +90,7 @@ class MockGLMAttn(nn.Module):
 
 
 def _make_glm_attn_and_cfg(**cfg_overrides):
-    """Create a mock GLM attention and GLMWayfinderConfig."""
+    """Create a mock GLM attention and GLMButterflyConfig."""
     base_attn = MockGLMAttn()
     cfg_defaults = dict(
         window=8, permute_head_chunk_size=2, query_chunk_size=64,
@@ -100,7 +100,7 @@ def _make_glm_attn_and_cfg(**cfg_overrides):
         edge_bias=False,
     )
     cfg_defaults.update(cfg_overrides)
-    cfg = GLMWayfinderConfig(**cfg_defaults)
+    cfg = GLMButterflyConfig(**cfg_defaults)
     return base_attn, cfg
 
 
@@ -115,7 +115,7 @@ class TestGLMPrefill:
         base_attn, cfg = _make_glm_attn_and_cfg(
             circular=False, multi_cycle_mode="average",
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         x = mx.random.normal((1, 64, 256))
         out = attn(x)
         mx.eval(out)
@@ -126,7 +126,7 @@ class TestGLMPrefill:
         base_attn, cfg = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="average",
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         x = mx.random.normal((1, 64, 256))
         out = attn(x)
         mx.eval(out)
@@ -138,12 +138,12 @@ class TestGLMPrefill:
         base_attn_a, cfg_a = _make_glm_attn_and_cfg(
             circular=False, multi_cycle_mode="average",
         )
-        attn_a = GLMWayfinderAttention(base_attn_a, cfg_a)
+        attn_a = GLMButterflyAttention(base_attn_a, cfg_a)
 
         base_attn_b, cfg_b = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="average",
         )
-        attn_b = GLMWayfinderAttention(base_attn_b, cfg_b)
+        attn_b = GLMButterflyAttention(base_attn_b, cfg_b)
         # Copy weights
         attn_b.update(attn_a.parameters())
         mx.eval(attn_b.parameters())
@@ -160,7 +160,7 @@ class TestGLMPrefill:
         base_attn, cfg = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="union", num_cycles=2,
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         x = mx.random.normal((1, 64, 256))
         out = attn(x)
         mx.eval(out)
@@ -172,12 +172,12 @@ class TestGLMPrefill:
         base_attn_a, cfg_a = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="average", num_cycles=2,
         )
-        attn_a = GLMWayfinderAttention(base_attn_a, cfg_a)
+        attn_a = GLMButterflyAttention(base_attn_a, cfg_a)
 
         base_attn_b, cfg_b = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="union", num_cycles=2,
         )
-        attn_b = GLMWayfinderAttention(base_attn_b, cfg_b)
+        attn_b = GLMButterflyAttention(base_attn_b, cfg_b)
         attn_b.update(attn_a.parameters())
         mx.eval(attn_b.parameters())
 
@@ -198,7 +198,7 @@ class TestGLMChunkedPrefillDecode:
         base_attn, cfg = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="average",
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
 
         T_total = 128
         chunk_size = 32
@@ -240,7 +240,7 @@ class TestGLMChunkedPrefillDecode:
         base_attn, cfg = _make_glm_attn_and_cfg(
             circular=True, multi_cycle_mode="union", num_cycles=2,
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
 
         cache = _MockKVCache()
         # Prefill in 2 chunks
@@ -265,7 +265,7 @@ class TestGLMChunkedPrefillDecode:
             circular=False,
             multi_cycle_mode="average",
         )
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         cache = _MockKVCache()
 
         # First prefill chunk: q_len == k_len (regular sparse path)
@@ -300,16 +300,16 @@ class TestGLMConfigPropagation:
 
     def test_circular_flag(self):
         base_attn, cfg = _make_glm_attn_and_cfg(circular=True)
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         assert attn.circular is True
 
     def test_multi_cycle_mode_flag(self):
         base_attn, cfg = _make_glm_attn_and_cfg(multi_cycle_mode="union")
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         assert attn.multi_cycle_mode == "union"
 
     def test_defaults(self):
         base_attn, cfg = _make_glm_attn_and_cfg()
-        attn = GLMWayfinderAttention(base_attn, cfg)
+        attn = GLMButterflyAttention(base_attn, cfg)
         assert attn.circular is False
         assert attn.multi_cycle_mode == "average"

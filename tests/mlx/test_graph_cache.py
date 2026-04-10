@@ -5,7 +5,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from bna.mlx.attention import WayfinderAttentionMLX, _GRAPH_CACHE_STORE
+from bna.mlx.attention import ButterflyAttentionMLX, _GRAPH_CACHE_STORE
 from bna.mlx.graph_abi import causal_neighbor_mask, safe_neighbor_idx
 
 
@@ -18,8 +18,8 @@ def _make_attn(
     window: int = 4,
     landmark_stride: int = 8,
     seed: int = 42,
-) -> WayfinderAttentionMLX:
-    return WayfinderAttentionMLX(
+) -> ButterflyAttentionMLX:
+    return ButterflyAttentionMLX(
         n_embd,
         n_heads,
         window=window,

@@ -25,7 +25,6 @@ from bna.mlx.graph_abi import (
 from bna.mlx.fused_attention import (
     _fused_active_dispatch_eligible,
     _fused_dispatch_eligible,
-    wayfinder_fused_permute_window_attention,
 )
 from bna.topology import Topology, TopologyGraph
 
@@ -751,7 +750,7 @@ def permute_cycle_window_attention_single(
     return y_h, None, permute_ms, attn_ms
 
 
-def wayfinder_permute_window_attention(
+def butterfly_permute_window_attention(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -833,7 +832,7 @@ def wayfinder_permute_window_attention(
     return y, None, permute_ms, attention_ms
 
 
-def wayfinder_permute_window_attention_batched(
+def butterfly_permute_window_attention_batched(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -933,7 +932,7 @@ def wayfinder_permute_window_attention_batched(
         d = int(all_perms.shape[1])
         ys: list[mx.array] = []
         for c in range(d):
-            y_c, _ = wayfinder_permute_window_attention_batched(
+            y_c, _ = butterfly_permute_window_attention_batched(
                 q,
                 k,
                 v,
@@ -992,9 +991,9 @@ def wayfinder_permute_window_attention_batched(
         # --- Chunked-gather + SDPA: per-chunk gathers from original Q/K/V ---
         # Avoids full-T permutation copies while using MLX's fast SDPA.
         from bna.mlx.fused_attention import (
-            wayfinder_fused_permute_window_attention_chunked_gather,
+            butterfly_fused_permute_window_attention_chunked_gather,
         )
-        y = wayfinder_fused_permute_window_attention_chunked_gather(
+        y = butterfly_fused_permute_window_attention_chunked_gather(
             q, k, v,
             all_perms=all_perms,
             all_inv_perms=all_inv_perms,
@@ -1293,7 +1292,7 @@ def wayfinder_permute_window_attention_batched(
     return mx.concatenate(y_chunks, axis=1), None
 
 
-def wayfinder_covering_attention(
+def butterfly_covering_attention(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -1312,7 +1311,7 @@ def wayfinder_covering_attention(
     multi_cycle_mode: Literal["average", "union"] = "average",
 ) -> Tuple[mx.array, mx.array | None]:
     """Covering-mode attention by averaging one permute-window pass per cycle."""
-    return wayfinder_permute_window_attention_batched(
+    return butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -1336,7 +1335,7 @@ def wayfinder_covering_attention(
     )
 
 
-def wayfinder_permute_window_attention_active_batched(
+def butterfly_permute_window_attention_active_batched(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -1438,7 +1437,7 @@ def wayfinder_permute_window_attention_active_batched(
         d = int(all_perms.shape[1])
         ys: list[mx.array] = []
         for c in range(d):
-            y_c, _ = wayfinder_permute_window_attention_active_batched(
+            y_c, _ = butterfly_permute_window_attention_active_batched(
                 q,
                 k,
                 v,
@@ -1497,9 +1496,9 @@ def wayfinder_permute_window_attention_active_batched(
 
         if has_discovered_fused_attention_kernel():
             from bna.mlx.fused_attention import (
-                wayfinder_fused_permute_window_attention_active_metal,
+                butterfly_fused_permute_window_attention_active_metal,
             )
-            y = wayfinder_fused_permute_window_attention_active_metal(
+            y = butterfly_fused_permute_window_attention_active_metal(
                 q, k, v,
                 all_perms=all_perms,
                 all_inv_perms=all_inv_perms,
@@ -1511,9 +1510,9 @@ def wayfinder_permute_window_attention_active_batched(
             return y, None
 
         from bna.mlx.fused_attention import (
-            wayfinder_fused_permute_window_attention_active,
+            butterfly_fused_permute_window_attention_active,
         )
-        y = wayfinder_fused_permute_window_attention_active(
+        y = butterfly_fused_permute_window_attention_active(
             q, k, v,
             all_perms=all_perms,
             all_inv_perms=all_inv_perms,
@@ -1690,8 +1689,8 @@ def wayfinder_permute_window_attention_active_batched(
     return mx.concatenate(y_head_chunks, axis=1), None
 
 
-class WayfinderAttentionMLX(nn.Module):
-    """Wayfinder sparse attention in MLX with ABI-driven graph construction."""
+class ButterflyAttentionMLX(nn.Module):
+    """Butterfly sparse attention in MLX with ABI-driven graph construction."""
 
     def __init__(
         self,
@@ -2195,7 +2194,7 @@ class WayfinderAttentionMLX(nn.Module):
             )
         elif self.path == "permute":
             t_perm0 = _now_ms()
-            y_h, w = wayfinder_permute_window_attention_batched(
+            y_h, w = butterfly_permute_window_attention_batched(
                 q,
                 k,
                 v,
@@ -2251,3 +2250,26 @@ class WayfinderAttentionMLX(nn.Module):
             return y, debug
 
         return y
+
+
+WayfinderAttentionMLX = ButterflyAttentionMLX
+wayfinder_permute_window_attention = butterfly_permute_window_attention
+wayfinder_permute_window_attention_batched = butterfly_permute_window_attention_batched
+wayfinder_covering_attention = butterfly_covering_attention
+wayfinder_permute_window_attention_active_batched = (
+    butterfly_permute_window_attention_active_batched
+)
+
+__all__ = [
+    "ButterflyAttentionMLX",
+    "WayfinderAttentionMLX",
+    "butterfly_permute_window_attention",
+    "butterfly_permute_window_attention_batched",
+    "butterfly_covering_attention",
+    "butterfly_permute_window_attention_active_batched",
+    "wayfinder_permute_window_attention",
+    "wayfinder_permute_window_attention_batched",
+    "wayfinder_covering_attention",
+    "wayfinder_permute_window_attention_active_batched",
+    "dense_causal_attention",
+]

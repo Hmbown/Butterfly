@@ -33,9 +33,9 @@ from bna.integrations.mlx_kv_quant import (  # noqa: E402
     validate_mlx_kv_quantization_config,
 )
 from bna.integrations.qwen_mlx import (  # noqa: E402
-    QwenWayfinderAttention,
-    QwenWayfinderConfig,
-    swap_qwen_attention_with_wayfinder,
+    QwenButterflyAttention,
+    QwenButterflyConfig,
+    swap_qwen_attention_with_butterfly,
     validate_qwen35_full_attention_layers,
 )
 from bna.integrations.qwen_mlx_loader import (  # noqa: E402
@@ -232,6 +232,7 @@ def _public_stock_fallback_reason(
     reason = "" if raw_reason is None else str(raw_reason).strip()
     if reason and reason.lower() not in {"none", "null"}:
         mapping = {
+            "butterfly_decode_stock": "decode_backend_stock",
             "wayfinder_decode_dense": "decode_backend_stock",
             "active_dense_threshold": "stock_threshold",
             "active_large_q": "stock_large_query",
@@ -363,7 +364,7 @@ def _estimate_kv_bytes_per_token(
     return int(round(total))
 
 
-def _collect_wayfinder_trace_snapshot(
+def _collect_butterfly_trace_snapshot(
     model: Any,
     *,
     layer_indices: Optional[Sequence[int]] = None,
@@ -375,7 +376,7 @@ def _collect_wayfinder_trace_snapshot(
     else:
         selected = []
         for idx, layer in enumerate(layers):
-            if isinstance(getattr(layer, "self_attn", None), QwenWayfinderAttention):
+            if isinstance(getattr(layer, "self_attn", None), QwenButterflyAttention):
                 selected.append(int(idx))
     if int(max_layers) > 0:
         selected = selected[: int(max_layers)]
@@ -393,6 +394,8 @@ def _collect_wayfinder_trace_snapshot(
         "active_dense_triggered",
         "active_large_q_dense_triggered",
         "quantized_kv_cache",
+        "butterfly_decode_stock_triggered",
+        "butterfly_decode_backend",
         "wayfinder_decode_dense_triggered",
         "wayfinder_decode_backend",
         "adaptive_graph_reuse",
@@ -403,7 +406,7 @@ def _collect_wayfinder_trace_snapshot(
     out: List[Dict[str, Any]] = []
     for idx in selected:
         attn = getattr(layers[idx], "self_attn", None)
-        if not isinstance(attn, QwenWayfinderAttention):
+        if not isinstance(attn, QwenButterflyAttention):
             continue
         profile = attn.last_profile.to_dict() if hasattr(attn, "last_profile") else {}
         notes_obj = profile.get("notes")
@@ -423,7 +426,7 @@ def _collect_wayfinder_trace_snapshot(
     return out
 
 
-def _summarize_wayfinder_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+def _summarize_butterfly_trace(samples: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     path_counts: Counter[str] = Counter()
     cache_source_counts: Counter[str] = Counter()
     phase_counts: Counter[str] = Counter()
@@ -599,7 +602,7 @@ def _prefill_prompt_tokens(
         logits = model(tokens[:, start:end], cache=prompt_cache)
         mx.eval(logits)
         if trace_samples is not None:
-            layer_rows = _collect_wayfinder_trace_snapshot(
+            layer_rows = _collect_butterfly_trace_snapshot(
                 model,
                 layer_indices=trace_layer_indices,
             )
@@ -793,8 +796,8 @@ class ServerState:
     warmup_status: Dict[str, Any] = field(default_factory=dict)
 
 
-def _build_wayfinder_config(args: argparse.Namespace) -> QwenWayfinderConfig:
-    return QwenWayfinderConfig(
+def _build_butterfly_config(args: argparse.Namespace) -> QwenButterflyConfig:
+    return QwenButterflyConfig(
         path="permute",
         strategy="random",
         window=int(args.window),
@@ -883,7 +886,7 @@ def _build_request_meta(
     ttft_sec: Optional[float],
     itl_values: Sequence[float],
 ) -> Dict[str, Any]:
-    trace_summary = _summarize_wayfinder_trace(trace_samples)
+    trace_summary = _summarize_butterfly_trace(trace_samples)
     kv_quantization_meta = summarize_mlx_prompt_cache_quantization(
         working_cache,
         config=state.kv_quantization,
@@ -1248,7 +1251,7 @@ def create_app(state: ServerState) -> FastAPI:
                 final_response_token = 0
                 for response in _iter_generation():
                     now = time.perf_counter()
-                    layer_rows = _collect_wayfinder_trace_snapshot(
+                    layer_rows = _collect_butterfly_trace_snapshot(
                         state.model,
                         layer_indices=state.replaced_layer_indices,
                     )
@@ -1341,7 +1344,7 @@ def create_app(state: ServerState) -> FastAPI:
                 try:
                     for response in _iter_generation():
                         now = time.perf_counter()
-                        layer_rows = _collect_wayfinder_trace_snapshot(
+                        layer_rows = _collect_butterfly_trace_snapshot(
                             state.model,
                             layer_indices=state.replaced_layer_indices,
                         )
@@ -1595,10 +1598,10 @@ def main() -> None:
         args.butterfly_stream_o_proj = bool(args.butterfly_stream_o_proj) or bool(
             args.permute_stream_o_proj
         )
-        wf_cfg = _build_wayfinder_config(args)
-        replaced_layer_indices = swap_qwen_attention_with_wayfinder(
+        butterfly_cfg = _build_butterfly_config(args)
+        replaced_layer_indices = swap_qwen_attention_with_butterfly(
             model,
-            cfg=wf_cfg,
+            cfg=butterfly_cfg,
             layer_indices=full_attention_layer_indices,
         )
         _log(
@@ -1606,7 +1609,7 @@ def main() -> None:
             f"layers_replaced={len(replaced_layer_indices)} "
             f"indices={replaced_layer_indices} "
             "scope=qwen35_full_attention_layers "
-            f"decode_backend={'stock' if wf_cfg.wayfinder_decode_backend == 'dense' else 'experimental'}"
+            f"decode_backend={'stock' if butterfly_cfg.butterfly_decode_backend == 'dense' else 'experimental'}"
         )
     else:
         _log(

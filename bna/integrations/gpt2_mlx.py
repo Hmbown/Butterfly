@@ -13,8 +13,8 @@ from mlx_lm.models.base import scaled_dot_product_attention
 from bna.graph.abi import WayfinderGraphABI, graph_metrics
 from bna.mlx.attention import (
     AttentionProfile,
+    butterfly_permute_window_attention_batched,
     sparse_gather_attention,
-    wayfinder_permute_window_attention_batched,
 )
 from bna.mlx.graph_abi import causal_neighbor_mask
 
@@ -26,7 +26,7 @@ def _now_ms() -> float:
 
 
 @dataclass
-class GPT2WayfinderConfig:
+class GPT2ButterflyConfig:
     path: Literal["sparse", "permute"] = "permute"
     strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
@@ -81,10 +81,10 @@ def extract_qkv_from_gpt2_attention(
     return queries, keys, values
 
 
-class GPT2WayfinderAttention(nn.Module):
-    """GPT-2 attention module with HCSA sparse/permute backend."""
+class GPT2ButterflyAttention(nn.Module):
+    """GPT-2 attention module with Butterfly sparse/permute backends."""
 
-    def __init__(self, base_attn: nn.Module, cfg: GPT2WayfinderConfig):
+    def __init__(self, base_attn: nn.Module, cfg: GPT2ButterflyConfig):
         super().__init__()
 
         self.n_head = int(base_attn.n_head)
@@ -291,7 +291,7 @@ class GPT2WayfinderAttention(nn.Module):
                 if self._runtime_memory_budget_bytes is not None
                 else self.permute_memory_budget_bytes
             )
-            y_h, _w = wayfinder_permute_window_attention_batched(
+            y_h, _w = butterfly_permute_window_attention_batched(
                 queries,
                 keys,
                 values,
@@ -353,10 +353,10 @@ class GPT2WayfinderAttention(nn.Module):
         return out
 
 
-def swap_gpt2_attention_with_wayfinder(
+def swap_gpt2_attention_with_butterfly(
     model: nn.Module,
     *,
-    cfg: GPT2WayfinderConfig,
+    cfg: GPT2ButterflyConfig,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> List[int]:
     """Replace GPT-2 attention blocks with HCSA-backed attention modules."""
@@ -371,6 +371,21 @@ def swap_gpt2_attention_with_wayfinder(
         base_attn = getattr(layer, "attn", None)
         if base_attn is None:
             continue
-        layer.attn = GPT2WayfinderAttention(base_attn, cfg)
+        layer.attn = GPT2ButterflyAttention(base_attn, cfg)
         replaced.append(i)
     return replaced
+
+
+GPT2WayfinderConfig = GPT2ButterflyConfig
+GPT2WayfinderAttention = GPT2ButterflyAttention
+swap_gpt2_attention_with_wayfinder = swap_gpt2_attention_with_butterfly
+
+__all__ = [
+    "GPT2ButterflyConfig",
+    "GPT2ButterflyAttention",
+    "GPT2WayfinderConfig",
+    "GPT2WayfinderAttention",
+    "extract_qkv_from_gpt2_attention",
+    "swap_gpt2_attention_with_butterfly",
+    "swap_gpt2_attention_with_wayfinder",
+]

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Benchmark dense vs Wayfinder prefill on Qwen3.5 (CUDA).
+"""Benchmark dense vs Butterfly prefill on Qwen3.5 (CUDA).
 
 Measures prefill-only forward pass latency at various sequence lengths,
-comparing stock dense attention against configurable Wayfinder/HCSA attention
+comparing stock dense attention against configurable Butterfly/HCSA attention
 on the full_attention layers. The benchmark can run either the true sparse
 Hamiltonian graph path or the permute-window surrogate.
 
@@ -102,7 +102,7 @@ def _unsupported_flex_message(diag: Dict[str, Any]) -> str:
         "Requested `--engine flex` on a CUDA device that this PyTorch build does not "
         f"explicitly support (device capability={cap_str}; torch arch list={diag.get('supported_arch_list')}). "
         "On this machine, unsupported flex runs have correlated with NVIDIA `Xid 13` "
-        "illegal-instruction faults during Wayfinder phases. Use `--engine batched`, "
+        "illegal-instruction faults during Butterfly phases. Use `--engine batched`, "
         "or pass `--allow-unsupported-arch` if you intentionally want to force flex anyway."
     )
 
@@ -232,7 +232,10 @@ def _row_key(row: Dict[str, Any]) -> Optional[Tuple[Any, ...]]:
     if row_type == "experiment_meta":
         return ("experiment_meta",)
     if row_type == "bench":
-        return ("bench", row.get("label"), row.get("seq_len"))
+        label = row.get("label")
+        if label == "wayfinder":
+            label = "butterfly"
+        return ("bench", label, row.get("seq_len"))
     if row_type == "divergence":
         return ("divergence", row.get("seq_len"))
     return None
@@ -427,7 +430,7 @@ def _get_forward_module(model: torch.nn.Module, target: str) -> torch.nn.Module:
 
 def _resolve_model_device_map(*, forward_target: str) -> Any:
     if torch.cuda.is_available() and forward_target == "backbone":
-        # Backbone-only timing must keep dense and Wayfinder on the same real device.
+        # Backbone-only timing must keep dense and Butterfly on the same real device.
         return 0
     return "auto"
 
@@ -517,7 +520,7 @@ def _validate_run_shape(args: argparse.Namespace, tokenizer: Any) -> None:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Bench dense vs Wayfinder prefill on Qwen3.5 CUDA")
+    p = argparse.ArgumentParser(description="Bench dense vs Butterfly prefill on Qwen3.5 CUDA")
     p.add_argument("--model-path", type=str, required=True)
     p.add_argument(
         "--seq-lens", type=int, nargs="+", default=[64, 128, 256, 512, 1024, 2048, 4096, 8192]
@@ -544,14 +547,14 @@ def main() -> None:
         type=str,
         default="random",
         choices=["random", "regular_partition", "greedy", "online_insertion"],
-        help="Hamiltonian strategy used to build the Wayfinder graph.",
+        help="Hamiltonian strategy used to build the Butterfly graph.",
     )
     p.add_argument(
         "--path",
         type=str,
         default="sparse",
         choices=["permute", "sparse", "block_sparse"],
-        help="Wayfinder path: `sparse` uses the full HCSA graph; "
+        help="Butterfly path: `sparse` uses the full HCSA graph; "
         "`permute` uses the cycle-window surrogate; "
         "`block_sparse` uses flex-attention over a static block layout.",
     )
@@ -560,41 +563,41 @@ def main() -> None:
         type=str,
         default="auto",
         choices=["auto", "flex", "batched", "legacy", "sdpa", "triton"],
-        help="Wayfinder engine: auto, flex, batched, legacy, sdpa, or triton. "
+        help="Butterfly engine: auto, flex, batched, legacy, sdpa, or triton. "
         "sdpa uses F.scaled_dot_product_attention for block_sparse (no torch.compile). "
         "triton uses a fused Triton block-sparse kernel for block_sparse.",
     )
     p.add_argument(
         "--block-size", type=int, default=128, help="Block size for the `block_sparse` path."
     )
-    # Block-sparse topology is always "wayfinder" now; the old "hamiltonian"
+    # Block-sparse topology is always "butterfly" now; the old "wayfinder"/"hamiltonian"
     # option has been archived.  We keep a hidden arg for backwards compat
-    # with saved command lines but ignore non-wayfinder values.
-    p.add_argument("--block-sparse-topology", type=str, default="wayfinder", help=argparse.SUPPRESS)
+    # with saved command lines but ignore non-butterfly values.
+    p.add_argument("--block-sparse-topology", type=str, default="butterfly", help=argparse.SUPPRESS)
     p.add_argument(
         "--block-local-window-blocks",
         type=int,
         default=1,
-        help="Number of causal predecessor blocks kept per query block for Wayfinder block topology.",
+        help="Number of causal predecessor blocks kept per query block for Butterfly block topology.",
     )
     p.add_argument(
         "--block-partner-count",
         type=int,
         default=1,
-        help="Number of deterministic partner blocks kept per query block for Wayfinder block topology.",
+        help="Number of deterministic partner blocks kept per query block for Butterfly block topology.",
     )
     p.add_argument(
         "--block-sink-blocks",
         type=int,
         default=1,
-        help="Number of fixed sink blocks exposed to every later block for Wayfinder block topology.",
+        help="Number of fixed sink blocks exposed to every later block for Butterfly block topology.",
     )
     p.add_argument(
         "--block-partner-rule",
         type=str,
         default="xor",
         choices=["xor", "bit_reversal", "benes"],
-        help="Deterministic partner rule used by the Wayfinder block topology.",
+        help="Deterministic partner rule used by the Butterfly block topology.",
     )
     p.add_argument(
         "--block-chunk-size",
@@ -610,25 +613,25 @@ def main() -> None:
         "--compute-graph-metrics",
         action="store_true",
         help="Compute graph diagnostics (degree, shortcut rate, reachability) "
-        "and attach them to wayfinder_profiles.",
+        "and attach them to butterfly_profiles.",
     )
     p.add_argument(
         "--sparse-query-chunk-size",
         type=int,
         default=0,
-        help="Wayfinder/HCSA query chunk size for the sparse path. `0` selects auto chunking.",
+        help="Butterfly/HCSA query chunk size for the sparse path. `0` selects auto chunking.",
     )
     p.add_argument(
         "--sparse-kv-head-chunk-size",
         type=int,
         default=0,
-        help="Wayfinder/HCSA KV-head block size for the sparse path. `0` selects auto chunking.",
+        help="Butterfly/HCSA KV-head block size for the sparse path. `0` selects auto chunking.",
     )
     p.add_argument(
         "--sparse-degree-chunk-size",
         type=int,
         default=0,
-        help="Wayfinder/HCSA streamed degree block size for the sparse path. `0` selects auto chunking.",
+        help="Butterfly/HCSA streamed degree block size for the sparse path. `0` selects auto chunking.",
     )
     p.add_argument(
         "--sparse-chunk-temp-budget-mib",
@@ -641,28 +644,28 @@ def main() -> None:
         type=str,
         default="auto",
         choices=["auto", "model", "float32"],
-        help="Wayfinder/HCSA sparse compute dtype: auto, model, or float32.",
+        help="Butterfly/HCSA sparse compute dtype: auto, model, or float32.",
     )
     p.add_argument(
         "--dump-sparse-trace-dir",
         type=str,
         default=None,
         help="Optional directory for replayable sparse trace payloads. "
-        "When set, each selected Wayfinder sparse layer dumps up to "
+        "When set, each selected Butterfly sparse layer dumps up to "
         "`--dump-sparse-trace-max-per-layer` traces.",
     )
     p.add_argument(
         "--dump-sparse-trace-max-per-layer",
         type=int,
         default=0,
-        help="Maximum sparse trace files to dump per Wayfinder layer. `0` disables dumping.",
+        help="Maximum sparse trace files to dump per Butterfly layer. `0` disables dumping.",
     )
     p.add_argument(
         "--dump-sparse-trace-layers",
         type=int,
         nargs="+",
         default=None,
-        help="Optional list of Wayfinder layer indices allowed to dump sparse traces.",
+        help="Optional list of Butterfly layer indices allowed to dump sparse traces.",
     )
     p.add_argument(
         "--forward-target",
@@ -681,9 +684,9 @@ def main() -> None:
         "--phases",
         type=str,
         nargs="+",
-        default=["wayfinder", "dense", "divergence"],
-        choices=["dense", "wayfinder", "divergence"],
-        help="Benchmark phases to execute.",
+        default=["butterfly", "dense", "divergence"],
+        choices=["dense", "butterfly", "wayfinder", "divergence"],
+        help="Benchmark phases to execute. `wayfinder` remains a legacy alias for `butterfly`.",
     )
     p.add_argument(
         "--resume",
@@ -702,8 +705,8 @@ def main() -> None:
             REPO_ROOT
             / "benchmarks"
             / "cuda"
-            / "qwen35_wayfinder"
-            / ".bench_qwen35_cuda_wayfinder.lock"
+            / "qwen35_butterfly"
+            / ".bench_qwen35_cuda_butterfly.lock"
         ),
         help="Exclusive lock file used to prevent overlapping benchmark runs.",
     )
@@ -797,22 +800,28 @@ def main() -> None:
             else:
                 _log(f"WARNING: {message}")
         elif args.engine == "auto":
-            try:
-                from bna.torch.triton_block_sparse_attn import TRITON_AVAILABLE
-
-                _triton_ok = TRITON_AVAILABLE
-            except ImportError:
-                _triton_ok = False
-            if _triton_ok:
+            if args.allow_unsupported_arch:
                 _log(
                     f"Auto-selecting `--engine triton` for `--path {args.path}` on unsupported arch."
                 )
                 args.engine = "triton"
             else:
-                _log(
-                    f"Auto-selecting `--engine sdpa` for `--path {args.path}` on unsupported arch (sm_121)."
-                )
-                args.engine = "sdpa"
+                try:
+                    from bna.torch.triton_block_sparse_attn import TRITON_AVAILABLE
+
+                    _triton_ok = TRITON_AVAILABLE
+                except ImportError:
+                    _triton_ok = False
+                if _triton_ok:
+                    _log(
+                        f"Auto-selecting `--engine triton` for `--path {args.path}` on unsupported arch."
+                    )
+                    args.engine = "triton"
+                else:
+                    _log(
+                        f"Auto-selecting `--engine sdpa` for `--path {args.path}` on unsupported arch (sm_121)."
+                    )
+                    args.engine = "sdpa"
     if args.path == "sparse" and args.engine != "auto":
         _log("Note: --engine is ignored for --path sparse.")
     _guard_unsupported_flex_longrun(
@@ -829,12 +838,14 @@ def main() -> None:
     if args.output:
         out_path = Path(args.output)
     else:
-        out_dir = REPO_ROOT / "benchmarks" / "cuda" / "qwen35_wayfinder"
+        out_dir = REPO_ROOT / "benchmarks" / "cuda" / "qwen35_butterfly"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"EXP-{timestamp}-{model_name}.ndjson"
     lock_path = Path(args.lock_file)
 
-    requested_phases = list(dict.fromkeys(args.phases))
+    requested_phases = [
+        "butterfly" if phase == "wayfinder" else phase for phase in dict.fromkeys(args.phases)
+    ]
     if args.skip_divergence and "divergence" in requested_phases:
         requested_phases.remove("divergence")
     if args.forward_target != "causal_lm" and "divergence" in requested_phases:
@@ -869,7 +880,7 @@ def main() -> None:
         "strategy": args.strategy,
         "path": args.path,
         "block_size": int(args.block_size),
-        "block_sparse_topology": "wayfinder",
+        "block_sparse_topology": "butterfly",
         "block_local_window_blocks": int(args.block_local_window_blocks),
         "block_partner_count": int(args.block_partner_count),
         "block_sink_blocks": int(args.block_sink_blocks),
@@ -975,15 +986,15 @@ def main() -> None:
             block_chunk_size=int(args.block_chunk_size),
         )
 
-        # ── Phase 1: Wayfinder ───────────────────────────────────────────
-        if "wayfinder" in requested_phases:
-            _log(f"\n═══ Phase 1: Wayfinder ({args.path}, {args.strategy}) ═══")
+        # ── Phase 1: Butterfly ───────────────────────────────────────────
+        if "butterfly" in requested_phases:
+            _log(f"\n═══ Phase 1: Butterfly ({args.path}, {args.strategy}) ═══")
             replaced = swap_qwen_attention_with_wayfinder_cuda(model, wayfinder_cfg)
             bench_wf = _get_forward_module(model, args.forward_target)
             wf_residency = (
                 _validate_backbone_module_residency(
                     bench_wf,
-                    label="wayfinder",
+                    label="butterfly",
                 )
                 if args.forward_target == "backbone"
                 else _summarize_module_residency(bench_wf)
@@ -996,9 +1007,9 @@ def main() -> None:
             _log(f"Replaced layers: {replaced}")
 
             for seq_len in args.seq_lens:
-                row_key = ("bench", "wayfinder", seq_len)
+                row_key = ("bench", "butterfly", seq_len)
                 if row_key in seen_keys:
-                    _log(f"  Wayfinder T={seq_len:,} already recorded; skipping.")
+                    _log(f"  Butterfly T={seq_len:,} already recorded; skipping.")
                     continue
 
                 cleared = clear_wayfinder_graph_caches(model)
@@ -1013,7 +1024,7 @@ def main() -> None:
                     )
 
                 mem = _gpu_mem_gb()
-                _log(f"  Wayfinder T={seq_len:,} (free={mem.get('free_gb', '?')}GB)...")
+                _log(f"  Butterfly T={seq_len:,} (free={mem.get('free_gb', '?')}GB)...")
                 inputs = _make_dummy_input(tokenizer, seq_len, device)
                 try:
                     result = bench_prefill(
@@ -1021,7 +1032,7 @@ def main() -> None:
                         inputs,
                         warmup=args.warmup,
                         repeats=args.repeats,
-                        label="wayfinder",
+                        label="butterfly",
                     )
                     result["type"] = "bench"
                     result["forward_target"] = args.forward_target
@@ -1031,7 +1042,7 @@ def main() -> None:
                     result["strategy"] = args.strategy
                     result["path"] = args.path
                     result["block_size"] = int(args.block_size)
-                    result["block_sparse_topology"] = "wayfinder"
+                    result["block_sparse_topology"] = "butterfly"
                     result["block_local_window_blocks"] = int(args.block_local_window_blocks)
                     result["block_partner_count"] = int(args.block_partner_count)
                     result["block_sink_blocks"] = int(args.block_sink_blocks)
@@ -1057,6 +1068,10 @@ def main() -> None:
 
                     # Collect per-layer profiles from last timed run
                     profiles = collect_wayfinder_profiles(model)
+                    result["butterfly_profiles"] = profiles
+                    result["butterfly_graph_cache_entries_total"] = sum(
+                        p.get("graph_cache_entries", 0) for p in profiles
+                    )
                     result["wayfinder_profiles"] = profiles
                     result["wayfinder_graph_cache_entries_total"] = sum(
                         p.get("graph_cache_entries", 0) for p in profiles
@@ -1071,14 +1086,16 @@ def main() -> None:
                         f"peak={result.get('peak_mem_gb', '?')}GB"
                     )
 
-                    # Show if wayfinder actually activated
-                    wf_active = sum(1 for p in profiles if p["mode"] == "wayfinder")
-                    _log(f"    wayfinder_active_layers={wf_active}/{len(profiles)}")
+                    # Show if butterfly actually activated
+                    wf_active = sum(
+                        1 for p in profiles if p["mode"] in {"wayfinder", "butterfly"}
+                    )
+                    _log(f"    butterfly_active_layers={wf_active}/{len(profiles)}")
                 except torch.cuda.OutOfMemoryError as e:
                     _log(f"    OOM at T={seq_len:,}: {e}")
                     result = {
                         "type": "bench",
-                        "label": "wayfinder",
+                        "label": "butterfly",
                         "seq_len": seq_len,
                         "forward_target": args.forward_target,
                         "error": f"OOM: {e}",
@@ -1092,7 +1109,7 @@ def main() -> None:
                     _log(f"    FAILED: {e}")
                     result = {
                         "type": "bench",
-                        "label": "wayfinder",
+                        "label": "butterfly",
                         "seq_len": seq_len,
                         "forward_target": args.forward_target,
                         "error": str(e),
@@ -1109,7 +1126,7 @@ def main() -> None:
             _clear_cuda_memory()
 
         # ── Phase 2: Dense baseline ──────────────────────────────────────
-        # Restore stock attention by removing Wayfinder wrappers (zero-copy,
+        # Restore stock attention by removing Butterfly wrappers (zero-copy,
         # the original projection weights are still the same tensors).
         needs_dense = "dense" in requested_phases or "divergence" in requested_phases
         if needs_dense:
@@ -1200,8 +1217,8 @@ def main() -> None:
             del bench_dense
 
         # ── Phase 3: Logit divergence ────────────────────────────────────
-        # Model is in dense state after the Phase 2 restore.  Collect dense
-        # logits on CPU, swap to Wayfinder once, then compare on CPU.
+        # Model is in dense state after the Phase 2 restore. Collect dense
+        # logits on CPU, swap to Butterfly once, then compare on CPU.
         divergence_seq_lens = [int(seq_len) for seq_len in dict.fromkeys(args.seq_lens)]
         pending_divergence = [
             seq_len
@@ -1228,14 +1245,14 @@ def main() -> None:
                     del inputs_div
                     _clear_cuda_memory()
 
-            # Step 2: swap to Wayfinder for comparison
+            # Step 2: swap to Butterfly for comparison
             swap_qwen_attention_with_wayfinder_cuda(model, wayfinder_cfg)
 
-            # Step 3: Wayfinder forwards + compare on CPU
+            # Step 3: Butterfly forwards + compare on CPU
             for divergence_t in pending_divergence:
                 div_key = ("divergence", divergence_t)
                 if divergence_t not in dense_logits_cpu:
-                    _log(f"  Skipping Wayfinder T={divergence_t:,}: dense logits unavailable.")
+                    _log(f"  Skipping Butterfly T={divergence_t:,}: dense logits unavailable.")
                     continue
 
                 try:
@@ -1245,7 +1262,7 @@ def main() -> None:
                 except (ValueError, AttributeError):
                     pass
 
-                _log(f"  Wayfinder forward T={divergence_t:,}...")
+                _log(f"  Butterfly forward T={divergence_t:,}...")
                 inputs_div = _make_dummy_input(tokenizer, divergence_t, device)
                 try:
                     with torch.inference_mode():
@@ -1326,25 +1343,25 @@ def main() -> None:
 
     # ── Summary table ────────────────────────────────────────────────────
     _log(
-        "\n  SeqLen │ Dense ms │   WF ms │ Speedup │ Dense tok/s │    WF tok/s │ Dense peak │   WF peak"
+        "\n  SeqLen │ Dense ms │ Butterfly ms │ Speedup │ Dense tok/s │ Butterfly tok/s │ Dense peak │ Butterfly peak"
     )
     _log(
         "  ──────┼──────────┼─────────┼─────────┼─────────────┼─────────────┼────────────┼──────────"
     )
 
     dense_by_seq: Dict[int, Dict[str, Any]] = {}
-    wf_by_seq: Dict[int, Dict[str, Any]] = {}
+    butterfly_by_seq: Dict[int, Dict[str, Any]] = {}
     for r in results:
         if r.get("type") != "bench" or "error" in r:
             continue
         if r["label"] == "dense":
             dense_by_seq[r["seq_len"]] = r
-        elif r["label"] == "wayfinder":
-            wf_by_seq[r["seq_len"]] = r
+        elif r["label"] in {"butterfly", "wayfinder"}:
+            butterfly_by_seq[r["seq_len"]] = r
 
     for seq_len in args.seq_lens:
         d = dense_by_seq.get(seq_len)
-        w = wf_by_seq.get(seq_len)
+        w = butterfly_by_seq.get(seq_len)
         d_ms = f"{d['median_ms']:>8.1f}" if d else "     N/A"
         w_ms = f"{w['median_ms']:>7.1f}" if w else "    N/A"
         if d and w and w["median_ms"] > 0:

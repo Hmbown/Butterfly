@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""OpenAI-compatible server for Qwen3.5 + Wayfinder on CUDA.
+"""OpenAI-compatible server for Qwen3.5 + Butterfly on CUDA.
 
-Loads the model once, optionally swaps in Wayfinder attention, and serves
+Loads the model once, optionally swaps in Butterfly attention, and serves
 an OpenAI chat-completions endpoint. Dense decode is always used for
-autoregressive token generation (Wayfinder only activates during prefill).
+autoregressive token generation (Butterfly only activates during prefill).
 
 Usage:
     python scripts/serve_qwen_wayfinder_cuda.py \
         --model-path ~/HF_Models/Qwen3.5-9B \
-        --mode wayfinder \
+        --mode butterfly \
         --port 8012
 
     # Then query it:
     curl http://localhost:8012/v1/chat/completions \
         -H "Content-Type: application/json" \
-        -d '{"model":"qwen3.5-9b-wayfinder","messages":[{"role":"user","content":"Hello"}]}'
+        -d '{"model":"qwen3.5-9b-butterfly","messages":[{"role":"user","content":"Hello"}]}'
 """
 from __future__ import annotations
 
@@ -180,7 +180,7 @@ class ServerState:
 
 
 def create_app(state: ServerState) -> FastAPI:
-    app = FastAPI(title="Wayfinder CUDA OpenAI Bridge", version="0.1.0")
+    app = FastAPI(title="Butterfly CUDA OpenAI Bridge", version="0.1.0")
 
     @app.get("/health")
     async def health() -> Dict[str, Any]:
@@ -216,7 +216,7 @@ def create_app(state: ServerState) -> FastAPI:
                 {
                     "id": state.model_id,
                     "object": "model",
-                    "owned_by": "wayfinder-local",
+                    "owned_by": "butterfly-local",
                 }
             ],
         }
@@ -299,11 +299,11 @@ def create_app(state: ServerState) -> FastAPI:
             text = state.tokenizer.decode(new_ids, skip_special_tokens=True)
             completion_tokens = len(new_ids)
 
-            # Collect Wayfinder profiles
-            wayfinder_profiles = []
+            # Collect Butterfly profiles
+            butterfly_profiles = []
             for layer in iter_qwen_wayfinder_layers(state.model):
                 p = layer.last_profile
-                wayfinder_profiles.append({
+                butterfly_profiles.append({
                     "layer_idx": p.get("layer_idx"),
                     "mode": p.get("mode"),
                     "reason": p.get("reason"),
@@ -327,7 +327,8 @@ def create_app(state: ServerState) -> FastAPI:
             "latency_sec": round(elapsed, 3),
             "tokens_per_sec": round(completion_tokens / elapsed, 1) if elapsed > 0 else 0,
             "mode": state.mode,
-            "wayfinder_profiles": wayfinder_profiles,
+            "butterfly_profiles": butterfly_profiles,
+            "wayfinder_profiles": butterfly_profiles,
         }
 
         if not stream:
@@ -342,6 +343,7 @@ def create_app(state: ServerState) -> FastAPI:
                     "finish_reason": "stop",
                 }],
                 "usage": usage,
+                "butterfly_meta": meta,
                 "wayfinder_meta": meta,
             })
 
@@ -356,13 +358,13 @@ def create_app(state: ServerState) -> FastAPI:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Serve Qwen3.5 + Wayfinder on CUDA (OpenAI-compatible)")
+    p = argparse.ArgumentParser(description="Serve Qwen3.5 + Butterfly on CUDA (OpenAI-compatible)")
     p.add_argument("--model-path", type=str, required=True,
                     help="Local path or HF model ID")
     p.add_argument("--model-id", type=str, default="",
                     help="Model ID exposed in API (default: auto from path)")
-    p.add_argument("--mode", type=str, default="wayfinder", choices=["wayfinder", "dense"],
-                    help="Attention mode: wayfinder (sparse prefill) or dense")
+    p.add_argument("--mode", type=str, default="butterfly",
+                    help="Attention mode: butterfly (sparse prefill, default) or dense. Legacy alias: wayfinder.")
     p.add_argument("--dtype", type=str, default="bfloat16",
                     choices=["bfloat16", "float16", "float32"])
     p.add_argument(
@@ -380,34 +382,34 @@ def main() -> None:
     p.add_argument("--port", type=int, default=8012)
     p.add_argument("--log-level", type=str, default="info")
 
-    # Wayfinder config
+    # Butterfly config
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=64)
     p.add_argument("--num-cycles", type=int, default=1)
     p.add_argument("--strategy", type=str, default="random",
                     choices=["random", "regular_partition", "greedy", "online_insertion"])
     p.add_argument("--path", type=str, default="sparse", choices=["permute", "sparse", "block_sparse"],
-                    help="Wayfinder path: `sparse` uses the full HCSA graph; "
+                    help="Butterfly path: `sparse` uses the full HCSA graph; "
                          "`permute` uses the cycle-window surrogate; "
                          "`block_sparse` uses flex-attention over a static block layout.")
     p.add_argument("--engine", type=str, default="auto",
                     choices=["auto", "flex", "batched", "legacy"],
-                    help="Wayfinder engine for the permute path: auto, flex, batched, or legacy.")
+                    help="Butterfly engine for the permute path: auto, flex, batched, or legacy.")
     p.add_argument("--block-size", type=int, default=128,
                     help="Block size for the `block_sparse` path.")
-    # Block-sparse topology is always "wayfinder" now; the old "hamiltonian"
+    # Block-sparse topology is always "butterfly" now; the old "wayfinder"/"hamiltonian"
     # option has been archived.  Hidden arg for backwards compat.
-    p.add_argument("--block-sparse-topology", type=str, default="wayfinder",
+    p.add_argument("--block-sparse-topology", type=str, default="butterfly",
                     help=argparse.SUPPRESS)
     p.add_argument("--block-local-window-blocks", type=int, default=1,
-                    help="Number of causal predecessor blocks kept per query block for Wayfinder block topology.")
+                    help="Number of causal predecessor blocks kept per query block for Butterfly block topology.")
     p.add_argument("--block-partner-count", type=int, default=1,
-                    help="Number of deterministic partner blocks kept per query block for Wayfinder block topology.")
+                    help="Number of deterministic partner blocks kept per query block for Butterfly block topology.")
     p.add_argument("--block-sink-blocks", type=int, default=1,
-                    help="Number of fixed sink blocks exposed to every later block for Wayfinder block topology.")
+                    help="Number of fixed sink blocks exposed to every later block for Butterfly block topology.")
     p.add_argument("--block-partner-rule", type=str, default="xor",
                     choices=["xor", "bit_reversal", "benes"],
-                    help="Deterministic partner rule used by the Wayfinder block topology.")
+                    help="Deterministic partner rule used by the Butterfly block topology.")
     p.add_argument("--allow-unsupported-arch", action="store_true",
                     help="Allow `--engine flex` even when the current CUDA capability is not "
                          "explicitly supported by this PyTorch build.")
@@ -506,8 +508,14 @@ def main() -> None:
     replaced_layers = None
     wf_cfg = None
     mode = args.mode.strip().lower()
-
     if mode == "wayfinder":
+        mode = "butterfly"
+    elif mode not in {"butterfly", "dense"}:
+        raise SystemExit(
+            "`--mode` must be one of ['butterfly', 'dense'] plus legacy alias ['wayfinder']."
+        )
+
+    if mode == "butterfly":
         wf_cfg = QwenCUDAWayfinderConfig(
             path=args.path,
             strategy=args.strategy,
@@ -523,16 +531,16 @@ def main() -> None:
             block_partner_rule=args.block_partner_rule,
         )
         replaced_layers = swap_qwen_attention_with_wayfinder_cuda(model, wf_cfg)
-        _log(f"Wayfinder swap: {len(replaced_layers)} layers replaced {replaced_layers}")
+        _log(f"Butterfly swap: {len(replaced_layers)} layers replaced {replaced_layers}")
         _log(f"  path={wf_cfg.path} strategy={wf_cfg.strategy} "
              f"window={wf_cfg.window} landmark_stride={wf_cfg.landmark_stride} "
-             f"block_topology=wayfinder "
+             f"block_topology=butterfly "
              f"block_local={wf_cfg.block_local_window_blocks} "
              f"block_partners={wf_cfg.block_partner_count} "
              f"block_sinks={wf_cfg.block_sink_blocks} "
              f"block_partner_rule={wf_cfg.block_partner_rule}")
     else:
-        _log("Dense mode — no Wayfinder swap.")
+        _log("Dense mode — no Butterfly swap.")
 
     model_id = args.model_id.strip() or f"{Path(args.model_path).name}-{mode}"
 

@@ -9,6 +9,13 @@ import torch
 
 from bna.cycles import block_hamiltonian_cycles, cycle_prev_next_from_perm, log_landmark_blocks, num_blocks_for_seq_len
 from bna.graph.abi import EdgeType
+from bna.topology.butterfly import (
+    bit_reverse as butterfly_bit_reverse,
+    butterfly_partner_bits,
+    butterfly_partner_block,
+    butterfly_stage_meta,
+    butterfly_width,
+)
 from bna.torch.bench_utils import now_ms, stable_masked_softmax
 
 # ---------------------------------------------------------------------------
@@ -409,32 +416,17 @@ def _ordered_unique_ints(values: Iterable[int]) -> list[int]:
     return out
 
 
-def _ceil_log2(value: int) -> int:
-    if int(value) <= 1:
-        return 1
-    return int(math.ceil(math.log2(int(value))))
-
-
-def _bit_reverse(value: int, width: int) -> int:
-    out = 0
-    for bit_idx in range(int(width)):
-        out = (out << 1) | ((int(value) >> bit_idx) & 1)
-    return out
-
-
 def _wayfinder_stage_meta(
     *,
     num_blocks: int,
     layer_idx: int,
     partner_rule: str,
 ) -> tuple[int, int]:
-    width = _ceil_log2(num_blocks)
-    if partner_rule == "benes":
-        stage_count = max(1, (2 * width) - 2)
-    else:
-        stage_count = width
-    stage_idx = int(layer_idx) % int(stage_count)
-    return stage_idx, stage_count
+    return butterfly_stage_meta(
+        num_blocks=int(num_blocks),
+        layer_idx=int(layer_idx),
+        partner_rule=str(partner_rule),
+    )
 
 
 def _wayfinder_partner_bits(
@@ -445,23 +437,13 @@ def _wayfinder_partner_bits(
     partner_count: int,
     partner_rule: str,
 ) -> list[int]:
-    if width <= 0 or partner_count <= 0:
-        return []
-    if partner_rule == "benes":
-        if stage_count <= 1:
-            base_phase = 0
-        else:
-            base_phase = int(stage_idx) % int(stage_count)
-
-        def phase_to_bit(phase: int) -> int:
-            if width <= 1:
-                return 0
-            if phase < width:
-                return int(phase)
-            return int((2 * width) - 2 - phase)
-
-        return [phase_to_bit((base_phase + offset) % stage_count) for offset in range(partner_count)]
-    return [int(stage_idx + offset) % int(width) for offset in range(partner_count)]
+    return butterfly_partner_bits(
+        stage_idx=int(stage_idx),
+        stage_count=int(stage_count),
+        width=int(width),
+        partner_count=int(partner_count),
+        partner_rule=str(partner_rule),
+    )
 
 
 def _wayfinder_partner_block(
@@ -472,18 +454,21 @@ def _wayfinder_partner_block(
     partner_rule: str,
     width: int,
 ) -> int | None:
-    if bit_idx < 0 or bit_idx >= max(1, int(width)):
-        return None
-    if partner_rule == "xor" or partner_rule == "benes":
-        partner = int(block_idx) ^ (1 << int(bit_idx))
-    elif partner_rule == "bit_reversal":
-        reversed_idx = _bit_reverse(int(block_idx), int(width))
-        partner = _bit_reverse(reversed_idx ^ (1 << int(bit_idx)), int(width))
-    else:
-        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
-    if partner < 0 or partner >= int(num_blocks) or partner > int(block_idx):
-        return None
-    return int(partner)
+    return butterfly_partner_block(
+        block_idx=int(block_idx),
+        bit_idx=int(bit_idx),
+        num_blocks=int(num_blocks),
+        partner_rule=str(partner_rule),
+        width=int(width),
+    )
+
+
+def _ceil_log2(value: int) -> int:
+    return butterfly_width(int(value))
+
+
+def _bit_reverse(value: int, width: int) -> int:
+    return butterfly_bit_reverse(int(value), int(width))
 
 
 def build_block_hamiltonian_layout(
@@ -579,7 +564,7 @@ def build_block_hamiltonian_layout(
     )
 
 
-def build_block_wayfinder_layout(
+def build_block_butterfly_layout(
     *,
     seq_len: int,
     block_size: int,
@@ -592,7 +577,7 @@ def build_block_wayfinder_layout(
     partner_rule: str = "xor",
     device: torch.device | None = None,
 ) -> BlockHamiltonianLayout:
-    """Build the staged Wayfinder block topology for static sparse attention.
+    """Build the staged Butterfly block topology for static sparse attention.
 
     Each block attends to:
       - itself
@@ -618,19 +603,19 @@ def build_block_wayfinder_layout(
     if partner_count < 0:
         raise ValueError("partner_count must be >= 0")
     if partner_rule not in {"xor", "bit_reversal", "benes"}:
-        raise ValueError(f"Unsupported block-sparse Wayfinder partner rule: {partner_rule!r}")
+        raise ValueError(f"Unsupported block-sparse Butterfly partner rule: {partner_rule!r}")
 
     target_device = device or torch.device("cpu")
     num_blocks = num_blocks_for_seq_len(seq_len, block_size)
-    width = _ceil_log2(num_blocks)
-    stage_idx, stage_count = _wayfinder_stage_meta(
+    width = butterfly_width(num_blocks)
+    stage_idx, stage_count = butterfly_stage_meta(
         num_blocks=int(num_blocks),
         layer_idx=int(layer_idx),
         partner_rule=partner_rule,
     )
     sink_blocks = tuple(range(min(int(sink_count), int(num_blocks))))
     identity_perm = torch.arange(int(num_blocks), dtype=torch.long)
-    partner_bits = _wayfinder_partner_bits(
+    partner_bits = butterfly_partner_bits(
         stage_idx=int(stage_idx),
         stage_count=int(stage_count),
         width=int(width),
@@ -650,7 +635,7 @@ def build_block_wayfinder_layout(
                     break
                 row.append(local_block)
             for bit_idx in partner_bits:
-                partner = _wayfinder_partner_block(
+                partner = butterfly_partner_block(
                     block_idx=int(block_idx),
                     bit_idx=int(bit_idx),
                     num_blocks=int(num_blocks),
@@ -686,14 +671,18 @@ def build_block_wayfinder_layout(
         landmark_blocks=(),
         sink_blocks=sink_blocks,
         num_cycles=1,
-        strategy="wayfinder",
-        topology_name="wayfinder",
+        strategy="butterfly",
+        topology_name="butterfly",
         stage_idx=int(stage_idx),
         stage_count=int(stage_count),
         local_window_blocks=int(local_window_blocks),
         partner_rule=str(partner_rule),
         partner_count=int(partner_count),
     )
+
+
+# Backward-compatible alias while the repo finishes the public rename.
+build_block_wayfinder_layout = build_block_butterfly_layout
 
 
 def build_block_hamiltonian_mask(

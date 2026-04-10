@@ -29,10 +29,10 @@ from bna.integrations.mlx_kv_quant import (  # noqa: E402
     validate_mlx_kv_quantization_config,
 )
 from bna.integrations.qwen_mlx import (  # noqa: E402
-    QwenWayfinderAttention,
-    QwenWayfinderConfig,
+    QwenButterflyAttention,
+    QwenButterflyConfig,
     get_qwen_full_attention_layer_indices,
-    swap_qwen_attention_with_wayfinder,
+    swap_qwen_attention_with_butterfly,
     validate_qwen35_full_attention_layers,
 )
 from bna.integrations.qwen_mlx_loader import (  # noqa: E402
@@ -153,7 +153,7 @@ def _collect_hsa_trace_snapshot(
         selected = [
             i
             for i, layer in enumerate(layers)
-            if isinstance(getattr(layer, "self_attn", None), QwenWayfinderAttention)
+            if isinstance(getattr(layer, "self_attn", None), QwenButterflyAttention)
         ]
     if int(max_layers) > 0:
         selected = selected[: int(max_layers)]
@@ -177,7 +177,7 @@ def _collect_hsa_trace_snapshot(
     )
     for idx in selected:
         attn = getattr(layers[idx], "self_attn", None)
-        if not isinstance(attn, QwenWayfinderAttention):
+        if not isinstance(attn, QwenButterflyAttention):
             continue
         profile = attn.last_profile.to_dict() if hasattr(attn, "last_profile") else {}
         notes_obj = profile.get("notes")
@@ -230,6 +230,7 @@ def _public_stock_fallback_reason(
     reason = "" if raw_reason is None else str(raw_reason).strip()
     if reason and reason.lower() not in {"none", "null"}:
         mapping = {
+            "butterfly_decode_stock": "decode_backend_stock",
             "wayfinder_decode_dense": "decode_backend_stock",
             "active_dense_threshold": "stock_threshold",
             "active_large_q": "stock_large_query",
@@ -1367,7 +1368,7 @@ def main() -> None:
     p.add_argument(
         "--hsa-trace",
         action="store_true",
-        help="Record per-step Wayfinder attention path snapshots.",
+        help="Record per-step Butterfly attention path snapshots.",
     )
     p.add_argument(
         "--hsa-trace-max-layers",
@@ -1487,10 +1488,10 @@ def main() -> None:
         _log(f"WARNING: {exc}. Continuing with discovered full-attention layers for this benchmark.")
 
     baseline_mode = mode == "stock"
-    wf_cfg: Optional[QwenWayfinderConfig] = None
+    wf_cfg: Optional[QwenButterflyConfig] = None
     if not baseline_mode:
         qwen_path = "permute" if mode == "butterfly" else "sparse"
-        wf_cfg = QwenWayfinderConfig(
+        wf_cfg = QwenButterflyConfig(
             path=qwen_path,  # type: ignore[arg-type]
             strategy="random",
             window=int(args.window),
@@ -1537,7 +1538,7 @@ def main() -> None:
         )
         if requested_layer_indices is not None:
             active_prefill_scope = "explicit_debug_layer_selection"
-        replaced = swap_qwen_attention_with_wayfinder(
+        replaced = swap_qwen_attention_with_butterfly(
             model,
             cfg=wf_cfg,
             layer_indices=active_prefill_layer_indices,
@@ -1546,7 +1547,7 @@ def main() -> None:
         replaced_layers = len(replaced_indices)
         for idx in replaced_indices:
             layer_attn = layers[idx].self_attn
-            if isinstance(layer_attn, QwenWayfinderAttention):
+            if isinstance(layer_attn, QwenButterflyAttention):
                 layer_attn.compute_edge_utilization_proxy = False
                 layer_attn.compute_graph_metrics = False
         _log(
@@ -1566,6 +1567,33 @@ def main() -> None:
     butterfly_decode_backend_public = (
         "stock" if baseline_mode or decode_backend == "dense" else "experimental"
     )
+    butterfly_config_payload = (
+        None
+        if baseline_mode
+        else {
+            "window": int(args.window),
+            "landmark_stride": (
+                None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
+            ),
+            "num_cycles": int(max(0, args.num_cycles)),
+            "prefill_chunk_size": int(max(1, args.chunk_size)),
+            "head_chunk_size": int(max(1, args.head_chunk_size)),
+            "query_chunk_size": int(max(1, args.query_chunk_size)),
+            "decode_backend": butterfly_decode_backend_public,
+            "butterfly_decode_backend": butterfly_decode_backend_public,
+            "edge_disjoint": bool(args.edge_disjoint),
+            "enforce_hamiltonian": bool(args.enforce_hamiltonian),
+            "fused_dispatch": bool(not debug_disable_fused_dispatch),
+        }
+    )
+    wayfinder_config_payload = (
+        None
+        if butterfly_config_payload is None
+        else {
+            **butterfly_config_payload,
+            "wayfinder_decode_backend": butterfly_decode_backend_public,
+        }
+    )
     payload: Dict[str, Any] = {
         "created_at": datetime.now(UTC).isoformat(),
         "command": " ".join(sys.argv),
@@ -1573,12 +1601,15 @@ def main() -> None:
         "hf_cache": cache_cfg,
         "mode": mode,
         "butterfly_decode_backend": butterfly_decode_backend_public,
+        "wayfinder_decode_backend": butterfly_decode_backend_public,
         "kv_quantization": {
             **kv_quantization.to_dict(),
             "policy": "post_prefill_before_decode",
             "preserve_dense_prefix_cache": True,
         },
         "retro_backfill_enabled": bool(args.retro_backfill),
+        "butterfly_config": butterfly_config_payload,
+        "wayfinder_config": wayfinder_config_payload,
         "butterfly": {
             "enabled": bool(not baseline_mode),
             "decode_backend": butterfly_decode_backend_public,
@@ -1587,24 +1618,7 @@ def main() -> None:
             "active_prefill_layer_indices": [int(x) for x in replaced_indices],
             "active_prefill_layer_count": int(replaced_layers),
             "debug_override_layer_indices": requested_layer_indices,
-            "config": (
-                None
-                if baseline_mode
-                else {
-                    "window": int(args.window),
-                    "landmark_stride": (
-                        None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
-                    ),
-                    "num_cycles": int(max(0, args.num_cycles)),
-                    "prefill_chunk_size": int(max(1, args.chunk_size)),
-                    "head_chunk_size": int(max(1, args.head_chunk_size)),
-                    "query_chunk_size": int(max(1, args.query_chunk_size)),
-                    "decode_backend": butterfly_decode_backend_public,
-                    "edge_disjoint": bool(args.edge_disjoint),
-                    "enforce_hamiltonian": bool(args.enforce_hamiltonian),
-                    "fused_dispatch": bool(not debug_disable_fused_dispatch),
-                }
-            ),
+            "config": butterfly_config_payload,
         },
         "observability": {
             "runtime_summary_always_on": True,
@@ -1644,7 +1658,10 @@ def main() -> None:
             "created_at": payload.get("created_at"),
             "mode": payload.get("mode"),
             "butterfly_decode_backend": payload.get("butterfly_decode_backend"),
+            "wayfinder_decode_backend": payload.get("wayfinder_decode_backend"),
             "kv_quantization": payload.get("kv_quantization"),
+            "butterfly_config": payload.get("butterfly_config"),
+            "wayfinder_config": payload.get("wayfinder_config"),
             "butterfly": payload.get("butterfly"),
             "status": payload.get("status"),
             "status_reason": payload.get("status_reason"),

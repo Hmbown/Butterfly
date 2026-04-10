@@ -5,7 +5,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from bna.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.attention import ButterflyAttentionMLX
 from bna.mlx.metrics import edge_utilization_by_type
 
 
@@ -18,8 +18,8 @@ def _make_attn(
     window: int = 4,
     landmark_stride: int = 8,
     seed: int = 42,
-) -> WayfinderAttentionMLX:
-    return WayfinderAttentionMLX(
+) -> ButterflyAttentionMLX:
+    return ButterflyAttentionMLX(
         n_embd,
         n_heads,
         window=window,

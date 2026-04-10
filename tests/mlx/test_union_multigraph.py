@@ -4,7 +4,7 @@ import mlx.core as mx
 
 from bna.mlx.attention import (
     build_union_multigraph_index,
-    wayfinder_permute_window_attention_batched,
+    butterfly_permute_window_attention_batched,
 )
 
 
@@ -140,11 +140,11 @@ class TestUnionMulticycleMode:
     def test_average_mode_unchanged(self):
         """multi_cycle_mode='average' should produce same output as default."""
         q, k, v, perms, inv_perms = _make_multicycle_inputs()
-        y_default, _ = wayfinder_permute_window_attention_batched(
+        y_default, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms, window=3,
         )
-        y_avg, _ = wayfinder_permute_window_attention_batched(
+        y_avg, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms, window=3,
             multi_cycle_mode="average",
@@ -154,7 +154,7 @@ class TestUnionMulticycleMode:
     def test_union_mode_valid_output(self):
         """Union mode should produce valid (non-NaN, correct shape) output."""
         q, k, v, perms, inv_perms = _make_multicycle_inputs()
-        y_union, _ = wayfinder_permute_window_attention_batched(
+        y_union, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms, window=3,
             multi_cycle_mode="union",
@@ -165,12 +165,12 @@ class TestUnionMulticycleMode:
     def test_union_mode_differs_from_average(self):
         """Union and average modes should generally produce different outputs."""
         q, k, v, perms, inv_perms = _make_multicycle_inputs()
-        y_avg, _ = wayfinder_permute_window_attention_batched(
+        y_avg, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms, window=3,
             multi_cycle_mode="average",
         )
-        y_union, _ = wayfinder_permute_window_attention_batched(
+        y_union, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=perms, all_inv_perms=inv_perms, window=3,
             multi_cycle_mode="union",
@@ -198,7 +198,7 @@ class TestUnionMulticycleMode:
                 inv_p[p] = np.arange(T, dtype=np.int32)
                 inv_perms[h, c] = inv_p
 
-        y, _ = wayfinder_permute_window_attention_batched(
+        y, _ = butterfly_permute_window_attention_batched(
             q, k, v,
             all_perms=mx.array(perms), all_inv_perms=mx.array(inv_perms),
             window=3, multi_cycle_mode="union",

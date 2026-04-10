@@ -13,10 +13,10 @@ from mlx_lm.models.base import scaled_dot_product_attention
 from bna.graph.abi import WayfinderGraphABI, graph_metrics
 from bna.mlx.attention import (
     AttentionProfile,
+    butterfly_permute_window_attention_active_batched,
+    butterfly_permute_window_attention_batched,
     sparse_gather_attention_active,
     sparse_gather_attention,
-    wayfinder_permute_window_attention_active_batched,
-    wayfinder_permute_window_attention_batched,
 )
 from bna.mlx.kernels.metal import (
     has_discovered_active_row_kernel,
@@ -38,7 +38,7 @@ def _now_ms() -> float:
 
 
 def _pad_value_dim(values: mx.array, target_dim: int) -> mx.array:
-    """Pad MLA latent values to match q/k dim expected by Wayfinder kernels."""
+    """Pad MLA latent values to match q/k dim expected by Butterfly kernels."""
     dv = int(values.shape[-1])
     if dv == target_dim:
         return values
@@ -50,8 +50,8 @@ def _pad_value_dim(values: mx.array, target_dim: int) -> mx.array:
 
 
 @dataclass
-class GLMWayfinderConfig:
-    path: Literal["sparse", "permute", "wayfinder", "dense"] = "wayfinder"
+class GLMButterflyConfig:
+    path: Literal["sparse", "permute", "wayfinder", "dense"] = "permute"
     strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
@@ -84,6 +84,14 @@ class GLMWayfinderConfig:
     enable_decode_local_tail_fastpath: bool = True
     wayfinder_decode_backend: Literal["active_permute", "dense"] = "dense"
 
+    @property
+    def butterfly_decode_backend(self) -> Literal["active_permute", "dense"]:
+        return self.wayfinder_decode_backend
+
+    @butterfly_decode_backend.setter
+    def butterfly_decode_backend(self, value: Literal["active_permute", "dense"]) -> None:
+        self.wayfinder_decode_backend = value
+
     def __post_init__(self) -> None:
         raw_path = str(self.path).strip().lower()
         if raw_path == "wayfinder":
@@ -94,10 +102,10 @@ class GLMWayfinderConfig:
             return
         if raw_path == "dense":
             raise ValueError(
-                "GLMWayfinderConfig(path='dense') is unsupported. "
+                "GLMButterflyConfig(path='dense') is unsupported. "
                 "Use stock GLM attention (no swap) for dense mode."
             )
-        raise ValueError(f"Unknown GLM Wayfinder path: {self.path!r}")
+        raise ValueError(f"Unknown GLM Butterfly path: {self.path!r}")
 
 
 def extract_qkv_from_glm_attention(
@@ -144,10 +152,10 @@ def extract_qkv_from_glm_attention(
     return queries, keys, values
 
 
-class GLMWayfinderAttention(nn.Module):
-    """GLM MLA attention module with HCSA sparse/permute backend."""
+class GLMButterflyAttention(nn.Module):
+    """GLM MLA attention module with Butterfly sparse/permute backends."""
 
-    def __init__(self, base_attn: nn.Module, cfg: GLMWayfinderConfig):
+    def __init__(self, base_attn: nn.Module, cfg: GLMButterflyConfig):
         super().__init__()
 
         self.num_heads = int(base_attn.num_heads)
@@ -178,7 +186,7 @@ class GLMWayfinderAttention(nn.Module):
 
         self.path = str(cfg.path)
         if self.path == "permute":
-            self.mode_label = "wayfinder"
+            self.mode_label = "butterfly"
         elif self.path == "sparse":
             self.mode_label = "sparse"
         else:
@@ -207,7 +215,8 @@ class GLMWayfinderAttention(nn.Module):
         self.multi_cycle_mode = str(cfg.multi_cycle_mode)
         self.use_fused_dispatch = bool(cfg.use_fused_dispatch)
         self.enable_decode_local_tail_fastpath = bool(cfg.enable_decode_local_tail_fastpath)
-        self.wayfinder_decode_backend = str(cfg.wayfinder_decode_backend)
+        self.butterfly_decode_backend = str(cfg.butterfly_decode_backend)
+        self.wayfinder_decode_backend = self.butterfly_decode_backend
         self.window_drop_prob = float(max(0.0, min(1.0, cfg.window_drop)))
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
@@ -380,16 +389,16 @@ class GLMWayfinderAttention(nn.Module):
             and q_len > int(max(1, self.query_chunk_size))
             and not self._fast_graph_build
         )
-        # Wayfinder decode policy: route active decode to dense SDPA for higher
+        # Butterfly decode policy: route active decode to dense SDPA for higher
         # fidelity.  The permute-active path has quality degradation at q_len=1.
-        force_dense_wayfinder_decode = (
+        force_dense_butterfly_decode = (
             active_mode
             and q_len <= 2
-            and self.wayfinder_decode_backend == "dense"
-            and self.mode_label == "wayfinder"
+            and self.butterfly_decode_backend == "dense"
+            and self.mode_label == "butterfly"
         )
         use_active_permute = active_mode and not (
-            force_dense_active or force_dense_large_active or force_dense_wayfinder_decode
+            force_dense_active or force_dense_large_active or force_dense_butterfly_decode
         )
         fallback_due_to_q_mismatch = q_len != k_len and not (
             use_active_permute or sparse_active_mode
@@ -399,8 +408,8 @@ class GLMWayfinderAttention(nn.Module):
             dense_fallback_reason = "active_dense_threshold"
         elif force_dense_large_active:
             dense_fallback_reason = "active_large_q"
-        elif force_dense_wayfinder_decode:
-            dense_fallback_reason = "wayfinder_decode_dense"
+        elif force_dense_butterfly_decode:
+            dense_fallback_reason = "butterfly_decode_stock"
         elif fallback_due_to_q_mismatch:
             dense_fallback_reason = "q_len_mismatch"
 
@@ -408,7 +417,7 @@ class GLMWayfinderAttention(nn.Module):
         if (
             force_dense_active
             or force_dense_large_active
-            or force_dense_wayfinder_decode
+            or force_dense_butterfly_decode
             or fallback_due_to_q_mismatch
         ):
             t_attn0 = _now_ms()
@@ -430,9 +439,11 @@ class GLMWayfinderAttention(nn.Module):
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
                     "active_large_q_dense_triggered": bool(force_dense_large_active),
-                    "wayfinder_decode_dense_triggered": bool(force_dense_wayfinder_decode),
+                    "butterfly_decode_stock_triggered": bool(force_dense_butterfly_decode),
+                    "butterfly_decode_backend": self.butterfly_decode_backend,
+                    "wayfinder_decode_dense_triggered": bool(force_dense_butterfly_decode),
                     "dense_fallback_reason": dense_fallback_reason,
-                    "wayfinder_decode_backend": self.wayfinder_decode_backend,
+                    "wayfinder_decode_backend": self.butterfly_decode_backend,
                     "sparse_active_mode": bool(sparse_active_mode),
                     "active_query_chunk_limit": int(self.query_chunk_size),
                     "discovered_permute_available": bool(discovered_permute_available),
@@ -512,14 +523,14 @@ class GLMWayfinderAttention(nn.Module):
         t_graph0 = _now_ms()
         if self.permute_log_chunks:
             print(
-                f"    glm_wayfinder: requesting graph cache for T={graph_T} (seq_len={T})",
+                f"    glm_butterfly: requesting graph cache for T={graph_T} (seq_len={T})",
                 flush=True,
             )
         graph_cache, cache_hit = self.graph_runtime.get_or_build_cache(id(self), graph_T)
         graph_ms = _now_ms() - t_graph0
         if self.permute_log_chunks:
             print(
-                "    glm_wayfinder: graph cache ready "
+                "    glm_butterfly: graph cache ready "
                 f"(hit={bool(cache_hit)}, source={graph_cache.source}, {graph_ms:.1f} ms)",
                 flush=True,
             )
@@ -620,7 +631,7 @@ class GLMWayfinderAttention(nn.Module):
                 active_positions = mx.arange(active_start, T, dtype=mx.int32)
                 prefer_small_tq_gather = bool(q_len == 1)
                 try:
-                    y_h, _w = wayfinder_permute_window_attention_active_batched(
+                    y_h, _w = butterfly_permute_window_attention_active_batched(
                         queries,
                         keys,
                         values_wf,
@@ -673,7 +684,7 @@ class GLMWayfinderAttention(nn.Module):
                     )
                     return out
             else:
-                y_h, _w = wayfinder_permute_window_attention_batched(
+                y_h, _w = butterfly_permute_window_attention_batched(
                     queries,
                     keys,
                     values_wf,
@@ -771,10 +782,10 @@ def _iter_model_layers(model: nn.Module) -> Sequence[nn.Module]:
     raise ValueError("Model has no .layers or .model.layers attribute; expected a mlx_lm GLM model.")
 
 
-def swap_glm_attention_with_wayfinder(
+def swap_glm_attention_with_butterfly(
     model: nn.Module,
     *,
-    cfg: GLMWayfinderConfig,
+    cfg: GLMButterflyConfig,
     layer_indices: Optional[Sequence[int]] = None,
 ) -> List[int]:
     """Replace GLM attention blocks with HCSA-backed attention modules."""
@@ -787,6 +798,21 @@ def swap_glm_attention_with_wayfinder(
         base_attn = getattr(layer, "self_attn", None)
         if base_attn is None:
             continue
-        layer.self_attn = GLMWayfinderAttention(base_attn, cfg)
+        layer.self_attn = GLMButterflyAttention(base_attn, cfg)
         replaced.append(i)
     return replaced
+
+
+GLMWayfinderConfig = GLMButterflyConfig
+GLMWayfinderAttention = GLMButterflyAttention
+swap_glm_attention_with_wayfinder = swap_glm_attention_with_butterfly
+
+__all__ = [
+    "GLMButterflyConfig",
+    "GLMButterflyAttention",
+    "GLMWayfinderConfig",
+    "GLMWayfinderAttention",
+    "extract_qkv_from_glm_attention",
+    "swap_glm_attention_with_butterfly",
+    "swap_glm_attention_with_wayfinder",
+]

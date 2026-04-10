@@ -1,4 +1,4 @@
-"""Qwen wayfinder active decode integration checks with lightweight mock attention."""
+"""Qwen Butterfly active decode integration checks with lightweight mock attention."""
 from __future__ import annotations
 
 import numpy as np
@@ -7,7 +7,7 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
-from bna.integrations.qwen_mlx import QwenWayfinderAttention, QwenWayfinderConfig  # noqa: E402
+from bna.integrations.qwen_mlx import QwenButterflyAttention, QwenButterflyConfig  # noqa: E402
 
 
 class _MockIdentity(nn.Module):
@@ -56,9 +56,9 @@ class _MockQwenAttn(nn.Module):
         self.rope = _MockRoPE()
 
 
-def test_qwen_wayfinder_active_decode_avoids_dense_fallback():
+def test_qwen_butterfly_active_decode_avoids_stock_fallback():
     base_attn = _MockQwenAttn()
-    cfg = QwenWayfinderConfig(
+    cfg = QwenButterflyConfig(
         path="permute",
         strategy="random",
         window=8,
@@ -72,7 +72,7 @@ def test_qwen_wayfinder_active_decode_avoids_dense_fallback():
         compute_graph_metrics=False,
         use_fused_dispatch=False,
     )
-    attn = QwenWayfinderAttention(base_attn, cfg)
+    attn = QwenButterflyAttention(base_attn, cfg)
     cache = _MockKVCache()
 
     x_prefill = mx.random.normal((1, 16, 64))
@@ -99,9 +99,9 @@ def test_qwen_wayfinder_active_decode_avoids_dense_fallback():
     assert np.isfinite(y_np).all()
 
 
-def test_qwen_wayfinder_active_decode_dense_backend_forces_fallback():
+def test_qwen_butterfly_stock_decode_backend_forces_fallback():
     base_attn = _MockQwenAttn()
-    cfg = QwenWayfinderConfig(
+    cfg = QwenButterflyConfig(
         path="permute",
         strategy="random",
         window=8,
@@ -113,9 +113,9 @@ def test_qwen_wayfinder_active_decode_dense_backend_forces_fallback():
         edge_bias=False,
         compute_edge_utilization_proxy=False,
         compute_graph_metrics=False,
-        wayfinder_decode_backend="dense",
     )
-    attn = QwenWayfinderAttention(base_attn, cfg)
+    cfg.butterfly_decode_backend = "dense"
+    attn = QwenButterflyAttention(base_attn, cfg)
     cache = _MockKVCache()
 
     x_prefill = mx.random.normal((1, 16, 64))
@@ -130,5 +130,7 @@ def test_qwen_wayfinder_active_decode_dense_backend_forces_fallback():
 
     notes = attn.last_profile.notes
     assert "dense_fallback" in attn.last_profile.path
-    assert notes.get("dense_fallback_reason") == "wayfinder_decode_dense"
+    assert notes.get("dense_fallback_reason") == "butterfly_decode_stock"
+    assert notes.get("butterfly_decode_backend") == "dense"
+    assert bool(notes.get("butterfly_decode_stock_triggered", False))
     assert bool(notes.get("wayfinder_decode_dense_triggered", False))

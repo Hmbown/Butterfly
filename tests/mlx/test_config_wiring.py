@@ -1,26 +1,26 @@
-"""Tests that circular and multi_cycle_mode config flags wire through modules."""
+"""Tests that circular and multi_cycle_mode config flags wire through Butterfly modules."""
 import mlx.core as mx
 
-from bna.mlx.attention import WayfinderAttentionMLX
+from bna.mlx.attention import ButterflyAttentionMLX
 from bna.mlx.model import GPTConfigMLX, GPTMLX
 
 
-class TestWayfinderAttentionMLXWiring:
-    """WayfinderAttentionMLX stores and forwards circular/multi_cycle_mode."""
+class TestButterflyAttentionMLXWiring:
+    """ButterflyAttentionMLX stores and forwards circular/multi_cycle_mode."""
 
     def test_defaults(self):
-        attn = WayfinderAttentionMLX(n_embd=32, n_heads=2, window=4)
+        attn = ButterflyAttentionMLX(n_embd=32, n_heads=2, window=4)
         assert attn.circular is False
         assert attn.multi_cycle_mode == "average"
 
     def test_circular_true_stored(self):
-        attn = WayfinderAttentionMLX(
+        attn = ButterflyAttentionMLX(
             n_embd=32, n_heads=2, window=4, circular=True,
         )
         assert attn.circular is True
 
     def test_multi_cycle_mode_union_stored(self):
-        attn = WayfinderAttentionMLX(
+        attn = ButterflyAttentionMLX(
             n_embd=32, n_heads=2, window=4, multi_cycle_mode="union",
         )
         assert attn.multi_cycle_mode == "union"
@@ -37,22 +37,22 @@ class TestGPTConfigMLXWiring:
     def test_config_circular_propagates(self):
         cfg = GPTConfigMLX(
             n_embd=32, n_heads=2, n_layers=1, seq_len=16,
-            attn="wayfinder_permute", window=4, circular=True,
+            attn="butterfly_permute", window=4, circular=True,
         )
         model = GPTMLX(cfg)
         block = model.blocks[0]
-        assert isinstance(block.attn, WayfinderAttentionMLX)
+        assert isinstance(block.attn, ButterflyAttentionMLX)
         assert block.attn.circular is True
 
     def test_config_multi_cycle_mode_propagates(self):
         cfg = GPTConfigMLX(
             n_embd=32, n_heads=2, n_layers=1, seq_len=16,
-            attn="wayfinder_permute", window=4,
+            attn="butterfly_permute", window=4,
             multi_cycle_mode="union", num_cycles=2,
         )
         model = GPTMLX(cfg)
         block = model.blocks[0]
-        assert isinstance(block.attn, WayfinderAttentionMLX)
+        assert isinstance(block.attn, ButterflyAttentionMLX)
         assert block.attn.multi_cycle_mode == "union"
 
 
@@ -62,7 +62,7 @@ class TestCircularForwardPass:
     def test_forward_with_circular(self):
         cfg = GPTConfigMLX(
             vocab_size=32, n_embd=32, n_heads=2, n_layers=1,
-            seq_len=16, attn="wayfinder_permute", window=4,
+            seq_len=16, attn="butterfly_permute", window=4,
             circular=True,
         )
         model = GPTMLX(cfg)
@@ -75,7 +75,7 @@ class TestCircularForwardPass:
     def test_forward_with_union_multicycle(self):
         cfg = GPTConfigMLX(
             vocab_size=32, n_embd=32, n_heads=2, n_layers=1,
-            seq_len=16, attn="wayfinder_permute", window=4,
+            seq_len=16, attn="butterfly_permute", window=4,
             num_cycles=2, multi_cycle_mode="union",
         )
         model = GPTMLX(cfg)
@@ -88,7 +88,7 @@ class TestCircularForwardPass:
     def test_circular_union_combined(self):
         cfg = GPTConfigMLX(
             vocab_size=32, n_embd=32, n_heads=2, n_layers=1,
-            seq_len=16, attn="wayfinder_permute", window=4,
+            seq_len=16, attn="butterfly_permute", window=4,
             num_cycles=2, circular=True, multi_cycle_mode="union",
         )
         model = GPTMLX(cfg)

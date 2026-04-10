@@ -19,7 +19,7 @@ Public naming note: `Butterfly` / `BNA` is the current public project name. `Way
 |---|---|---|
 | Validated | GLM-4.7-Flash-4bit on MLX at the public stable profile | [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md) |
 | Experimental | Qwen 3.5 CUDA block-sparse path and long-context scaling work | `scripts/bench_qwen35_cuda_wayfinder.py`, `benchmarks/cuda/qwen35_wayfinder/` |
-| Experimental | Qwen 3.5 MLX / Apple Silicon path | `scripts/bench_qwen_consumer_mlx.py`, `results/benchmarks/` |
+| Experimental | Qwen 3.5 MLX / Apple Silicon path | `scripts/bench_qwen_consumer_mlx.py`, [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md), `results/benchmarks/` |
 | Research / archive | Older Wayfinder/HCSA docs, prompts, and exploratory runs | `docs/`, `notes/`, `archive/` |
 
 If you are new to the project, start from the validated GLM path first. The Qwen work is promising, but it should still be read as active engineering rather than a locked public release.
@@ -39,6 +39,57 @@ The exact sparse pattern differs across code paths. Older Wayfinder/HCSA integra
 For contributor-facing implementation details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Measured evidence
+
+### Mathematical validity experiment: staged communication
+
+Before asking whether Butterfly preserves model quality, the minimal topology question is:
+
+- does a bounded-degree staged Butterfly schedule actually move information across the causal prefix fast enough to matter?
+
+The repo now includes two CPU-only structural experiments that run directly on the real staged block layout used by the CUDA block-sparse path:
+
+- primary support proof: [scripts/experiment_butterfly_validity.py](scripts/experiment_butterfly_validity.py)
+- staged-vs-controls support proof (with secondary weighted diagnostics): [scripts/experiment_butterfly_staging_validity.py](scripts/experiment_butterfly_staging_validity.py)
+- artifacts:
+  - [results/proof/butterfly_validity/summary.md](results/proof/butterfly_validity/summary.md)
+  - [results/proof/butterfly_staging_validity/summary.md](results/proof/butterfly_staging_validity/summary.md)
+
+Durable claim checked by this proof surface:
+
+- per-layer degree stays bounded
+- staged Butterfly reaches full causal-prefix support in logarithmic depth (`L = ceil(log2 N)`)
+- staged Butterfly outperforms local-only and frozen-long-range controls on support expansion
+
+Canonical public topology primitives for this proof surface live in `bna.topology.butterfly`.
+
+Secondary (non-durable) diagnostics:
+
+- weighted surrogate spread/conditioning readouts are reported for context only
+- those diagnostics are not treated as general mixing guarantees
+
+Current result summary for `8..128` blocks and partner rules `xor`, `bit_reversal`, and `benes`:
+
+| Rule | Blocks | Last Block Full Reach | All-Block Prefix Reach | Max Degree | Butterfly Coverage At `log2 N` | Local-Only Coverage At `log2 N` |
+|---|---:|---:|---:|---:|---:|---:|
+| `xor` | `128` | `7` | `13` | `4` | `1.000` | `0.125` |
+| `bit_reversal` | `128` | `6` | `13` | `4` | `1.000` | `0.125` |
+| `benes` | `128` | `7` | `12` | `4` | `1.000` | `0.125` |
+
+Interpretation:
+
+- the core communication claim holds at the topology level
+- the result is about information-flow capacity, not yet about perplexity or downstream quality
+- this is the right “minimum viable proof” that Butterfly is not just a sparse mask, but a sparse mask with logarithmic-depth communication
+
+Reproduce:
+
+```bash
+python scripts/experiment_butterfly_validity.py
+python scripts/experiment_butterfly_staging_validity.py
+pytest -q tests/pytorch/test_wayfinder_topology.py \
+  tests/pytorch/test_wayfinder_staging_validity.py \
+  tests/pytorch/test_wayfinder_operator_mixing.py
+```
 
 ### Validated public path: GLM on MLX
 
@@ -182,6 +233,7 @@ Notes:
 
 - In `--mode butterfly`, keep `--chunk-size <= --query-chunk-size`. The benchmark now rejects invalid settings because later prefill chunks would otherwise fall back to stock attention.
 - The MLX KV quantization prototype reuses MLX-LM cache quantization on the full-attention layers only. Butterfly prefill remains dense; the working KV cache is quantized after prefill and before stock decode.
+- Current Qwen 3.5 4B MLX interpretation and reporting package: [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md)
 
 ### Basic checks
 
@@ -204,6 +256,7 @@ ruff check bna tests
 ## Where to read next
 
 - [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md): validated benchmark slice and reproduction commands
+- [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md): Butterfly-first Qwen 3.5 4B MLX benchmark report and long-context interpretation
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): contributor-facing implementation map
 - [docs/APPLE_SILICON_SETUP.md](docs/APPLE_SILICON_SETUP.md): Apple Silicon bootstrap, llama.cpp Metal baseline, model catalog
 - [CONTRIBUTING.md](CONTRIBUTING.md): expectations for docs, claims, and performance changes

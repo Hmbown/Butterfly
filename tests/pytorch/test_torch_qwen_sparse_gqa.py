@@ -329,7 +329,7 @@ def test_wayfinder_block_layout_is_causal_and_stage_scheduled(device: torch.devi
     assert layout.stage_idx == 1
     assert tuple(layout.sink_blocks) == (0,)
     assert layout.block_neighbors.shape[:2] == (4, 8)
-    assert layout.topology_name == "wayfinder"
+    assert layout.topology_name == "butterfly"
 
     row = layout.block_neighbors[0, 6]
     valid = row[row >= 0].tolist()
@@ -775,7 +775,7 @@ def test_qwen_static_block_sparse_cache_shared_across_layers(
     assert layer0.last_profile["block_sparse_block_size"] == 4
     assert layer0.last_profile["block_sparse_num_blocks"] == 3
     assert int(layer0.last_profile["block_sparse_neighbor_blocks"]) >= 3
-    assert layer0.last_profile["graph_source"] == "runtime_block_wayfinder"
+    assert layer0.last_profile["graph_source"] == "runtime_block_butterfly"
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
 
@@ -868,8 +868,8 @@ def test_qwen_wayfinder_block_sparse_cached_kv_uses_sparse_precomputed_backend(
         "sdpa",
         "streamed_online_softmax",
     }
-    assert layer.last_profile["block_sparse_topology"] == "wayfinder"
-    assert layer.last_profile["graph_source"] == "runtime_block_wayfinder"
+    assert layer.last_profile["block_sparse_topology"] == "butterfly"
+    assert layer.last_profile["graph_source"] == "runtime_block_butterfly"
     assert layer.last_profile["kv_len"] == 8
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
@@ -923,16 +923,16 @@ def test_qwen_wayfinder_block_sparse_cached_kv_uses_sparse_precomputed_backend(
     assert cache0 is cache2
     assert cache0.block_layout is not None
     assert cache1.block_layout is not None
-    assert cache0.block_layout.topology_name == "wayfinder"
+    assert cache0.block_layout.topology_name == "butterfly"
     assert cache0.block_layout.stage_idx == 0
     assert cache1.block_layout.stage_idx == 1
     assert cache0.flex_block_mask is not None
     assert layer0.last_profile["path"] == "block_sparse"
     assert layer0.last_profile["block_sparse_backend"] == "flex_attention"
-    assert layer0.last_profile["block_sparse_topology"] == "wayfinder"
+    assert layer0.last_profile["block_sparse_topology"] == "butterfly"
     assert layer0.last_profile["block_sparse_stage"] == 0
     assert layer1.last_profile["block_sparse_stage"] == 1
-    assert layer0.last_profile["graph_source"] == "runtime_block_wayfinder"
+    assert layer0.last_profile["graph_source"] == "runtime_block_butterfly"
 
     qwen_torch.clear_shared_qwen_wayfinder_graph_cache()
 
@@ -1082,7 +1082,7 @@ def test_qwen_sparse_profile_reports_effective_chunking(
     layer0(hidden_states, position_embeddings=pos)
 
     profile = layer0.last_profile
-    assert profile["mode"] == "wayfinder"
+    assert profile["mode"] == "butterfly"
     assert profile["path"] == "sparse"
     assert profile["sparse_chunk_mode"] == "auto"
     assert int(profile["sparse_query_chunk_size"]) >= 1

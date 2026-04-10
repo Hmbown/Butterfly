@@ -92,7 +92,7 @@ class _StopAfterConfig(RuntimeError):
     pass
 
 
-def test_bench_qwen_cli_wires_sparse_path(monkeypatch, tmp_path: Path) -> None:
+def test_bench_qwen_cli_wires_butterfly_sparse_path(monkeypatch, tmp_path: Path) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -133,7 +133,7 @@ def test_bench_qwen_cli_wires_sparse_path(monkeypatch, tmp_path: Path) -> None:
             "--repeats",
             "1",
             "--phases",
-            "wayfinder",
+            "butterfly",
             "--skip-divergence",
             "--output",
             str(tmp_path / "bench.ndjson"),
@@ -181,7 +181,7 @@ def test_bench_qwen_cli_wires_sparse_path(monkeypatch, tmp_path: Path) -> None:
     assert cfg.sparse_trace_layer_indices == (1, 3)
 
 
-def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> None:
+def test_bench_qwen_cli_wires_butterfly_block_sparse_path(monkeypatch, tmp_path: Path) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -223,7 +223,7 @@ def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> 
             "--repeats",
             "1",
             "--phases",
-            "wayfinder",
+            "butterfly",
             "--skip-divergence",
             "--output",
             str(tmp_path / "bench.ndjson"),
@@ -246,7 +246,10 @@ def test_bench_qwen_cli_wires_block_sparse_path(monkeypatch, tmp_path: Path) -> 
     assert cfg.engine == "triton"
 
 
-def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Path) -> None:
+def test_bench_qwen_cli_accepts_legacy_wayfinder_phase_alias_for_block_topology(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -287,7 +290,7 @@ def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Pa
             "--repeats",
             "1",
             "--phases",
-            "wayfinder",
+            "butterfly",
             "--skip-divergence",
             "--output",
             str(tmp_path / "bench.ndjson"),
@@ -320,7 +323,10 @@ def test_bench_qwen_cli_wires_wayfinder_block_topology(monkeypatch, tmp_path: Pa
     assert cfg.block_partner_rule == "bit_reversal"
 
 
-def test_bench_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(monkeypatch, tmp_path: Path) -> None:
+def test_bench_qwen_cli_rejects_butterfly_block_sparse_longrun_without_unsafe_override(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -360,7 +366,7 @@ def test_bench_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(mon
             "--repeats",
             "1",
             "--phases",
-            "wayfinder",
+            "butterfly",
             "--skip-divergence",
             "--output",
             str(tmp_path / "bench.ndjson"),
@@ -439,7 +445,7 @@ def test_bench_qwen_backbone_residency_rejects_cpu_or_meta(monkeypatch) -> None:
         module._validate_backbone_module_residency(_MixedResidency(), label="dense")
 
 
-def test_collect_wayfinder_profiles_preserves_sparse_backend_and_cuda_timing(monkeypatch) -> None:
+def test_collect_butterfly_profiles_preserves_sparse_backend_and_cuda_timing(monkeypatch) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -456,7 +462,7 @@ def test_collect_wayfinder_profiles_preserves_sparse_backend_and_cuda_timing(mon
         def snapshot_last_profile(self, *, sync: bool = True):
             return {
                 "layer_idx": 3,
-                "mode": "wayfinder",
+                "mode": "butterfly",
                 "reason": None,
                 "elapsed_ms": 20.0,
                 "graph_build_ms": 0.1,
@@ -502,7 +508,9 @@ def test_collect_wayfinder_profiles_preserves_sparse_backend_and_cuda_timing(mon
     assert profiles[0]["sparse_trace_error"] is None
 
 
-def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(monkeypatch) -> None:
+def test_collect_butterfly_profiles_preserves_block_sparse_butterfly_metadata(
+    monkeypatch,
+) -> None:
     import bna.integrations.qwen_torch as qwen_torch
 
     module = _load_script_module(
@@ -519,7 +527,7 @@ def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(mo
         def snapshot_last_profile(self, *, sync: bool = True):
             return {
                 "layer_idx": 7,
-                "mode": "wayfinder",
+                "mode": "butterfly",
                 "reason": None,
                 "elapsed_ms": 14.0,
                 "graph_build_ms": 0.2,
@@ -528,11 +536,11 @@ def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(mo
                 "path": "block_sparse",
                 "engine": "flex",
                 "strategy": "random",
-                "graph_source": "runtime_block_wayfinder",
+                "graph_source": "runtime_block_butterfly",
                 "graph_cache_hit": True,
                 "graph_metrics": None,
                 "block_sparse_backend": "flex_attention",
-                "block_sparse_topology": "wayfinder",
+                "block_sparse_topology": "butterfly",
                 "block_sparse_block_size": 128,
                 "block_sparse_num_blocks": 64,
                 "block_sparse_neighbor_blocks": 5,
@@ -552,7 +560,7 @@ def test_collect_wayfinder_profiles_preserves_block_sparse_wayfinder_metadata(mo
     assert len(profiles) == 1
     assert profiles[0]["path"] == "block_sparse"
     assert profiles[0]["block_sparse_backend"] == "flex_attention"
-    assert profiles[0]["block_sparse_topology"] == "wayfinder"
+    assert profiles[0]["block_sparse_topology"] == "butterfly"
     assert profiles[0]["block_sparse_stage"] == 3
     assert profiles[0]["block_sparse_stage_count"] == 6
     assert profiles[0]["block_local_window_blocks"] == 2
@@ -703,7 +711,7 @@ def test_bench_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
             "--repeats",
             "1",
             "--phases",
-            "wayfinder",
+            "butterfly",
             "--skip-divergence",
             "--output",
             str(tmp_path / "bench.ndjson"),
@@ -763,7 +771,7 @@ def test_bench_qwen_cli_rejects_runtime_quantization_on_native_fp8_checkpoint(
         module.main()
 
 
-def test_serve_qwen_cli_defaults_to_sparse(monkeypatch) -> None:
+def test_serve_qwen_cli_defaults_to_butterfly_sparse(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
     module = _load_script_module(
         "serve_qwen_wayfinder_cuda_test",
@@ -791,8 +799,6 @@ def test_serve_qwen_cli_defaults_to_sparse(monkeypatch) -> None:
             "serve_qwen_wayfinder_cuda.py",
             "--model-path",
             "fake-model",
-            "--mode",
-            "wayfinder",
             "--port",
             "9999",
         ],
@@ -845,7 +851,7 @@ def test_serve_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
             "--model-path",
             "fake-native-fp8-model",
             "--mode",
-            "wayfinder",
+            "butterfly",
             "--port",
             "9999",
         ],
@@ -859,7 +865,9 @@ def test_serve_qwen_cli_keeps_requested_compute_dtype_for_native_fp8_checkpoint(
     assert kwargs["quantization_config"] is None
 
 
-def test_serve_qwen_cli_wires_block_sparse_smoke_on_unsupported_arch(monkeypatch) -> None:
+def test_serve_qwen_cli_wires_butterfly_block_sparse_smoke_on_unsupported_arch(
+    monkeypatch,
+) -> None:
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
     module = _load_script_module(
         "serve_qwen_wayfinder_cuda_block_sparse_test",
@@ -889,7 +897,7 @@ def test_serve_qwen_cli_wires_block_sparse_smoke_on_unsupported_arch(monkeypatch
             "--model-path",
             "fake-model",
             "--mode",
-            "wayfinder",
+            "butterfly",
             "--port",
             "9999",
             "--path",
@@ -907,7 +915,9 @@ def test_serve_qwen_cli_wires_block_sparse_smoke_on_unsupported_arch(monkeypatch
     assert cfg.engine == "flex"
 
 
-def test_serve_qwen_cli_wires_wayfinder_block_topology_on_unsupported_arch(monkeypatch) -> None:
+def test_serve_qwen_cli_wires_butterfly_block_topology_on_unsupported_arch(
+    monkeypatch,
+) -> None:
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
     module = _load_script_module(
         "serve_qwen_wayfinder_cuda_block_topology_test",
@@ -937,7 +947,7 @@ def test_serve_qwen_cli_wires_wayfinder_block_topology_on_unsupported_arch(monke
             "--model-path",
             "fake-model",
             "--mode",
-            "wayfinder",
+            "butterfly",
             "--port",
             "9999",
             "--path",
@@ -967,7 +977,9 @@ def test_serve_qwen_cli_wires_wayfinder_block_topology_on_unsupported_arch(monke
     assert cfg.block_partner_rule == "benes"
 
 
-def test_serve_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(monkeypatch) -> None:
+def test_serve_qwen_cli_rejects_butterfly_block_sparse_longrun_without_unsafe_override(
+    monkeypatch,
+) -> None:
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers_module())
     module = _load_script_module(
         "serve_qwen_wayfinder_cuda_block_sparse_longrun_test",
@@ -1001,7 +1013,7 @@ def test_serve_qwen_cli_rejects_block_sparse_longrun_without_unsafe_override(mon
             "--model-path",
             "fake-model",
             "--mode",
-            "wayfinder",
+            "butterfly",
             "--port",
             "9999",
             "--path",

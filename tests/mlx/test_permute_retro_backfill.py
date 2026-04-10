@@ -5,7 +5,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from bna.mlx.attention import wayfinder_permute_window_attention_batched
+from bna.mlx.attention import butterfly_permute_window_attention_batched
 
 
 def _make_inputs(*, seed: int = 7, B: int = 1, Hq: int = 2, Hkv: int = 1, T: int = 17, dh: int = 8):
@@ -31,7 +31,7 @@ def test_retro_disabled_matches_baseline() -> None:
     """With retro disabled, output must match baseline exactly."""
     q, k, v, perms, inv = _make_inputs(seed=101)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -42,7 +42,7 @@ def test_retro_disabled_matches_baseline() -> None:
         head_chunk_size=2,
         query_chunk_size=8,
     )
-    y_off, _ = wayfinder_permute_window_attention_batched(
+    y_off, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -65,7 +65,7 @@ def test_retro_training_only_guard() -> None:
     """When training=False and training_only=True, retro must not activate."""
     q, k, v, perms, inv = _make_inputs(seed=202)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -76,7 +76,7 @@ def test_retro_training_only_guard() -> None:
         head_chunk_size=2,
         query_chunk_size=8,
     )
-    y_guarded, _ = wayfinder_permute_window_attention_batched(
+    y_guarded, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -99,7 +99,7 @@ def test_simple_retro_active_changes_output_and_is_finite() -> None:
     """Simplified retro with training=True must change output and be numerically stable."""
     q, k, v, perms, inv = _make_inputs(seed=303)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -110,7 +110,7 @@ def test_simple_retro_active_changes_output_and_is_finite() -> None:
         head_chunk_size=2,
         query_chunk_size=8,
     )
-    y_retro, _ = wayfinder_permute_window_attention_batched(
+    y_retro, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -137,7 +137,7 @@ def test_simple_retro_alpha_zero_is_noop() -> None:
     """With alpha=0, retro should be a no-op even when enabled."""
     q, k, v, perms, inv = _make_inputs(seed=404)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -148,7 +148,7 @@ def test_simple_retro_alpha_zero_is_noop() -> None:
         head_chunk_size=2,
         query_chunk_size=8,
     )
-    y_retro, _ = wayfinder_permute_window_attention_batched(
+    y_retro, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -177,7 +177,7 @@ def test_simple_retro_causal_only_blocks_identity_future() -> None:
     perms = mx.array(np.stack([perm_np for _ in range(Hq)], axis=0), dtype=mx.int32)
     inv = perms
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -188,7 +188,7 @@ def test_simple_retro_causal_only_blocks_identity_future() -> None:
         head_chunk_size=2,
         query_chunk_size=16,
     )
-    y_retro, _ = wayfinder_permute_window_attention_batched(
+    y_retro, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -217,7 +217,7 @@ def test_simple_retro_causal_only_changes_for_reverse_perm() -> None:
     perms = mx.array(np.stack([perm_np for _ in range(Hq)], axis=0), dtype=mx.int32)
     inv = mx.array(np.stack([inv_np for _ in range(Hq)], axis=0), dtype=mx.int32)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -228,7 +228,7 @@ def test_simple_retro_causal_only_changes_for_reverse_perm() -> None:
         head_chunk_size=2,
         query_chunk_size=16,
     )
-    y_retro, _ = wayfinder_permute_window_attention_batched(
+    y_retro, _ = butterfly_permute_window_attention_batched(
         q,
         k,
         v,
@@ -260,7 +260,7 @@ def test_simple_retro_different_perms_per_head() -> None:
     perms = mx.array(np.stack([rng.permutation(T).astype(np.int32) for _ in range(Hq)]), dtype=mx.int32)
     inv = mx.array(np.stack([np.argsort(perms[h]) for h in range(Hq)]), dtype=mx.int32)
 
-    y_base, _ = wayfinder_permute_window_attention_batched(
+    y_base, _ = butterfly_permute_window_attention_batched(
         q, k, v,
         all_perms=perms,
         all_inv_perms=inv,
@@ -269,7 +269,7 @@ def test_simple_retro_different_perms_per_head() -> None:
         head_chunk_size=2,
         query_chunk_size=12,
     )
-    y_retro, _ = wayfinder_permute_window_attention_batched(
+    y_retro, _ = butterfly_permute_window_attention_batched(
         q, k, v,
         all_perms=perms,
         all_inv_perms=inv,

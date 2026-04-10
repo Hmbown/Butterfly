@@ -1,0 +1,120 @@
+{
+  "experiment": "butterfly_causal_support",
+  "claim_checked": "Using a topology-only row-stochastic operator built from the real staged Butterfly layout, test whether Butterfly reaches causal-prefix support more effectively than matched-degree controls at L = ceil(log2(num_blocks)).",
+  "secondary_diagnostics": "Uniform-weight surrogate spread and conditioning metrics are reported as secondary diagnostics only.",
+  "operator_definition": "Each block row uniformly averages over its exact admissible predecessors. This is a topology-only surrogate, not learned attention.",
+  "config": {
+    "num_blocks": [
+      32
+    ],
+    "partner_rules": [
+      "xor"
+    ],
+    "block_size": 64,
+    "local_window_blocks": 1,
+    "sink_count": 1,
+    "partner_count": 1,
+    "random_seed": 0,
+    "analysis_layers": "ceil(log2(num_blocks))"
+  },
+  "results": [
+    {
+      "num_blocks": 32,
+      "partner_rule": "xor",
+      "width": 5,
+      "analysis_layers": 5,
+      "stage_count": 5,
+      "degree_budget": 4,
+      "butterfly": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 0.8764997925624478,
+        "support_coverage_min": 0.5,
+        "normalized_effective_support_last_row": 0.0491974000896531,
+        "normalized_effective_support_mean": 0.15415683485894324,
+        "normalized_effective_support_min": 0.0491974000896531,
+        "normalized_entropy_last_row": 0.3376897491607955,
+        "normalized_entropy_mean": 0.3085222447158248,
+        "normalized_entropy_min": 0.20062232431271465,
+        "last_row_tv_to_uniform": 0.7645399305555556,
+        "mean_tv_to_uniform": 0.7282004680277682,
+        "last_row_max_mass": 0.7957899305555556,
+        "mean_max_mass": 0.8550284428851596,
+        "effective_rank": 2.2295391986793947,
+        "effective_rank_ratio": 0.06967309995873108,
+        "stable_rank": 1.0024350109149713,
+        "stable_rank_ratio": 0.031326094091092854,
+        "log10_condition_number": 7.0830048474814795,
+        "normalized_singular_values": [
+          1.0,
+          0.02481514466811832,
+          0.02230486254010364,
+          0.018428189806197585,
+          0.015146135608503409,
+          0.013688343164245229,
+          0.012862412942816455,
+          0.010694420048065848
+        ]
+      },
+      "local_only": {
+        "support_coverage_last_row": 0.375,
+        "support_coverage_mean": 0.7332316939596907,
+        "support_coverage_min": 0.375,
+        "normalized_effective_support_last_row": 0.05294435091143519,
+        "normalized_effective_support_mean": 0.16769392082311607,
+        "normalized_effective_support_min": 0.05294435091143519,
+        "normalized_entropy_last_row": 0.29625615231391733,
+        "normalized_entropy_mean": 0.358776879746472,
+        "normalized_entropy_min": 0.20062232431271465,
+        "last_row_tv_to_uniform": 0.775390625,
+        "mean_tv_to_uniform": 0.6777048286895206,
+        "last_row_max_mass": 0.7626953125,
+        "mean_max_mass": 0.795768957569766,
+        "effective_rank": 2.882892982830337,
+        "effective_rank_ratio": 0.09009040571344804,
+        "stable_rank": 1.0100587388856304,
+        "stable_rank_ratio": 0.03156433559017595,
+        "log10_condition_number": 7.843287524524695,
+        "normalized_singular_values": [
+          1.0,
+          0.051937586921361516,
+          0.047072769406955844,
+          0.04163826977931262,
+          0.03568755252492139,
+          0.028730163352162625,
+          0.023450982444418993,
+          0.017401335426693778
+        ]
+      },
+      "random_predecessor": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 0.9918507760008883,
+        "support_coverage_min": 0.896551724137931,
+        "normalized_effective_support_last_row": 0.050927883594198364,
+        "normalized_effective_support_mean": 0.15873940287280713,
+        "normalized_effective_support_min": 0.050927883594198364,
+        "normalized_entropy_last_row": 0.34100502151735673,
+        "normalized_entropy_mean": 0.34223744405069656,
+        "normalized_entropy_min": 0.20062232431271465,
+        "last_row_tv_to_uniform": 0.7518446180555556,
+        "mean_tv_to_uniform": 0.7031573342607311,
+        "last_row_max_mass": 0.7813585069444444,
+        "mean_max_mass": 0.8287829489374359,
+        "effective_rank": 1.740469688106361,
+        "effective_rank_ratio": 0.05438967775332378,
+        "stable_rank": 1.0014399806373442,
+        "stable_rank_ratio": 0.031294999394917006,
+        "log10_condition_number": 8.82754333951214,
+        "normalized_singular_values": [
+          1.0,
+          0.027422504957926277,
+          0.01793636499610574,
+          0.01079495370038983,
+          0.00802730183838571,
+          0.007432823420361846,
+          0.006340485514847655,
+          0.005001861251288155
+        ]
+      }
+    }
+  ]
+}

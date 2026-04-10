@@ -1,4 +1,4 @@
-"""Correctness tests for wayfinder_permute_window_attention_active_batched (K4 active-row path).
+"""Correctness tests for butterfly_permute_window_attention_active_batched (K4 active-row path).
 
 Compares the permute-window active-row function against a naive dense reference
 that computes, for each query position, full attention over the cycle-window
@@ -13,7 +13,7 @@ import pytest
 
 mx = pytest.importorskip("mlx.core")
 
-from bna.mlx.attention import wayfinder_permute_window_attention_active_batched
+from bna.mlx.attention import butterfly_permute_window_attention_active_batched
 
 
 # ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def _run_comparison(
     inv_perms_mx = mx.array(inv_perms)
     qp_mx = mx.array(qp)
 
-    y_mx, _ = wayfinder_permute_window_attention_active_batched(
+    y_mx, _ = butterfly_permute_window_attention_active_batched(
         q_mx,
         k_mx,
         v_mx,
@@ -225,7 +225,7 @@ class TestK4ActiveRowEdgeCases:
 
         qp = np.array([0], dtype=np.int32)
 
-        y_mx, _ = wayfinder_permute_window_attention_active_batched(
+        y_mx, _ = butterfly_permute_window_attention_active_batched(
             mx.array(q_np),
             mx.array(k_np),
             mx.array(v_np),

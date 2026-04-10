@@ -6,7 +6,7 @@ import pytest
 mx = pytest.importorskip("mlx.core")
 nn = pytest.importorskip("mlx.nn")
 
-from bna.integrations.qwen_mlx import QwenWayfinderAttention, QwenWayfinderConfig  # noqa: E402
+from bna.integrations.qwen_mlx import QwenButterflyAttention, QwenButterflyConfig  # noqa: E402
 
 
 class _MockIdentity(nn.Module):
@@ -71,13 +71,13 @@ def _make_qwen_attn_and_cfg(**cfg_overrides):
         compute_graph_metrics=False,
     )
     cfg_defaults.update(cfg_overrides)
-    cfg = QwenWayfinderConfig(**cfg_defaults)
+    cfg = QwenButterflyConfig(**cfg_defaults)
     return base_attn, cfg
 
 
-def test_qwen_sparse_chunked_prefill_decode_stays_sparse():
+def test_qwen_butterfly_sparse_chunked_prefill_decode_stays_sparse():
     base_attn, cfg = _make_qwen_attn_and_cfg(path="sparse")
-    attn = QwenWayfinderAttention(base_attn, cfg)
+    attn = QwenButterflyAttention(base_attn, cfg)
     cache = _MockKVCache()
 
     x0 = mx.random.normal((1, 16, 64))

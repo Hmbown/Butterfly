@@ -1,0 +1,151 @@
+{
+  "created_at": "2026-04-05T02:15:19.772342+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/models/Qwen3.5-2B-MLX-4bit-text --mode stock --skip-single-turn --skip-quality --turns 8 --multi-target-context 262144 --multi-decode-len 64 --chunk-size 4096 --kv-step 4096 --cooldown-sec 5 --stage-timeout-sec 7200 --heartbeat-sec 60 --out-dir results/benchmarks/qwen35_2b_mlx/stock_262k_push",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-2B-MLX-4bit-text",
+  "hf_cache": {
+    "hf_home": "None",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": null
+  },
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "retro_backfill_enabled": false,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 0,
+    "multi_turns_completed": 8,
+    "quality_tasks_completed": 0,
+    "last_stage": "multi_turn_turn_complete",
+    "last_seq_len": null,
+    "last_repeat": null
+  },
+  "timing": {
+    "writeout_sec_last": 0.001085666001017671,
+    "writeout_sec_total": 0.016422749999037478,
+    "script_start_unix_sec": 1775355319.7723572,
+    "script_end_unix_sec": 1775361266.217771
+  },
+  "single_turn": null,
+  "multi_turn": {
+    "turns": 8,
+    "target_total_context": 262144,
+    "decode_len_per_turn": 64,
+    "session_e2e_sec": 1218.0198472089978,
+    "per_turn": [
+      {
+        "turn": 1,
+        "seq_len": 32768,
+        "decode_len": 64,
+        "ttft_sec": 0.023144750004576053,
+        "itl_p50_sec": 0.006931458003236912,
+        "itl_p95_sec": 0.007185458001913503,
+        "e2e_sec": 17.76474991699797,
+        "decode_tok_s": 137.5644799917183,
+        "peak_memory_bytes": 7076258022
+      },
+      {
+        "turn": 2,
+        "seq_len": 65536,
+        "decode_len": 64,
+        "ttft_sec": 0.05196670800069114,
+        "itl_p50_sec": 0.008520666000549681,
+        "itl_p95_sec": 0.0087779999958002,
+        "e2e_sec": 39.049947459003306,
+        "decode_tok_s": 107.68812587203985,
+        "peak_memory_bytes": 9756680416
+      },
+      {
+        "turn": 3,
+        "seq_len": 98304,
+        "decode_len": 64,
+        "ttft_sec": 0.08414154100319138,
+        "itl_p50_sec": 0.009767916999408044,
+        "itl_p95_sec": 0.010098874998220708,
+        "e2e_sec": 69.3401712499981,
+        "decode_tok_s": 90.61156795504913,
+        "peak_memory_bytes": 12474851552
+      },
+      {
+        "turn": 4,
+        "seq_len": 131072,
+        "decode_len": 64,
+        "ttft_sec": 0.212673582995194,
+        "itl_p50_sec": 0.011532374999660533,
+        "itl_p95_sec": 0.0333097499969881,
+        "e2e_sec": 108.57234862500627,
+        "decode_tok_s": 53.03313999546407,
+        "peak_memory_bytes": 15188828384
+      },
+      {
+        "turn": 5,
+        "seq_len": 163840,
+        "decode_len": 64,
+        "ttft_sec": 0.36584166700049536,
+        "itl_p50_sec": 0.01437195800099289,
+        "itl_p95_sec": 0.015439916001923848,
+        "e2e_sec": 156.66448220799793,
+        "decode_tok_s": 49.80881005010339,
+        "peak_memory_bytes": 17906999520
+      },
+      {
+        "turn": 6,
+        "seq_len": 196608,
+        "decode_len": 64,
+        "ttft_sec": 0.5043957919988316,
+        "itl_p50_sec": 0.014640082998084836,
+        "itl_p95_sec": 0.017239167005755007,
+        "e2e_sec": 213.88324037499842,
+        "decode_tok_s": 42.870623658782684,
+        "peak_memory_bytes": 20625170656
+      },
+      {
+        "turn": 7,
+        "seq_len": 229376,
+        "decode_len": 64,
+        "ttft_sec": 0.45315699999628123,
+        "itl_p50_sec": 0.015964375001203734,
+        "itl_p95_sec": 0.016481082995596807,
+        "e2e_sec": 272.81110349999653,
+        "decode_tok_s": 43.02391335055844,
+        "peak_memory_bytes": 23343341792
+      },
+      {
+        "turn": 8,
+        "seq_len": 262144,
+        "decode_len": 64,
+        "ttft_sec": 0.1853237920004176,
+        "itl_p50_sec": 0.01658329200290609,
+        "itl_p95_sec": 0.01696608299971558,
+        "e2e_sec": 339.9338038749993,
+        "decode_tok_s": 50.442377363672705,
+        "peak_memory_bytes": 25754263768
+      }
+    ]
+  },
+  "quality": null
+}

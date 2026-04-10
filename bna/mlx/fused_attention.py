@@ -72,7 +72,7 @@ def _fused_active_dispatch_eligible(
     return True
 
 
-def wayfinder_fused_permute_window_attention_chunked_gather(
+def butterfly_fused_permute_window_attention_chunked_gather(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -153,7 +153,7 @@ def wayfinder_fused_permute_window_attention_chunked_gather(
     return mx.take_along_axis(y_pi, inv_idx, axis=2).astype(v.dtype)
 
 
-def wayfinder_fused_permute_window_attention(
+def butterfly_fused_permute_window_attention(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -282,7 +282,7 @@ def wayfinder_fused_permute_window_attention(
     return y
 
 
-def wayfinder_fused_permute_window_attention_active(
+def butterfly_fused_permute_window_attention_active(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -651,7 +651,7 @@ def _active_via_gather(
     return mx.concatenate(y_chunks, axis=2)
 
 
-def wayfinder_fused_permute_window_attention_active_metal(
+def butterfly_fused_permute_window_attention_active_metal(
     q: mx.array,
     k: mx.array,
     v: mx.array,
@@ -707,3 +707,24 @@ def wayfinder_fused_permute_window_attention_active_metal(
     if len(y_chunks) == 1:
         return y_chunks[0]
     return mx.concatenate(y_chunks, axis=2)
+
+
+wayfinder_fused_permute_window_attention_chunked_gather = (
+    butterfly_fused_permute_window_attention_chunked_gather
+)
+wayfinder_fused_permute_window_attention = butterfly_fused_permute_window_attention
+wayfinder_fused_permute_window_attention_active = butterfly_fused_permute_window_attention_active
+wayfinder_fused_permute_window_attention_active_metal = (
+    butterfly_fused_permute_window_attention_active_metal
+)
+
+__all__ = [
+    "butterfly_fused_permute_window_attention_chunked_gather",
+    "butterfly_fused_permute_window_attention",
+    "butterfly_fused_permute_window_attention_active",
+    "butterfly_fused_permute_window_attention_active_metal",
+    "wayfinder_fused_permute_window_attention_chunked_gather",
+    "wayfinder_fused_permute_window_attention",
+    "wayfinder_fused_permute_window_attention_active",
+    "wayfinder_fused_permute_window_attention_active_metal",
+]

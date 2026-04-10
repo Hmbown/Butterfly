@@ -1,4 +1,4 @@
-"""Topology validation for the Wayfinder block-sparse attention graph.
+"""Topology validation for the Butterfly block-sparse attention graph.
 
 Tests the core graph-theoretic properties that make the mechanism interesting:
 - strict causality at block level
@@ -13,21 +13,25 @@ All tests are CPU-only and instant.
 
 from __future__ import annotations
 
-import itertools
-import math
-from collections import defaultdict
-
 import pytest
 import torch
 
+from bna.topology.butterfly import (
+    bit_reverse,
+    butterfly_partner_bits,
+    butterfly_partner_block,
+    butterfly_stage_meta,
+    butterfly_width,
+)
 from bna.torch.attention_wayfinder_permute import (
     BlockHamiltonianLayout,
-    _bit_reverse,
-    _ceil_log2,
-    _wayfinder_partner_bits,
-    _wayfinder_partner_block,
-    _wayfinder_stage_meta,
-    build_block_wayfinder_layout,
+    _bit_reverse as legacy_bit_reverse,
+    _ceil_log2 as legacy_width,
+    _wayfinder_partner_bits as legacy_partner_bits,
+    _wayfinder_partner_block as legacy_partner_block,
+    _wayfinder_stage_meta as legacy_stage_meta,
+    build_block_butterfly_layout,
+    build_block_wayfinder_layout as legacy_build_block_layout,
 )
 
 
@@ -51,7 +55,7 @@ def _build(
     num_kv_heads: int = 1,
     num_kv_groups: int = 1,
 ) -> BlockHamiltonianLayout:
-    return build_block_wayfinder_layout(
+    return build_block_butterfly_layout(
         seq_len=num_blocks * block_size,
         block_size=block_size,
         num_key_value_heads=num_kv_heads,
@@ -194,7 +198,7 @@ def test_global_reachability_in_log_n_layers(partner_rule: str) -> None:
     communication network with diameter O(log n).
     """
     num_blocks = 16
-    width = _ceil_log2(num_blocks)  # 4
+    width = butterfly_width(num_blocks)  # 4
 
     # Give it 2x the theoretical minimum to account for causality filtering
     num_layers = 2 * width
@@ -211,10 +215,42 @@ def test_global_reachability_in_log_n_layers(partner_rule: str) -> None:
 
 
 @pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("num_blocks", [16, 32, 33, 64])
+def test_all_blocks_reach_full_prefix_in_two_log_layers(
+    partner_rule: str,
+    num_blocks: int,
+) -> None:
+    """Every block should recover its full causal prefix within O(log n) layers.
+
+    This is stronger than only checking the final block. It verifies that the
+    staged partner schedule propagates information across the whole causal
+    triangle, not only along one easy path.
+    """
+    width = butterfly_width(num_blocks)
+    num_layers = 2 * width
+    reachable = _reachability_after_layers(
+        num_blocks,
+        num_layers,
+        partner_rule=partner_rule,
+        partner_count=1,
+        local_window_blocks=1,
+        sink_count=1,
+    )
+
+    for block_idx in range(num_blocks):
+        expected_prefix = set(range(block_idx + 1))
+        assert reachable[block_idx] >= expected_prefix, (
+            f"Block {block_idx} misses causal-prefix coverage after {num_layers} "
+            f"layers with {partner_rule}. Missing: "
+            f"{expected_prefix - reachable[block_idx]}"
+        )
+
+
+@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
 def test_reachability_diameter_bounded(partner_rule: str) -> None:
     """Measure the actual diameter: fewest layers needed for full causal reachability."""
     num_blocks = 16
-    width = _ceil_log2(num_blocks)
+    width = butterfly_width(num_blocks)
 
     for num_layers in range(1, 4 * width + 1):
         reachable = _reachability_after_layers(
@@ -235,7 +271,7 @@ def test_reachability_diameter_bounded(partner_rule: str) -> None:
 def test_reachability_with_two_partners(partner_rule: str) -> None:
     """Two partners per block should achieve full reachability faster."""
     num_blocks = 32
-    width = _ceil_log2(num_blocks)
+    width = butterfly_width(num_blocks)
 
     reachable_1p = _reachability_after_layers(
         num_blocks, 2 * width, partner_rule=partner_rule, partner_count=1,
@@ -259,14 +295,14 @@ def test_reachability_with_two_partners(partner_rule: str) -> None:
 def test_stage_covers_all_bits(partner_rule: str) -> None:
     """Cycling through all layers should touch every stage exactly once per period."""
     num_blocks = 16
-    width = _ceil_log2(num_blocks)
-    stage_idx_0, stage_count = _wayfinder_stage_meta(
+    width = butterfly_width(num_blocks)
+    _stage_idx_0, stage_count = butterfly_stage_meta(
         num_blocks=num_blocks, layer_idx=0, partner_rule=partner_rule,
     )
 
     seen_stages = set()
     for layer_idx in range(stage_count):
-        stage_idx, _ = _wayfinder_stage_meta(
+        stage_idx, _ = butterfly_stage_meta(
             num_blocks=num_blocks, layer_idx=layer_idx, partner_rule=partner_rule,
         )
         seen_stages.add(stage_idx)
@@ -278,16 +314,92 @@ def test_stage_covers_all_bits(partner_rule: str) -> None:
 
 def test_stage_count_xor() -> None:
     """XOR stage count should be ceil(log2(num_blocks))."""
-    assert _wayfinder_stage_meta(num_blocks=16, layer_idx=0, partner_rule="xor") == (0, 4)
-    assert _wayfinder_stage_meta(num_blocks=8, layer_idx=0, partner_rule="xor") == (0, 3)
-    assert _wayfinder_stage_meta(num_blocks=32, layer_idx=0, partner_rule="xor") == (0, 5)
+    assert butterfly_stage_meta(num_blocks=16, layer_idx=0, partner_rule="xor") == (0, 4)
+    assert butterfly_stage_meta(num_blocks=8, layer_idx=0, partner_rule="xor") == (0, 3)
+    assert butterfly_stage_meta(num_blocks=32, layer_idx=0, partner_rule="xor") == (0, 5)
 
 
 def test_stage_count_benes() -> None:
     """Benes stage count should be 2*ceil(log2(n))-2."""
-    _, count = _wayfinder_stage_meta(num_blocks=16, layer_idx=0, partner_rule="benes")
-    width = _ceil_log2(16)  # 4
+    _, count = butterfly_stage_meta(num_blocks=16, layer_idx=0, partner_rule="benes")
+    width = butterfly_width(16)  # 4
     assert count == 2 * width - 2  # 6
+
+
+@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+def test_legacy_wayfinder_aliases_match_public_butterfly_api(partner_rule: str) -> None:
+    """Legacy _wayfinder_* / _ceil_log2 / _bit_reverse aliases must stay in sync."""
+    num_blocks = 33
+    width = butterfly_width(num_blocks)
+
+    assert legacy_width(num_blocks) == butterfly_width(num_blocks)
+    assert legacy_bit_reverse(11, width) == bit_reverse(11, width)
+
+    for layer_idx in range(10):
+        assert legacy_stage_meta(
+            num_blocks=num_blocks,
+            layer_idx=layer_idx,
+            partner_rule=partner_rule,
+        ) == butterfly_stage_meta(
+            num_blocks=num_blocks,
+            layer_idx=layer_idx,
+            partner_rule=partner_rule,
+        )
+
+    stage_idx, stage_count = butterfly_stage_meta(
+        num_blocks=num_blocks,
+        layer_idx=3,
+        partner_rule=partner_rule,
+    )
+    assert legacy_partner_bits(
+        stage_idx=stage_idx,
+        stage_count=stage_count,
+        width=width,
+        partner_count=2,
+        partner_rule=partner_rule,
+    ) == butterfly_partner_bits(
+        stage_idx=stage_idx,
+        stage_count=stage_count,
+        width=width,
+        partner_count=2,
+        partner_rule=partner_rule,
+    )
+
+    for block_idx in range(num_blocks):
+        for bit_idx in range(width):
+            assert legacy_partner_block(
+                block_idx=block_idx,
+                bit_idx=bit_idx,
+                num_blocks=num_blocks,
+                partner_rule=partner_rule,
+                width=width,
+            ) == butterfly_partner_block(
+                block_idx=block_idx,
+                bit_idx=bit_idx,
+                num_blocks=num_blocks,
+                partner_rule=partner_rule,
+                width=width,
+            )
+
+
+def test_legacy_build_block_wayfinder_layout_alias() -> None:
+    """build_block_wayfinder_layout must remain a working alias."""
+    layout_new = build_block_butterfly_layout(
+        seq_len=16 * 64, block_size=64,
+        num_key_value_heads=1, num_key_value_groups=1,
+        layer_idx=0, local_window_blocks=1,
+        sink_count=1, partner_count=1, partner_rule="xor",
+    )
+    layout_legacy = legacy_build_block_layout(
+        seq_len=16 * 64, block_size=64,
+        num_key_value_heads=1, num_key_value_groups=1,
+        layer_idx=0, local_window_blocks=1,
+        sink_count=1, partner_count=1, partner_rule="xor",
+    )
+    import torch
+    assert torch.equal(layout_new.block_neighbors, layout_legacy.block_neighbors)
+    assert layout_new.num_blocks == layout_legacy.num_blocks
+    assert layout_new.stage_idx == layout_legacy.stage_idx
 
 
 # ===================================================================
@@ -307,10 +419,10 @@ def test_xor_partner_is_symmetric_for_non_causal() -> None:
 
 def test_bit_reversal_partner_produces_valid_blocks() -> None:
     """bit_reversal partner should always produce in-range blocks."""
-    width = _ceil_log2(16)
+    width = butterfly_width(16)
     for block_idx in range(16):
         for bit_idx in range(width):
-            partner = _wayfinder_partner_block(
+            partner = butterfly_partner_block(
                 block_idx=block_idx, bit_idx=bit_idx,
                 num_blocks=16, partner_rule="bit_reversal", width=width,
             )
@@ -321,13 +433,13 @@ def test_bit_reversal_partner_produces_valid_blocks() -> None:
 
 def test_benes_partner_matches_xor_for_forward_half() -> None:
     """In the forward half of a Benes network, partners should match XOR."""
-    width = _ceil_log2(16)
+    width = butterfly_width(16)
     for stage_idx in range(width):
-        bits_xor = _wayfinder_partner_bits(
+        bits_xor = butterfly_partner_bits(
             stage_idx=stage_idx, stage_count=width,
             width=width, partner_count=1, partner_rule="xor",
         )
-        bits_benes = _wayfinder_partner_bits(
+        bits_benes = butterfly_partner_bits(
             stage_idx=stage_idx, stage_count=2 * width - 2,
             width=width, partner_count=1, partner_rule="benes",
         )
@@ -388,16 +500,16 @@ def test_gqa_heads_share_kv_pattern() -> None:
 
 
 # ===================================================================
-# 9. Reachability comparison: Wayfinder vs random local-only baseline
+# 9. Reachability comparison: Butterfly vs random local-only baseline
 # ===================================================================
 
-def test_wayfinder_reaches_more_than_local_only() -> None:
-    """Wayfinder with partners should reach more blocks than local-only window."""
+def test_butterfly_reaches_more_than_local_only() -> None:
+    """Butterfly routing with partners should reach more blocks than local-only window."""
     num_blocks = 32
-    width = _ceil_log2(num_blocks)
+    width = butterfly_width(num_blocks)
 
-    # Wayfinder: local + partners + sink
-    wayfinder_reach = _reachability_after_layers(
+    # Butterfly: local + partners + sink
+    butterfly_reach = _reachability_after_layers(
         num_blocks, width, partner_rule="xor", partner_count=1,
         local_window_blocks=1, sink_count=1,
     )
@@ -409,7 +521,7 @@ def test_wayfinder_reaches_more_than_local_only() -> None:
     )
 
     last = num_blocks - 1
-    assert len(wayfinder_reach[last]) > len(local_reach[last]), (
-        f"Wayfinder ({len(wayfinder_reach[last])}) should reach more blocks "
+    assert len(butterfly_reach[last]) > len(local_reach[last]), (
+        f"Butterfly ({len(butterfly_reach[last])}) should reach more blocks "
         f"than local-only ({len(local_reach[last])})"
     )

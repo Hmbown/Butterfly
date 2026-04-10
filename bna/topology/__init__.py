@@ -1,4 +1,38 @@
+from .butterfly import (
+    ButterflyLayoutMetadata,
+    ButterflyPartnerRule,
+    NeighborSpec,
+    RoleName,
+    ROLE_ORDER,
+    bit_reverse,
+    build_butterfly_neighbor_role_row,
+    build_butterfly_role_map,
+    butterfly_layout_metadata,
+    butterfly_partner_bits,
+    butterfly_partner_block,
+    butterfly_stage_count,
+    butterfly_stage_meta,
+    butterfly_width,
+    ordered_roles,
+)
 from .core import Topology, TopologyGraph
 
-__all__ = ["Topology", "TopologyGraph"]
-
+__all__ = [
+    "ButterflyLayoutMetadata",
+    "ButterflyPartnerRule",
+    "NeighborSpec",
+    "ROLE_ORDER",
+    "RoleName",
+    "Topology",
+    "TopologyGraph",
+    "bit_reverse",
+    "build_butterfly_neighbor_role_row",
+    "build_butterfly_role_map",
+    "butterfly_layout_metadata",
+    "butterfly_partner_bits",
+    "butterfly_partner_block",
+    "butterfly_stage_count",
+    "butterfly_stage_meta",
+    "butterfly_width",
+    "ordered_roles",
+]
