@@ -500,7 +500,42 @@ def test_gqa_heads_share_kv_pattern() -> None:
 
 
 # ===================================================================
-# 9. Reachability comparison: Butterfly vs random local-only baseline
+# 9. Wider-N support coverage (including non-powers-of-2)
+# ===================================================================
+
+@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("num_blocks", [33, 65, 100, 129, 200, 255, 257])
+def test_wider_n_support_coverage_at_log_depth(partner_rule: str, num_blocks: int) -> None:
+    """Verify full support coverage at depth ceil(log2(N)) for wider range including non-powers-of-2.
+
+    This extends the empirical basis beyond the original powers-of-2 matrix (32, 64, 128, 256)
+    toward a more general claim. Note: this is still empirical, not a formal proof.
+    """
+    width = butterfly_width(num_blocks)
+    # Give it 2x the theoretical minimum to account for causality filtering
+    num_layers = 2 * width
+
+    reachable = _reachability_after_layers(
+        num_blocks,
+        num_layers,
+        partner_rule=partner_rule,
+        partner_count=1,
+        local_window_blocks=1,
+        sink_count=1,
+    )
+
+    # Check that every block reaches its full causal prefix
+    for block_idx in range(num_blocks):
+        expected_prefix = set(range(block_idx + 1))
+        assert reachable[block_idx] >= expected_prefix, (
+            f"Block {block_idx} misses causal-prefix coverage after {num_layers} "
+            f"layers with {partner_rule} and N={num_blocks}. Missing: "
+            f"{expected_prefix - reachable[block_idx]}"
+        )
+
+
+# ===================================================================
+# 10. Reachability comparison: Butterfly vs random local-only baseline
 # ===================================================================
 
 def test_butterfly_reaches_more_than_local_only() -> None:
