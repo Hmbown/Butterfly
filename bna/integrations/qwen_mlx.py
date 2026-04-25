@@ -18,6 +18,7 @@ from bna.graph.analysis import expansion_proxy, spectral_gap
 from bna.mlx.attention import (
     AttentionProfile,
     BlockSparseButterflyLayout,
+    _block_mean_summaries,
     block_sparse_butterfly_attention,
     block_sparse_butterfly_attention_active,
     build_block_butterfly_layout,
@@ -25,10 +26,12 @@ from bna.mlx.attention import (
     butterfly_permute_window_attention_batched,
     compressed_butterfly_attention,
     compressed_butterfly_attention_active,
+    compressed_butterfly_attention_from_cache,
     sparse_gather_attention_active,
     sparse_gather_attention,
     stable_masked_softmax,
 )
+from bna.mlx.compressed_cache import CompressedKVCache
 from bna.mlx.graph_abi import (
     MLXGraphABI,
     causal_neighbor_mask,
@@ -316,6 +319,8 @@ def extract_qkv_from_qwen_attention(
 
 
 def _cache_tensor_seq_len(keys: Any, cache: Optional[Any]) -> int:
+    if isinstance(cache, CompressedKVCache):
+        return int(cache.offset)
     if isinstance(keys, mx.array):
         return int(keys.shape[2])
     cache_offset = getattr(cache, "offset", None) if cache is not None else None
@@ -924,6 +929,8 @@ class QwenButterflyAttention(nn.Module):
             "rewire": 0.0,
         }
         self._o_proj_chunk_cache: Dict[tuple[int, int], nn.Module] = {}
+        # Compressed-summary cache: keyed by (block_size, dtype) -> dict with k_summary, v_summary, seq_len
+        self._compress_summary_cache: Dict[tuple, Dict[str, Any]] = {}
         # Timed benchmarks can disable expensive runtime instrumentation.
         self.compute_edge_utilization_proxy: bool = bool(cfg.compute_edge_utilization_proxy)
         self.compute_graph_metrics: bool = bool(cfg.compute_graph_metrics)
@@ -939,6 +946,104 @@ class QwenButterflyAttention(nn.Module):
             h_chunk = min(h_chunk, 2)
             q_chunk = min(q_chunk, 384)
         return h_chunk, q_chunk
+
+    def _get_compressed_summaries(
+        self,
+        k: mx.array,
+        v: mx.array,
+        *,
+        block_size: int,
+        num_blocks: int,
+        seq_len: int,
+        q_len: int = 0,
+    ) -> tuple[mx.array, mx.array]:
+        """Return (k_summary, v_summary), using cached values where possible."""
+        cache_key = (int(block_size), str(k.dtype))
+        cache_entry = self._compress_summary_cache.get(cache_key)
+
+        # Detect reset: full prefill (q_len == seq_len) or seq shrank.
+        is_reset = (
+            int(q_len) == int(seq_len)
+            or cache_entry is None
+            or int(cache_entry.get("seq_len", 0)) > int(seq_len)
+        )
+        if is_reset:
+            k_summary = _block_mean_summaries(
+                k, seq_len=int(seq_len), block_size=block_size, num_blocks=num_blocks
+            )
+            v_summary = _block_mean_summaries(
+                v, seq_len=int(seq_len), block_size=block_size, num_blocks=num_blocks
+            )
+            self._compress_summary_cache[cache_key] = {
+                "k_summary": k_summary,
+                "v_summary": v_summary,
+                "seq_len": int(seq_len),
+                "block_size": int(block_size),
+            }
+            return k_summary, v_summary
+
+        prev_seq_len = int(cache_entry["seq_len"])
+        prev_block_size = int(cache_entry["block_size"])
+        if prev_block_size != int(block_size):
+            # Block size changed; rebuild.
+            k_summary = _block_mean_summaries(
+                k, seq_len=int(seq_len), block_size=block_size, num_blocks=num_blocks
+            )
+            v_summary = _block_mean_summaries(
+                v, seq_len=int(seq_len), block_size=block_size, num_blocks=num_blocks
+            )
+            self._compress_summary_cache[cache_key] = {
+                "k_summary": k_summary,
+                "v_summary": v_summary,
+                "seq_len": int(seq_len),
+                "block_size": int(block_size),
+            }
+            return k_summary, v_summary
+
+        # Re-use earlier complete blocks and append new ones.
+        prev_k_summary = cache_entry["k_summary"]
+        prev_v_summary = cache_entry["v_summary"]
+        prev_num_blocks = int(prev_k_summary.shape[2])
+
+        # If num_blocks didn't grow, return cached (handles identical re-call).
+        if prev_num_blocks >= int(num_blocks):
+            return prev_k_summary[:, :, :num_blocks, :], prev_v_summary[:, :, :num_blocks, :]
+
+        # New complete blocks exist: summarize only the new suffix.
+        # Tokens [prev_seq_len, seq_len) need summarizing into blocks [prev_num_blocks, num_blocks).
+        new_tokens = int(seq_len) - prev_seq_len
+        if new_tokens <= 0:
+            return prev_k_summary[:, :, :num_blocks, :], prev_v_summary[:, :, :num_blocks, :]
+
+        # Build a temporary k/v slice for the new tokens.
+        k_new = k[:, :, prev_seq_len:seq_len, :]
+        v_new = v[:, :, prev_seq_len:seq_len, :]
+
+        # Summarize the new suffix as its own mini-sequence.
+        new_num_blocks = int(num_blocks) - prev_num_blocks
+        k_new_summary = _block_mean_summaries(
+            k_new,
+            seq_len=int(new_tokens),
+            block_size=block_size,
+            num_blocks=new_num_blocks,
+        )
+        v_new_summary = _block_mean_summaries(
+            v_new,
+            seq_len=int(new_tokens),
+            block_size=block_size,
+            num_blocks=new_num_blocks,
+        )
+
+        k_summary = mx.concatenate([prev_k_summary, k_new_summary], axis=2)
+        v_summary = mx.concatenate([prev_v_summary, v_new_summary], axis=2)
+
+        self._compress_summary_cache[cache_key] = {
+            "k_summary": k_summary,
+            "v_summary": v_summary,
+            "seq_len": int(seq_len),
+            "block_size": int(block_size),
+        }
+        return k_summary[:, :, :num_blocks, :], v_summary[:, :, :num_blocks, :]
 
     def _adaptive_graph_seq_len(self, *, k_len: int, q_len: int, cache: Optional[Any]) -> int:
         target = int(k_len)
@@ -1371,16 +1476,47 @@ class QwenButterflyAttention(nn.Module):
             if block_sparse_active_mode:
                 sparse_active_positions = mx.arange(T - q_len, T, dtype=mx.int32)
                 if self.graph_runtime.block_compression == "mean":
-                    y_h, _w = compressed_butterfly_attention_active(
-                        queries,
-                        keys_q,
-                        values_q,
-                        layout=graph_cache.block_layout,
-                        query_positions=sparse_active_positions,
-                        local_window_tokens=int(self.graph_runtime.compressed_local_window_tokens),
-                        return_weights=False,
-                        scale=self.scale,
-                    )
+                    if isinstance(cache, CompressedKVCache):
+                        tail_k, tail_v, k_summary, v_summary, tail_start, cache_offset = cache.get_compressed_state()
+                        tail_k_q = _repeat_kv_to_q_heads(tail_k, self.n_heads)
+                        tail_v_q = _repeat_kv_to_q_heads(tail_v, self.n_heads)
+                        k_summary_q = _repeat_kv_to_q_heads(k_summary, self.n_heads)
+                        v_summary_q = _repeat_kv_to_q_heads(v_summary, self.n_heads)
+                        y_h, _w = compressed_butterfly_attention_from_cache(
+                            queries,
+                            tail_k_q,
+                            tail_v_q,
+                            k_summary_q,
+                            v_summary_q,
+                            layout=graph_cache.block_layout,
+                            query_positions=sparse_active_positions,
+                            local_window_tokens=int(self.graph_runtime.compressed_local_window_tokens),
+                            tail_start=int(tail_start),
+                            kv_len=int(cache_offset),
+                            return_weights=False,
+                            scale=self.scale,
+                        )
+                    else:
+                        k_summary, v_summary = self._get_compressed_summaries(
+                            keys_q,
+                            values_q,
+                            block_size=int(graph_cache.block_layout.block_size),
+                            num_blocks=int(graph_cache.block_layout.num_blocks),
+                            seq_len=int(T),
+                            q_len=int(q_len),
+                        )
+                        y_h, _w = compressed_butterfly_attention_active(
+                            queries,
+                            keys_q,
+                            values_q,
+                            layout=graph_cache.block_layout,
+                            query_positions=sparse_active_positions,
+                            local_window_tokens=int(self.graph_runtime.compressed_local_window_tokens),
+                            return_weights=False,
+                            scale=self.scale,
+                            precomputed_k_summary=k_summary,
+                            precomputed_v_summary=v_summary,
+                        )
                 else:
                     y_h, _w = block_sparse_butterfly_attention_active(
                         queries,
@@ -1537,6 +1673,8 @@ class QwenButterflyAttention(nn.Module):
             if gate is not None:
                 y_bt = y_bt * mx.sigmoid(gate[:, -int(y_bt.shape[1]) :, :]).astype(y_bt.dtype)
             out = self.o_proj(y_bt)
+        if self.path == "block_sparse" and self.graph_runtime.block_compression == "mean" and isinstance(cache, CompressedKVCache):
+            mx.eval(out)
         total_ms = _now_ms() - t_total0
         self.last_profile = AttentionProfile(
             graph_build_ms=float(graph_ms),
@@ -1611,6 +1749,29 @@ class QwenButterflyAttention(nn.Module):
             },
         )
         return out
+
+
+def install_compressed_kv_caches(
+    model: nn.Module,
+    prompt_cache: Sequence[Any],
+    *,
+    layer_indices: Optional[Sequence[int]] = None,
+    block_size: int = 128,
+    local_window_tokens: int = 128,
+) -> List[int]:
+    if not hasattr(model, "layers"):
+        raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
+    selected = set(get_qwen_full_attention_layer_indices(model) if layer_indices is None else [int(x) for x in layer_indices])
+    replaced: List[int] = []
+    for idx in selected:
+        if idx < 0 or idx >= len(prompt_cache):
+            continue
+        prompt_cache[idx] = CompressedKVCache(
+            block_size=int(block_size),
+            local_window_tokens=int(local_window_tokens),
+        )
+        replaced.append(int(idx))
+    return replaced
 
 
 def swap_qwen_attention_with_butterfly(
@@ -1692,6 +1853,7 @@ __all__ = [
     "QwenWayfinderConfig",
     "QwenWayfinderAttention",
     "extract_qkv_from_qwen_attention",
+    "install_compressed_kv_caches",
     "swap_qwen_attention_with_butterfly",
     "swap_qwen_attention_with_wayfinder",
     "get_qwen_full_attention_layer_indices",

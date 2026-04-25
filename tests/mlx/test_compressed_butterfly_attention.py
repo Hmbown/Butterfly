@@ -124,6 +124,53 @@ def test_compressed_butterfly_prefill_matches_reference_small() -> None:
     assert np.allclose(np.asarray(y, dtype=np.float32), ref, atol=3e-4, rtol=3e-4)
 
 
+def test_compressed_butterfly_active_with_precomputed_summaries_matches_reference() -> None:
+    """Precomputed summary path must match the reference exactly."""
+    rng = np.random.default_rng(23)
+    B, H, Tk, Tq, dh = 1, 2, 18, 3, 8
+    query_positions = np.asarray([9, 13, 17], dtype=np.int32)
+    layout = build_block_butterfly_layout(
+        seq_len=Tk,
+        block_size=4,
+        num_key_value_heads=H,
+        num_key_value_groups=1,
+        layer_idx=3,
+        local_window_blocks=1,
+        sink_count=1,
+        partner_count=1,
+        partner_rule="causal_shift",
+    )
+    q_np = rng.standard_normal((B, H, Tq, dh), dtype=np.float32)
+    k_np = rng.standard_normal((B, H, Tk, dh), dtype=np.float32)
+    v_np = rng.standard_normal((B, H, Tk, dh), dtype=np.float32)
+
+    # Precompute summaries manually
+    k_summary_np = _block_summaries(k_np, block_size=4)
+    v_summary_np = _block_summaries(v_np, block_size=4)
+
+    y, _ = compressed_butterfly_attention_active(
+        mx.array(q_np),
+        mx.array(k_np),
+        mx.array(v_np),
+        layout=layout,
+        query_positions=mx.array(query_positions, dtype=mx.int32),
+        local_window_tokens=4,
+        precomputed_k_summary=mx.array(k_summary_np),
+        precomputed_v_summary=mx.array(v_summary_np),
+    )
+    mx.eval(y)
+
+    ref = _reference_compressed(
+        q_np,
+        k_np,
+        v_np,
+        layout,
+        local_window_tokens=4,
+        query_positions=query_positions,
+    )
+    assert np.allclose(np.asarray(y, dtype=np.float32), ref, atol=3e-4, rtol=3e-4)
+
+
 def test_compressed_butterfly_active_matches_reference_small() -> None:
     rng = np.random.default_rng(19)
     B, H, Tk, Tq, dh = 1, 2, 18, 3, 8

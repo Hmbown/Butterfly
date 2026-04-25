@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import time
 import warnings
 from dataclasses import dataclass, field
@@ -40,6 +41,41 @@ EPS = mx.array(1e-9, dtype=mx.float32)
 # Module-level store for graph caches — keeps mx.arrays out of nn.Module
 # parameter trees so optimizers don't try to update them.
 _GRAPH_CACHE_STORE: Dict[int, "_GraphCache"] = {}
+
+# Lightweight instrumentation for compressed-butterfly diagnosis.
+# Set BNA_COMPRESS_PROFILE=1 to collect counters.
+_COMPRESS_PROFILE = os.environ.get("BNA_COMPRESS_PROFILE", "0") == "1"
+_compress_stats: Dict[str, Any] = {"calls": 0, "summary_ms": 0.0, "attn_ms": 0.0, "shapes": []}
+
+
+def _compress_profile_reset() -> None:
+    _compress_stats["calls"] = 0
+    _compress_stats["summary_ms"] = 0.0
+    _compress_stats["attn_ms"] = 0.0
+    _compress_stats["shapes"] = []
+
+
+def _compress_profile_dump() -> Dict[str, Any]:
+    return dict(_compress_stats)
+
+
+def _maybe_profile_block_mean_summaries(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
+    if not _COMPRESS_PROFILE:
+        return _block_mean_summaries_impl(x, seq_len=seq_len, block_size=block_size, num_blocks=num_blocks)
+    t0 = time.perf_counter()
+    out = _block_mean_summaries_impl(x, seq_len=seq_len, block_size=block_size, num_blocks=num_blocks)
+    mx.eval(out)
+    elapsed = (time.perf_counter() - t0) * 1000.0
+    _compress_stats["calls"] += 1
+    _compress_stats["summary_ms"] += elapsed
+    _compress_stats["shapes"].append({
+        "seq_len": int(seq_len),
+        "block_size": int(block_size),
+        "num_blocks": int(num_blocks),
+        "x_shape": list(x.shape),
+        "x_dtype": str(x.dtype),
+    })
+    return out
 
 
 @dataclass(frozen=True)
@@ -1040,7 +1076,7 @@ def _compressed_butterfly_active_indices(
     )
 
 
-def _block_mean_summaries(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
+def _block_mean_summaries_impl(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
     """Mean-pool token states into one summary vector per block."""
     B, H, T, dh = x.shape
     if int(T) != int(seq_len):
@@ -1061,6 +1097,11 @@ def _block_mean_summaries(x: mx.array, *, seq_len: int, block_size: int, num_blo
     denom = mx.maximum(mx.sum(valid_f, axis=1, keepdims=True), mx.array(1.0, dtype=mx.float32))
     summed = mx.sum(x_blocks.astype(mx.float32) * valid_f[None, None, :, :, None], axis=3)
     return (summed / denom[None, None, :, :]).astype(x.dtype)
+
+
+def _block_mean_summaries(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
+    """Mean-pool token states into one summary vector per block (instrumented)."""
+    return _maybe_profile_block_mean_summaries(x, seq_len=seq_len, block_size=block_size, num_blocks=num_blocks)
 
 
 def compressed_butterfly_attention(
@@ -1181,8 +1222,15 @@ def compressed_butterfly_attention_active(
     local_window_tokens: int,
     return_weights: bool = False,
     scale: Optional[float] = None,
+    precomputed_k_summary: Optional[mx.array] = None,
+    precomputed_v_summary: Optional[mx.array] = None,
 ) -> Tuple[mx.array, mx.array | None]:
-    """Compressed Butterfly attention for active decode rows."""
+    """Compressed Butterfly attention for active decode rows.
+
+    Args:
+        precomputed_k_summary: Optional [B, H, num_blocks, dh] from a cached summary path.
+        precomputed_v_summary: Optional [B, H, num_blocks, dh] from a cached summary path.
+    """
     B, H, Tq, dh = q.shape
     Bk, Hk, Tk, dhk = k.shape
     Bv, Hv, Tv, dhv = v.shape
@@ -1202,8 +1250,17 @@ def compressed_butterfly_attention_active(
 
     num_blocks = int(layout.num_blocks)
     block_size = int(layout.block_size)
-    k_summary = _block_mean_summaries(k, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
-    v_summary = _block_mean_summaries(v, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
+    if precomputed_k_summary is not None and precomputed_v_summary is not None:
+        k_summary = precomputed_k_summary
+        v_summary = precomputed_v_summary
+        if int(k_summary.shape[2]) != num_blocks or int(v_summary.shape[2]) != num_blocks:
+            raise ValueError(
+                f"precomputed summary block count mismatch: "
+                f"expected {num_blocks}, got k={k_summary.shape[2]}, v={v_summary.shape[2]}"
+            )
+    else:
+        k_summary = _block_mean_summaries(k, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
+        v_summary = _block_mean_summaries(v, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
 
     raw_k = mx.take(k, raw_idx, axis=2)
     raw_v = mx.take(v, raw_idx, axis=2)
@@ -1214,14 +1271,164 @@ def compressed_butterfly_attention_active(
     mask = mx.concatenate([raw_mask, summary_mask], axis=1)
 
     q_scale = float(scale if scale is not None else (dh ** -0.5))
+    if _COMPRESS_PROFILE:
+        t_attn0 = time.perf_counter()
+    if not return_weights and hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+        q_r = q.transpose(0, 2, 1, 3).reshape(B * Tq, H, 1, dh)
+        k_r = k_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, int(k_g.shape[3]), dh)
+        v_r = v_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, int(v_g.shape[3]), dh)
+        mask_r = mx.broadcast_to(
+            mask[None, :, None, :],
+            (B, Tq, H, int(mask.shape[1])),
+        ).reshape(B * Tq, H, 1, int(mask.shape[1]))
+        out = mx.fast.scaled_dot_product_attention(
+            q_r,
+            k_r,
+            v_r,
+            scale=q_scale,
+            mask=mask_r,
+        ).reshape(B, Tq, H, dh).transpose(0, 2, 1, 3).astype(v.dtype)
+        if _COMPRESS_PROFILE:
+            mx.eval(out)
+            _compress_stats["attn_ms"] += (time.perf_counter() - t_attn0) * 1000.0
+        return out, None
     scores = mx.sum(
         q[:, :, :, None, :].astype(mx.float32) * k_g.astype(mx.float32),
         axis=-1,
     ) * q_scale
     w = stable_masked_softmax(scores, mask[None, None, :, :], axis=-1)
     out = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(v.dtype)
+    if _COMPRESS_PROFILE:
+        mx.eval(out)
+        _compress_stats["attn_ms"] += (time.perf_counter() - t_attn0) * 1000.0
     if return_weights:
         return out, w
+    return out, None
+
+
+def _compressed_butterfly_active_indices_from_tail(
+    layout: BlockSparseButterflyLayout,
+    *,
+    kv_len: int,
+    tail_start: int,
+    num_summary_blocks: int,
+    tail_len: int,
+    query_positions: mx.array,
+    local_window_tokens: int,
+) -> tuple[mx.array, mx.array, mx.array, mx.array]:
+    if int(kv_len) <= 0:
+        raise ValueError("kv_len must be positive")
+    q_pos_np = np.asarray(query_positions, dtype=np.int32)
+    if q_pos_np.ndim != 1:
+        raise ValueError(f"query_positions must be 1D, got {q_pos_np.shape}")
+
+    Tq = int(q_pos_np.size)
+    raw_slots = int(local_window_tokens)
+    summary_slots = int(layout.block_neighbors.shape[-1])
+    block_size = int(layout.block_size)
+    num_blocks = int(layout.num_blocks)
+    neighbors = np.asarray(layout.block_neighbors[0], dtype=np.int32)
+    tail_start_i = int(tail_start)
+    tail_end = tail_start_i + int(tail_len)
+
+    raw_idx = np.zeros((Tq, raw_slots), dtype=np.int32)
+    raw_mask = np.zeros((Tq, raw_slots), dtype=np.bool_)
+    summary_idx = np.zeros((Tq, summary_slots), dtype=np.int32)
+    summary_mask = np.zeros((Tq, summary_slots), dtype=np.bool_)
+    offsets = np.arange(raw_slots, dtype=np.int32)
+
+    for row_idx, q_pos_t in enumerate(q_pos_np.tolist()):
+        q_pos = int(q_pos_t)
+        block_idx = min(max(0, q_pos // max(1, block_size)), max(0, num_blocks - 1))
+        local_start = max(0, q_pos - int(local_window_tokens) + 1)
+        raw_positions = local_start + offsets
+        raw_valid = (
+            (raw_positions <= q_pos)
+            & (raw_positions < int(kv_len))
+            & (raw_positions >= tail_start_i)
+            & (raw_positions < tail_end)
+        )
+        raw_idx[row_idx] = np.clip(raw_positions - tail_start_i, 0, max(0, int(tail_len) - 1))
+        raw_mask[row_idx] = raw_valid
+
+        cursor = 0
+        complete_summary_blocks = int(num_summary_blocks)
+        for neighbor in neighbors[block_idx].tolist():
+            neighbor = int(neighbor)
+            if neighbor < 0 or neighbor >= block_idx or neighbor >= complete_summary_blocks:
+                continue
+            neighbor_end = (neighbor + 1) * block_size
+            if neighbor_end > local_start:
+                continue
+            summary_idx[row_idx, cursor] = neighbor
+            summary_mask[row_idx, cursor] = True
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+
+    return (
+        mx.array(raw_idx, dtype=mx.int32),
+        mx.array(raw_mask, dtype=mx.bool_),
+        mx.array(summary_idx, dtype=mx.int32),
+        mx.array(summary_mask, dtype=mx.bool_),
+    )
+
+
+def compressed_butterfly_attention_from_cache(
+    q: mx.array,
+    tail_k: mx.array,
+    tail_v: mx.array,
+    k_summary: mx.array,
+    v_summary: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    query_positions: mx.array,
+    local_window_tokens: int,
+    tail_start: int,
+    kv_len: int,
+    return_weights: bool = False,
+    scale: Optional[float] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    if return_weights:
+        raise NotImplementedError("return_weights is not supported for compressed cache attention")
+    B, H, Tq, dh = q.shape
+    if int(tail_k.shape[0]) != B or int(tail_v.shape[0]) != B:
+        raise ValueError("q and cache batch dimensions must match")
+    if int(tail_k.shape[1]) != H or int(tail_v.shape[1]) != H:
+        raise ValueError("q and cache head dimensions must match")
+    if int(tail_k.shape[-1]) != dh or int(tail_v.shape[-1]) != dh:
+        raise ValueError("q and cache head_dim mismatch")
+
+    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_indices_from_tail(
+        layout,
+        kv_len=int(kv_len),
+        tail_start=int(tail_start),
+        num_summary_blocks=int(k_summary.shape[2]),
+        tail_len=int(tail_k.shape[2]),
+        query_positions=query_positions,
+        local_window_tokens=int(local_window_tokens),
+    )
+    raw_k = mx.take(tail_k, raw_idx, axis=2)
+    raw_v = mx.take(tail_v, raw_idx, axis=2)
+    summary_k = mx.take(k_summary, summary_idx, axis=2)
+    summary_v = mx.take(v_summary, summary_idx, axis=2)
+    k_g = mx.concatenate([raw_k, summary_k], axis=3)
+    v_g = mx.concatenate([raw_v, summary_v], axis=3)
+    mask = mx.concatenate([raw_mask, summary_mask], axis=1)
+
+    q_scale = float(scale if scale is not None else (dh ** -0.5))
+    slots = int(k_g.shape[3])
+    if hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+        q_r = q.transpose(0, 2, 1, 3).reshape(B * Tq, H, 1, dh)
+        k_r = k_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
+        v_r = v_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
+        mask_r = mx.broadcast_to(mask[None, :, None, :], (B, Tq, H, slots)).reshape(B * Tq, H, 1, slots)
+        out = mx.fast.scaled_dot_product_attention(q_r, k_r, v_r, scale=q_scale, mask=mask_r)
+        return out.reshape(B, Tq, H, dh).transpose(0, 2, 1, 3).astype(tail_v.dtype), None
+
+    scores = mx.sum(q[:, :, :, None, :].astype(mx.float32) * k_g.astype(mx.float32), axis=-1) * q_scale
+    w = stable_masked_softmax(scores, mask[None, None, :, :], axis=-1)
+    out = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(tail_v.dtype)
     return out, None
 
 
@@ -3026,4 +3233,6 @@ __all__ = [
     "wayfinder_covering_attention",
     "wayfinder_permute_window_attention_active_batched",
     "dense_causal_attention",
+    "_compress_profile_reset",
+    "_compress_profile_dump",
 ]

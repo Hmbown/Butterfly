@@ -1,0 +1,413 @@
+{
+  "created_at": "2026-04-25T01:48:45.885359+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode compressed_butterfly --path compressed_butterfly --block-partner-rule causal_shift --compressed-local-window-tokens 128 --butterfly-decode-backend stock --seq-lens 512 2048 --decode-len 8 --repeats 1 --chunk-size 384 --kv-step 384 --query-chunk-size 384 --block-size 128 --cooldown-sec 0 --stage-timeout-sec 300 --heartbeat-sec 30 --skip-multi-turn --skip-quality --out-dir results/benchmarks/qwen35_0p8b_mlx/compressed_butterfly_smoke_20260424_204832",
+  "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "compressed_butterfly",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "retro_backfill_enabled": false,
+  "butterfly_config": {
+    "path": "block_sparse",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "block_size": 128,
+    "block_local_window_blocks": 1,
+    "block_partner_count": 1,
+    "block_sink_blocks": 1,
+    "block_partner_rule": "causal_shift",
+    "block_compression": "mean",
+    "compressed_local_window_tokens": 128
+  },
+  "wayfinder_config": {
+    "path": "block_sparse",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "block_size": 128,
+    "block_local_window_blocks": 1,
+    "block_partner_count": 1,
+    "block_sink_blocks": 1,
+    "block_partner_rule": "causal_shift",
+    "block_compression": "mean",
+    "compressed_local_window_tokens": 128,
+    "wayfinder_decode_backend": "stock"
+  },
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_count": 6,
+    "debug_override_layer_indices": null,
+    "config": {
+      "path": "block_sparse",
+      "window": 64,
+      "landmark_stride": null,
+      "num_cycles": 1,
+      "prefill_chunk_size": 384,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "butterfly_decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true,
+      "block_size": 128,
+      "block_local_window_blocks": 1,
+      "block_partner_count": 1,
+      "block_sink_blocks": 1,
+      "block_partner_rule": "causal_shift",
+      "block_compression": "mean",
+      "compressed_local_window_tokens": 128
+    }
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ]
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 2,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 2048,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0005103339935885742,
+    "writeout_sec_total": 0.006830584985436872,
+    "script_start_unix_sec": 1777081725.8855329,
+    "script_end_unix_sec": 1777081730.046726
+  },
+  "single_turn": [
+    {
+      "seq_len": 512,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 0.1728750000038417,
+      "ttft_sec": 0.008597624997491948,
+      "itl_p50_sec": 0.004569416996673681,
+      "itl_p95_sec": 0.004914167002425529,
+      "decode_sec": 0.04052112500357907,
+      "e2e_sec": 0.21339612500742078,
+      "decode_tok_s": 197.4278848204089,
+      "peak_memory_bytes": 1635224386,
+      "sample_output_text": "dinstra\u8eab\u6b63\u03ca\u043a\u043e\u0433\u043e\u87c6ongs",
+      "decode_backend": "stock",
+      "kv_quantization": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 520
+      },
+      "kv_quantization_after_prefill": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 512,
+        "converted_entries": 0
+      },
+      "expected_primary_path": "block_sparse",
+      "hsa_trace_summary": {
+        "sample_count": 10,
+        "layer_observations": 60,
+        "phase_counts": {
+          "prefill": 2,
+          "decode": 8
+        },
+        "path_counts": {
+          "block_sparse": 12,
+          "block_sparse_dense_fallback": 48
+        },
+        "cache_source_counts": {
+          "runtime": 12,
+          "dense_fallback": 48
+        },
+        "graph_seq_len_counts": {
+          "384": 6,
+          "512": 6,
+          "513": 6,
+          "514": 6,
+          "515": 6,
+          "516": 6,
+          "517": 6,
+          "518": 6,
+          "519": 6,
+          "520": 6
+        },
+        "q_len_counts": {
+          "384": 6,
+          "128": 6,
+          "1": 48
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 48
+        },
+        "stock_fallback_layer_observations": 48,
+        "decode_layer_observations": 48,
+        "stock_fallback_decode_layer_observations": 48,
+        "prefill_layer_observations": 12,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 2,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.8,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.0008902999262015025,
+        "graph_build_ms_p95": 0.005291998386383057,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.14038820167382557,
+        "attention_ms_p95": 0.9427919983863831,
+        "total_ms_mean": 0.16510701701045036,
+        "total_ms_p95": 0.9851249903440475
+      },
+      "path_counts": {
+        "block_sparse": 12,
+        "block_sparse_dense_fallback": 48
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 48
+      },
+      "stock_fallback_share_run": 0.8,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.0008902999262015025,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.14038820167382557,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.007069333994877525,
+        "prompt_tokenize_sec": 0.007069333994877525,
+        "prefill_sec": 0.1728750000038417,
+        "decode_sec": 0.04052112500357907,
+        "writeout_sec": 0.0037658340006601065
+      }
+    },
+    {
+      "seq_len": 2048,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 1.1244617920019664,
+      "ttft_sec": 0.007840000005671754,
+      "itl_p50_sec": 0.0039849580061854795,
+      "itl_p95_sec": 0.00501337499008514,
+      "decode_sec": 0.03756054199766368,
+      "e2e_sec": 1.16202233399963,
+      "decode_tok_s": 212.98947178391654,
+      "peak_memory_bytes": 2864905598,
+      "sample_output_text": "\u0151t\u00e9stagniloxught\u2014who\u50f5\u786cortes",
+      "decode_backend": "stock",
+      "kv_quantization": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 2056
+      },
+      "kv_quantization_after_prefill": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 2048,
+        "converted_entries": 0
+      },
+      "expected_primary_path": "block_sparse",
+      "hsa_trace_summary": {
+        "sample_count": 14,
+        "layer_observations": 84,
+        "phase_counts": {
+          "prefill": 6,
+          "decode": 8
+        },
+        "path_counts": {
+          "block_sparse": 36,
+          "block_sparse_dense_fallback": 48
+        },
+        "cache_source_counts": {
+          "runtime": 36,
+          "dense_fallback": 48
+        },
+        "graph_seq_len_counts": {
+          "384": 6,
+          "768": 6,
+          "1152": 6,
+          "1536": 6,
+          "1920": 6,
+          "2048": 6,
+          "2049": 6,
+          "2050": 6,
+          "2051": 6,
+          "2052": 6,
+          "2053": 6,
+          "2054": 6,
+          "2055": 6,
+          "2056": 6
+        },
+        "q_len_counts": {
+          "384": 30,
+          "128": 6,
+          "1": 48
+        },
+        "stock_fallback_reason_counts": {
+          "decode_backend_stock": 48
+        },
+        "stock_fallback_layer_observations": 48,
+        "decode_layer_observations": 48,
+        "stock_fallback_decode_layer_observations": 48,
+        "prefill_layer_observations": 36,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 8,
+        "prefill_step_observations": 6,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.5714285714285714,
+        "stock_fallback_share_decode_layers": 1.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 1.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.9285714285714286,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 1.0,
+        "graph_build_ms_mean": 0.001998989000206902,
+        "graph_build_ms_p95": 0.007458001375198364,
+        "butterfly_ms_mean": 0.0,
+        "butterfly_ms_p95": 0.0,
+        "butterfly_ms_decode_mean": 0.0,
+        "butterfly_ms_prefill_mean": 0.0,
+        "attention_ms_mean": 0.7748343577342374,
+        "attention_ms_p95": 2.1188750118017197,
+        "total_ms_mean": 0.8081760832241603,
+        "total_ms_p95": 2.1845420002937317
+      },
+      "path_counts": {
+        "block_sparse": 36,
+        "block_sparse_dense_fallback": 48
+      },
+      "stock_fallback_reason_counts": {
+        "decode_backend_stock": 48
+      },
+      "stock_fallback_share_run": 0.5714285714285714,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_steps": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": 0.001998989000206902,
+      "butterfly_ms_mean": 0.0,
+      "butterfly_ms_decode_mean": 0.0,
+      "butterfly_ms_prefill_mean": 0.0,
+      "attention_ms_mean": 0.7748343577342374,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.08187029200780671,
+        "prompt_tokenize_sec": 0.08187029200780671,
+        "prefill_sec": 1.1244617920019664,
+        "decode_sec": 0.03756054199766368,
+        "writeout_sec": 0.00048283398791681975
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -32,8 +32,13 @@ from bna.integrations.qwen_mlx import (  # noqa: E402
     QwenButterflyAttention,
     QwenButterflyConfig,
     get_qwen_full_attention_layer_indices,
+    install_compressed_kv_caches,
     swap_qwen_attention_with_butterfly,
     validate_qwen35_full_attention_layers,
+)
+from bna.mlx.attention import (  # noqa: E402
+    _compress_profile_reset,
+    _compress_profile_dump,
 )
 from bna.integrations.qwen_mlx_loader import (  # noqa: E402
     load_qwen_mlx_model,
@@ -486,7 +491,15 @@ def _percentile(values: Sequence[float], q: float) -> Optional[float]:
     return xs[idx]
 
 
-def _prepare_cache(model: Any, *, kv_step: int, target_seq_len: int) -> List[Any]:
+def _prepare_cache(
+    model: Any,
+    *,
+    kv_step: int,
+    target_seq_len: int,
+    mode: str = "stock",
+    block_size: int = 128,
+    compressed_local_window_tokens: int = 128,
+) -> List[Any]:
     prealloc_size: Optional[int] = int(target_seq_len) if int(target_seq_len) > 0 else None
     if kv_step > 0 and target_seq_len > 0:
         assert prealloc_size is not None
@@ -495,6 +508,14 @@ def _prepare_cache(model: Any, *, kv_step: int, target_seq_len: int) -> List[Any
     if prealloc_size is not None:
         _log(f"    kv_step={kv_step}, target prealloc={prealloc_size} tokens")
     cache = list(make_prompt_cache(model, max_kv_size=prealloc_size))
+    if str(mode) == "compressed_butterfly":
+        replaced = install_compressed_kv_caches(
+            model,
+            cache,
+            block_size=int(block_size),
+            local_window_tokens=int(compressed_local_window_tokens),
+        )
+        _log(f"    compressed_kv_cache_layers={replaced}")
     return cache
 
 
@@ -513,6 +534,9 @@ def _run_chunked_prefill(
 ) -> Dict[str, Any]:
     batch = int(prompt_tokens.shape[0])
     seq_len = int(prompt_tokens.shape[1])
+
+    if os.environ.get("BNA_COMPRESS_PROFILE") == "1":
+        _compress_profile_reset()
 
     t0 = time.perf_counter()
     last_beat = t0
@@ -562,11 +586,14 @@ def _run_chunked_prefill(
 
     prefill_sec = time.perf_counter() - t0
     total_tokens = batch * seq_len
-    return {
+    result: Dict[str, Any] = {
         "prefill_sec": float(prefill_sec),
         "prefill_tok_s": float(total_tokens / max(prefill_sec, 1e-12)),
         "peak_memory_bytes": int(_peak_memory()),
     }
+    if os.environ.get("BNA_COMPRESS_PROFILE") == "1":
+        result["compress_profile"] = _compress_profile_dump()
+    return result
 
 
 def _run_decode(
@@ -768,6 +795,8 @@ def _run_single_turn(
     chunk_size: int,
     kv_step: int,
     cooldown_sec: float,
+    block_size: int = 128,
+    compressed_local_window_tokens: int = 128,
     stage_timeout_sec: float = 0.0,
     heartbeat_sec: float = 0.0,
     hsa_trace: bool = False,
@@ -789,7 +818,14 @@ def _run_single_turn(
                 heartbeat_prefix=f"T={seq_len} warmup",
             )
         with _stage_timeout(stage_timeout_sec, stage="warmup_prefill_decode", seq_len=seq_len):
-            cache = _prepare_cache(model, kv_step=kv_step, target_seq_len=seq_len + decode_len)
+            cache = _prepare_cache(
+                model,
+                kv_step=kv_step,
+                target_seq_len=seq_len + decode_len,
+                mode=mode,
+                block_size=block_size,
+                compressed_local_window_tokens=compressed_local_window_tokens,
+            )
             _reset_peak_memory()
             _run_chunked_prefill(
                 model,
@@ -831,7 +867,14 @@ def _run_single_turn(
                 )
             prompt_build_sec = float(time.perf_counter() - prompt_start)
 
-            cache = _prepare_cache(model, kv_step=kv_step, target_seq_len=seq_len + decode_len)
+            cache = _prepare_cache(
+                model,
+                kv_step=kv_step,
+                target_seq_len=seq_len + decode_len,
+                mode=mode,
+                block_size=block_size,
+                compressed_local_window_tokens=compressed_local_window_tokens,
+            )
             _reset_peak_memory()
             hsa_trace_samples: List[Dict[str, Any]] = []
             with _stage_timeout(
@@ -923,6 +966,8 @@ def _run_single_turn(
                     "decode_sec": float(dec["decode_sec"]),
                 },
             }
+            if "compress_profile" in pre:
+                row["compress_profile"] = pre["compress_profile"]
             if hsa_trace:
                 row["hsa_trace_samples_head"] = hsa_trace_samples[:16]
             rows.append(row)
@@ -1825,6 +1870,8 @@ def main() -> None:
                 chunk_size=int(args.chunk_size),
                 kv_step=int(args.kv_step),
                 cooldown_sec=float(args.cooldown_sec),
+                block_size=int(args.block_size),
+                compressed_local_window_tokens=int(args.compressed_local_window_tokens),
                 stage_timeout_sec=float(args.stage_timeout_sec),
                 heartbeat_sec=float(args.heartbeat_sec),
                 hsa_trace=bool(args.hsa_trace),
