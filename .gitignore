@@ -64,6 +64,7 @@ runs/mlx/qwen_env_check_full.json
 !docs/BUTTERFLY_THEOREMS.md
 !docs/BUTTERFLY_GAPS.md
 !docs/BUTTERFLY_PAPER_OUTLINE.md
+!docs/COMPRESSED_BUTTERFLY_ATTENTION.md
 !SECURITY.md
 !CONTRIBUTING.md
 !docs/superpowers/plans/*.md
