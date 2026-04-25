@@ -301,6 +301,256 @@ def build_block_butterfly_layout(
     )
 
 
+def _swa_stream_attention(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    n_win: int,
+    scale: float,
+    q_chunk: int = 256,
+) -> Tuple[mx.array, mx.array, mx.array]:
+    """Sliding-window attention stream returning `(o, l, m)` tuples for online merge.
+
+    Each query position `t` attends to keys at positions
+    `[max(0, t - n_win + 1), t]` (causal + window). The result is computed in
+    chunks of `q_chunk` queries to bound peak memory; `mx.eval` is called per
+    chunk so the lazy graph does not retain across chunks.
+
+    Returns:
+      o: [B, H, T, dh] in q's dtype.
+      l: [B, H, T, 1] in float32.  Sum_j exp(score_j - m).
+      m: [B, H, T, 1] in float32.  Per-row score max.
+    """
+    if q.shape[2] == 0:
+        zero = mx.zeros_like(q)
+        ld = mx.zeros((*q.shape[:3], 1), dtype=mx.float32)
+        md = mx.full((*q.shape[:3], 1), -1e30, dtype=mx.float32)
+        return zero, ld, md
+    B, H, T, dh = q.shape
+    n_win = max(1, int(n_win))
+    o_chunks: list[mx.array] = []
+    l_chunks: list[mx.array] = []
+    m_chunks: list[mx.array] = []
+    out_dtype = q.dtype
+    for start in range(0, T, q_chunk):
+        end = min(start + q_chunk, T)
+        q_c = q[:, :, start:end, :]
+        k_lo = max(0, start - n_win + 1)
+        k_hi = end
+        k_local = k[:, :, k_lo:k_hi, :]
+        v_local = v[:, :, k_lo:k_hi, :]
+
+        q_pos = mx.arange(start, end, dtype=mx.int32).reshape(end - start, 1)
+        k_pos = mx.arange(k_lo, k_hi, dtype=mx.int32).reshape(1, k_hi - k_lo)
+        mask_2d = (k_pos <= q_pos) & (k_pos > q_pos - n_win)  # [c, K_local]
+        mask = mask_2d.reshape(1, 1, end - start, k_hi - k_lo)
+
+        scores = mx.matmul(
+            q_c.astype(mx.float32),
+            k_local.transpose(0, 1, 3, 2).astype(mx.float32),
+        ) * scale
+        scores = mx.where(mask, scores, NEG_INF)
+        m_c = mx.max(scores, axis=-1, keepdims=True)
+        e = mx.exp(scores - m_c)
+        e = mx.where(mask, e, mx.zeros_like(e))
+        l_c = mx.sum(e, axis=-1, keepdims=True)
+        o_c = mx.matmul(e, v_local.astype(mx.float32)) / mx.maximum(l_c, EPS)
+        mx.eval(o_c, l_c, m_c)
+        o_chunks.append(o_c)
+        l_chunks.append(l_c)
+        m_chunks.append(m_c)
+
+    if len(o_chunks) == 1:
+        o, l, m = o_chunks[0], l_chunks[0], m_chunks[0]
+    else:
+        o = mx.concatenate(o_chunks, axis=2)
+        l = mx.concatenate(l_chunks, axis=2)
+        m = mx.concatenate(m_chunks, axis=2)
+    return o.astype(out_dtype), l, m
+
+
+def _compressed_stream_attention(
+    q: mx.array,
+    k_summary: mx.array,
+    v_summary: mx.array,
+    *,
+    block_size: int,
+    scale: float,
+    routed_indices: mx.array | None = None,
+) -> Tuple[mx.array, mx.array, mx.array]:
+    """Compressed-block attention stream returning `(o, l, m)` for online merge.
+
+    Two operational modes:
+      - `routed_indices is None` (HCA-style): every query at position `t` in
+        block `b` attends to all compressed-block summaries `k_summary[0..b-1]`
+        (strict causal). Query tokens in block 0 receive no contribution and
+        their `(o, l, m)` slots are zeroed / set to `m = -inf` so they merge
+        as no-ops with another stream.
+      - `routed_indices is not None` (Butterfly-routed CSA-style): per-query-block
+        gather of routed neighbor compressed blocks. Shape
+        `routed_indices: [H, num_blocks, K_neighbors]`, dtype int32, with `-1`
+        indicating an invalid slot. Per query-block we attend only to the
+        valid routed neighbors.
+
+    Inputs:
+      q:          [B, H, T, dh]
+      k_summary:  [B, H, num_blocks, dh]
+      v_summary:  [B, H, num_blocks, dh]
+
+    Outputs:
+      o: [B, H, T, dh] in q's dtype.
+      l: [B, H, T, 1] in float32. (0 on invalid query rows.)
+      m: [B, H, T, 1] in float32. (-1e30 on invalid query rows.)
+    """
+    B, H, T, dh = q.shape
+    _, _, num_blocks, _ = k_summary.shape
+    out_dtype = q.dtype
+    NEG_INF_F32 = mx.array(-1e30, dtype=mx.float32)
+    EPS_F32 = mx.array(1e-9, dtype=mx.float32)
+
+    if routed_indices is None:
+        # HCA-style: dense over all causally-prior compressed blocks.
+        scores = mx.matmul(
+            q.astype(mx.float32),
+            k_summary.transpose(0, 1, 3, 2).astype(mx.float32),
+        ) * scale  # [B, H, T, num_blocks]
+
+        q_pos = mx.arange(T, dtype=mx.int32)
+        q_block = q_pos // int(block_size)  # [T]
+        k_block = mx.arange(num_blocks, dtype=mx.int32)  # [num_blocks]
+        valid = k_block.reshape(1, num_blocks) < q_block.reshape(T, 1)  # [T, num_blocks]
+        valid_mask = valid.reshape(1, 1, T, num_blocks)
+
+        scores = mx.where(valid_mask, scores, NEG_INF_F32)
+        m = mx.max(scores, axis=-1, keepdims=True)
+        # Zero out exp where no valid keys: detect rows that are entirely invalid.
+        any_valid = mx.any(valid, axis=-1, keepdims=True).reshape(1, 1, T, 1)
+        e = mx.exp(scores - m)
+        e = mx.where(valid_mask, e, mx.zeros_like(e))
+        l = mx.sum(e, axis=-1, keepdims=True)
+        o = mx.matmul(e, v_summary.astype(mx.float32)) / mx.maximum(l, EPS_F32)
+        # Force degenerate (m=-inf, l=0, o=0) on rows with no valid keys.
+        zero_o = mx.zeros_like(o)
+        zero_l = mx.zeros_like(l)
+        neg_m = mx.full(m.shape, -1e30, dtype=mx.float32)
+        o = mx.where(any_valid, o, zero_o)
+        l = mx.where(any_valid, l, zero_l)
+        m = mx.where(any_valid, m, neg_m)
+        mx.eval(o, l, m)
+        return o.astype(out_dtype), l, m
+
+    # Routed mode: per-query-block gather + SDPA, looped with mx.eval flush.
+    # routed_indices: [H, num_blocks, K_neighbors], int32, -1 = invalid.
+    K_neighbors = int(routed_indices.shape[-1])
+    o_chunks: list[mx.array] = []
+    l_chunks: list[mx.array] = []
+    m_chunks: list[mx.array] = []
+
+    # Pre-pad k_summary, v_summary with a sentinel slot at index num_blocks so
+    # we can replace -1 with num_blocks and gather safely. The sentinel's mask
+    # bit is False so it never contributes.
+    pad_zero = mx.zeros((B, H, 1, dh), dtype=k_summary.dtype)
+    k_padded = mx.concatenate([k_summary, pad_zero], axis=2)
+    v_padded = mx.concatenate([v_summary, pad_zero], axis=2)
+
+    num_q_blocks = (T + block_size - 1) // block_size
+    for q_block in range(num_q_blocks):
+        q_start = q_block * block_size
+        q_end = min(T, q_start + block_size)
+        q_c = q[:, :, q_start:q_end, :]  # [B, H, c, dh]
+        c = q_end - q_start
+
+        # Per-head routed indices for this query block: [H, K_neighbors]
+        idx_h = routed_indices[:, q_block, :]  # [H, K_neighbors], int32
+        idx_clamped = mx.where(idx_h >= 0, idx_h, mx.array(num_blocks, dtype=mx.int32))
+        valid_neighbor = idx_h >= 0  # [H, K_neighbors]
+        # Causal: drop neighbors at index >= q_block.
+        causal_neighbor = idx_h < q_block
+        valid_neighbor = valid_neighbor & causal_neighbor
+
+        # Gather K, V for each head: result [B, H, K_neighbors, dh].
+        # Per-head gather because indices vary per head.
+        head_k_chunks = []
+        head_v_chunks = []
+        for h in range(H):
+            head_k_chunks.append(mx.take(k_padded[:, h : h + 1, :, :], idx_clamped[h], axis=2))
+            head_v_chunks.append(mx.take(v_padded[:, h : h + 1, :, :], idx_clamped[h], axis=2))
+        k_routed = mx.concatenate(head_k_chunks, axis=1)  # [B, H, K_neighbors, dh]
+        v_routed = mx.concatenate(head_v_chunks, axis=1)
+        valid_mask = valid_neighbor.reshape(1, H, 1, K_neighbors)
+
+        if not bool(mx.any(valid_neighbor)):
+            zero_o_c = mx.zeros((B, H, c, dh), dtype=mx.float32)
+            zero_l_c = mx.zeros((B, H, c, 1), dtype=mx.float32)
+            neg_m_c = mx.full((B, H, c, 1), -1e30, dtype=mx.float32)
+            mx.eval(zero_o_c, zero_l_c, neg_m_c)
+            o_chunks.append(zero_o_c)
+            l_chunks.append(zero_l_c)
+            m_chunks.append(neg_m_c)
+            continue
+
+        scores = mx.matmul(
+            q_c.astype(mx.float32),
+            k_routed.transpose(0, 1, 3, 2).astype(mx.float32),
+        ) * scale  # [B, H, c, K_neighbors]
+        scores = mx.where(valid_mask, scores, NEG_INF_F32)
+        m_c = mx.max(scores, axis=-1, keepdims=True)
+        e = mx.exp(scores - m_c)
+        e = mx.where(valid_mask, e, mx.zeros_like(e))
+        l_c = mx.sum(e, axis=-1, keepdims=True)
+        o_c = mx.matmul(e, v_routed.astype(mx.float32)) / mx.maximum(l_c, EPS_F32)
+        # Zero out rows that ended up with no valid neighbors at all (per-head).
+        any_valid_h = mx.any(valid_mask, axis=-1, keepdims=True)
+        zero_o_c = mx.zeros_like(o_c)
+        zero_l_c = mx.zeros_like(l_c)
+        neg_m_c = mx.full(m_c.shape, -1e30, dtype=mx.float32)
+        o_c = mx.where(any_valid_h, o_c, zero_o_c)
+        l_c = mx.where(any_valid_h, l_c, zero_l_c)
+        m_c = mx.where(any_valid_h, m_c, neg_m_c)
+        mx.eval(o_c, l_c, m_c)
+        o_chunks.append(o_c)
+        l_chunks.append(l_c)
+        m_chunks.append(m_c)
+
+    o = mx.concatenate(o_chunks, axis=2) if len(o_chunks) > 1 else o_chunks[0]
+    l = mx.concatenate(l_chunks, axis=2) if len(l_chunks) > 1 else l_chunks[0]
+    m = mx.concatenate(m_chunks, axis=2) if len(m_chunks) > 1 else m_chunks[0]
+    return o.astype(out_dtype), l, m
+
+
+def _online_softmax_merge(
+    a: Tuple[mx.array, mx.array, mx.array],
+    b: Tuple[mx.array, mx.array, mx.array],
+) -> mx.array:
+    """Merge two attention-stream outputs by online softmax (m, l, o) accumulators.
+
+    Each input is `(o, l, m)` where:
+        o: per-stream output already divided by `l`, shape `[B, H, Tq, dh]`.
+        l: `sum_j exp(score_j - m)`, shape `[B, H, Tq, 1]`.
+        m: per-row score max, shape `[B, H, Tq, 1]`.
+
+    Returns the output of a softmax computed over the union of the two streams'
+    keys, without ever materializing the union K/V tensor. Mathematically:
+
+        m_total = max(m_a, m_b)
+        l_total = exp(m_a - m_total) * l_a + exp(m_b - m_total) * l_b
+        o_total = (exp(m_a - m_total) * l_a * o_a
+                 + exp(m_b - m_total) * l_b * o_b) / l_total
+
+    A stream that is empty for a given query row should pass `m = -inf` and
+    `l = 0`; the merge then degenerates to the other stream's contribution.
+    """
+    o_a, l_a, m_a = a
+    o_b, l_b, m_b = b
+    m_total = mx.maximum(m_a, m_b)
+    coeff_a = mx.exp(m_a - m_total)
+    coeff_b = mx.exp(m_b - m_total)
+    l_total = coeff_a * l_a + coeff_b * l_b
+    out = (coeff_a * l_a * o_a + coeff_b * l_b * o_b) / mx.maximum(l_total, EPS)
+    return out
+
+
 def stable_masked_softmax(
     scores_f32: mx.array,
     mask: mx.array,
@@ -1077,6 +1327,52 @@ def _compressed_butterfly_active_indices(
     )
 
 
+def _compressed_butterfly_routed_indices(
+    layout: BlockSparseButterflyLayout,
+    *,
+    kv_len: int,
+    local_window_tokens: int,
+) -> mx.array:
+    """Build `[H, num_blocks, summary_slots]` routed-block indices for the
+    compressed-stream attention.
+
+    Each `(h, b, slot)` entry is a compressed-block index that query block `b`
+    on head `h` should attend to, or `-1` for an invalid slot. Filters routing
+    to only neighbors whose entire block ends before the local-window start so
+    raw-window tokens are not double-counted between the SWA and compressed
+    streams. Mirrors the eligibility logic in
+    `_compressed_butterfly_block_indices` (lines ~1230-1259).
+    """
+    num_blocks = int(layout.num_blocks)
+    block_size = int(layout.block_size)
+    summary_slots = int(layout.block_neighbors.shape[-1])
+    H = int(layout.block_neighbors.shape[0])
+
+    routed = np.full((H, num_blocks, summary_slots), -1, dtype=np.int32)
+    neighbors_all = np.asarray(layout.block_neighbors, dtype=np.int32)
+
+    for b in range(num_blocks):
+        q_start = b * block_size
+        local_start = max(0, q_start - int(local_window_tokens) + 1)
+        for h in range(H):
+            cursor = 0
+            for neighbor in neighbors_all[h, b].tolist():
+                neighbor_i = int(neighbor)
+                if neighbor_i < 0 or neighbor_i >= b:
+                    continue
+                neighbor_end = (neighbor_i + 1) * block_size
+                if neighbor_end > local_start:
+                    continue
+                # Also require the neighbor block is entirely within the cache.
+                if neighbor_end > int(kv_len):
+                    continue
+                routed[h, b, cursor] = neighbor_i
+                cursor += 1
+                if cursor >= summary_slots:
+                    break
+    return mx.array(routed, dtype=mx.int32)
+
+
 def _block_mean_summaries_impl(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
     """Mean-pool token states into one summary vector per block."""
     B, H, T, dh = x.shape
@@ -1116,7 +1412,22 @@ def compressed_butterfly_attention(
     block_chunk_size: int = 0,
     scale: Optional[float] = None,
 ) -> Tuple[mx.array, mx.array | None]:
-    """Compressed Butterfly prefill: exact local tokens plus routed block summaries."""
+    """Compressed Butterfly prefill via two streams + online softmax merge.
+
+    Stream 1: sliding-window attention over recent raw tokens
+    (`_swa_stream_attention`, window = `local_window_tokens`).
+    Stream 2: Butterfly-routed compressed-block attention
+    (`_compressed_stream_attention` with `routed_indices` derived from
+    `layout.block_neighbors` and filtered against the SWA window so the
+    same token never contributes through both streams).
+
+    The two streams are merged by online-softmax accumulators, producing the
+    same numerical result as a single softmax over the union of their keys but
+    without ever materializing that union in framework-level memory. The
+    `block_chunk_size` argument is accepted for backward-compat with callers
+    but is no longer used (chunking now lives inside the per-stream helpers).
+    """
+    del block_chunk_size  # legacy knob; chunking is per-stream now.
     if return_weights:
         raise NotImplementedError("return_weights is not supported for compressed Butterfly MLX attention")
 
@@ -1135,81 +1446,28 @@ def compressed_butterfly_attention(
     num_blocks = int(layout.num_blocks)
     block_size = int(layout.block_size)
     q_scale = float(scale if scale is not None else (dh ** -0.5))
+    n_win = int(local_window_tokens)
 
-    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_block_indices(
-        layout,
-        kv_len=int(T),
-        local_window_tokens=int(local_window_tokens),
+    if int(layout.block_neighbors.shape[0]) != H:
+        raise ValueError(
+            f"layout.block_neighbors head dim {layout.block_neighbors.shape[0]} must match q heads {H}"
+        )
+
+    routed_indices = _compressed_butterfly_routed_indices(
+        layout, kv_len=int(T), local_window_tokens=n_win,
     )
-    raw_slots = int(raw_idx.shape[-1])
-    summary_slots = int(summary_idx.shape[-1])
 
     k_summary = _block_mean_summaries(k, seq_len=int(T), block_size=block_size, num_blocks=num_blocks)
     v_summary = _block_mean_summaries(v, seq_len=int(T), block_size=block_size, num_blocks=num_blocks)
 
-    pad_len = int(num_blocks * block_size - T)
-    q_work = mx.pad(q, ((0, 0), (0, 0), (0, pad_len), (0, 0))) if pad_len > 0 else q
-    q_blocks = q_work.reshape(B, H, num_blocks, block_size, dh)
+    swa_o, swa_l, swa_m = _swa_stream_attention(q, k, v, n_win=n_win, scale=q_scale)
+    cmp_o, cmp_l, cmp_m = _compressed_stream_attention(
+        q, k_summary, v_summary,
+        block_size=block_size, scale=q_scale,
+        routed_indices=routed_indices,
+    )
 
-    chunk_size = int(block_chunk_size)
-    if chunk_size <= 0:
-        chunk_size = min(int(num_blocks), 4)
-    chunk_size = max(1, min(int(num_blocks), int(chunk_size)))
-
-    out_chunks: list[mx.array] = []
-    for start in range(0, num_blocks, chunk_size):
-        end = min(start + chunk_size, num_blocks)
-        n_chunk = int(end - start)
-        chunk_range = mx.arange(start, end, dtype=mx.int32)
-
-        q_chunk = q_blocks[:, :, start:end, :, :]
-        q_chunk = q_chunk.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, block_size, dh)
-
-        raw_idx_chunk = mx.take(raw_idx, chunk_range, axis=0)
-        raw_k = mx.take(k, raw_idx_chunk, axis=2)
-        raw_v = mx.take(v, raw_idx_chunk, axis=2)
-        raw_k = raw_k.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, raw_slots, dh)
-        raw_v = raw_v.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, raw_slots, dh)
-
-        summary_idx_chunk = mx.take(summary_idx, chunk_range, axis=0)
-        summary_k = mx.take(k_summary, summary_idx_chunk, axis=2)
-        summary_v = mx.take(v_summary, summary_idx_chunk, axis=2)
-        summary_k = summary_k.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, summary_slots, dh)
-        summary_v = summary_v.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, summary_slots, dh)
-
-        k_chunk = mx.concatenate([raw_k, summary_k], axis=2)
-        v_chunk = mx.concatenate([raw_v, summary_v], axis=2)
-
-        raw_mask_chunk = mx.take(raw_mask, chunk_range, axis=0)
-        summary_mask_chunk = mx.take(summary_mask, chunk_range, axis=0)
-        mask_chunk = mx.concatenate([raw_mask_chunk, summary_mask_chunk], axis=2)
-        mask_chunk = mx.broadcast_to(
-            mask_chunk[None, :, None, :, :],
-            (B, n_chunk, H, block_size, raw_slots + summary_slots),
-        ).reshape(B * n_chunk, H, block_size, raw_slots + summary_slots)
-
-        if hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
-            y_chunk = mx.fast.scaled_dot_product_attention(
-                q_chunk,
-                k_chunk,
-                v_chunk,
-                scale=q_scale,
-                mask=mask_chunk,
-            ).astype(v.dtype)
-        else:
-            y_chunk = _block_sparse_attention_manual(
-                q_chunk,
-                k_chunk,
-                v_chunk,
-                mask=mask_chunk,
-                scale=q_scale,
-            )
-        out_chunks.append(y_chunk.reshape(B, n_chunk, H, block_size, dh))
-
-    out = mx.concatenate(out_chunks, axis=1).transpose(0, 2, 1, 3, 4)
-    out = out.reshape(B, H, num_blocks * block_size, dh)
-    if pad_len > 0:
-        out = out[:, :, :T, :]
+    out = _online_softmax_merge((swa_o, swa_l, swa_m), (cmp_o, cmp_l, cmp_m))
     return out.astype(v.dtype), None
 
 
@@ -1411,6 +1669,155 @@ def _compressed_butterfly_active_indices_from_tail(
     )
 
 
+def _swa_stream_from_cache(
+    q: mx.array,
+    tail_k: mx.array,
+    tail_v: mx.array,
+    *,
+    query_positions: mx.array,
+    tail_start: int,
+    n_win: int,
+    scale: float,
+) -> Tuple[mx.array, mx.array, mx.array]:
+    """SWA stream over the cached tail keys/values, returning `(o, l, m)`.
+
+    Each query at absolute position `p = query_positions[qi]` attends to the
+    subset of `tail_k` whose absolute positions lie in `[p - n_win + 1, p]`.
+    `tail_k[i]` has absolute position `tail_start + i`.
+    """
+    B, H, Tq, dh = q.shape
+    n_tail = int(tail_k.shape[2])
+
+    q_pos = mx.reshape(query_positions, (Tq, 1)).astype(mx.int32)
+    k_abs = mx.reshape(
+        tail_start + mx.arange(n_tail, dtype=mx.int32),
+        (1, n_tail),
+    )
+    mask_2d = (k_abs <= q_pos) & (k_abs > q_pos - int(n_win))  # [Tq, n_tail]
+    mask = mx.reshape(mask_2d, (1, 1, Tq, n_tail))
+
+    scores = mx.matmul(
+        q.astype(mx.float32),
+        tail_k.transpose(0, 1, 3, 2).astype(mx.float32),
+    ) * scale  # [B, H, Tq, n_tail]
+    scores = mx.where(mask, scores, NEG_INF)
+    m = mx.max(scores, axis=-1, keepdims=True)
+    e = mx.exp(scores - m)
+    e = mx.where(mask, e, mx.zeros_like(e))
+    l = mx.sum(e, axis=-1, keepdims=True)
+    any_valid = mx.any(mask_2d, axis=-1, keepdims=True).reshape(1, 1, Tq, 1)
+    o = mx.matmul(e, tail_v.astype(mx.float32)) / mx.maximum(l, EPS)
+    o = mx.where(any_valid, o, mx.zeros_like(o))
+    l = mx.where(any_valid, l, mx.zeros_like(l))
+    m = mx.where(any_valid, m, mx.full(m.shape, -1e30, dtype=mx.float32))
+    mx.eval(o, l, m)
+    return o.astype(q.dtype), l, m
+
+
+def _compressed_stream_from_cache(
+    q: mx.array,
+    k_summary: mx.array,
+    v_summary: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    query_positions: mx.array,
+    local_window_tokens: int,
+    scale: float,
+    query_chunk_size: int = 0,
+) -> Tuple[mx.array, mx.array, mx.array]:
+    """Routed-compressed-block stream returning `(o, l, m)` for `Tq` active queries.
+
+    Per query position `p`: build the set of compressed-block indices to attend
+    to (Butterfly-routed neighbors of block `p // block_size`, filtered against
+    the SWA window so the streams do not double-count). Gather + SDPA, with
+    `query_chunk_size` controlling the per-chunk graph flush.
+    """
+    B, H, Tq, dh = q.shape
+    num_summary_blocks = int(k_summary.shape[2])
+    block_size = int(layout.block_size)
+    summary_slots = int(layout.block_neighbors.shape[-1])
+
+    # Build [Tq, summary_slots] routed-block indices (per-query, head-shared).
+    q_pos_np = np.asarray(query_positions, dtype=np.int32)
+    if q_pos_np.ndim != 1:
+        raise ValueError(f"query_positions must be 1D, got {q_pos_np.shape}")
+    routed_np = np.full((int(Tq), summary_slots), -1, dtype=np.int32)
+    neighbors_h0 = np.asarray(layout.block_neighbors[0], dtype=np.int32)
+    n_win = int(local_window_tokens)
+    for qi, p_t in enumerate(q_pos_np.tolist()):
+        p = int(p_t)
+        b = p // block_size
+        local_start = max(0, p - n_win + 1)
+        cursor = 0
+        if b < 0 or b >= int(neighbors_h0.shape[0]):
+            continue
+        for neighbor in neighbors_h0[b].tolist():
+            n_i = int(neighbor)
+            if n_i < 0 or n_i >= b:
+                continue
+            n_end = (n_i + 1) * block_size
+            if n_end > local_start:
+                continue
+            if n_i >= num_summary_blocks:
+                continue
+            routed_np[qi, cursor] = n_i
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+    routed = mx.array(routed_np, dtype=mx.int32)
+    valid_q = (routed_np >= 0)  # [Tq, summary_slots]
+
+    q_chunk = int(query_chunk_size)
+    if q_chunk <= 0 or q_chunk >= Tq:
+        q_chunk = int(Tq)
+
+    # Pad k_summary with sentinel slot at index num_summary_blocks.
+    pad_zero_k = mx.zeros((B, H, 1, dh), dtype=k_summary.dtype)
+    k_padded = mx.concatenate([k_summary, pad_zero_k], axis=2)
+    v_padded = mx.concatenate([v_summary, pad_zero_k], axis=2)
+
+    o_chunks: list[mx.array] = []
+    l_chunks: list[mx.array] = []
+    m_chunks: list[mx.array] = []
+    for start in range(0, int(Tq), q_chunk):
+        end = min(int(Tq), start + q_chunk)
+        q_c = q[:, :, start:end, :]
+        c = end - start
+        idx_c = mx.array(
+            np.where(routed_np[start:end] >= 0, routed_np[start:end], num_summary_blocks).astype(np.int32),
+            dtype=mx.int32,
+        )  # [c, summary_slots]
+        valid_c = mx.array(valid_q[start:end], dtype=mx.bool_)  # [c, summary_slots]
+
+        k_g = mx.take(k_padded, idx_c, axis=2)  # [B, H, c, summary_slots, dh]
+        v_g = mx.take(v_padded, idx_c, axis=2)  # [B, H, c, summary_slots, dh]
+        mask_c = valid_c.reshape(1, 1, c, summary_slots)
+
+        scores = mx.sum(q_c[:, :, :, None, :].astype(mx.float32) * k_g.astype(mx.float32), axis=-1) * scale
+        scores = mx.where(mask_c, scores, NEG_INF)
+        m_c = mx.max(scores, axis=-1, keepdims=True)
+        e = mx.exp(scores - m_c)
+        e = mx.where(mask_c, e, mx.zeros_like(e))
+        l_c = mx.sum(e, axis=-1, keepdims=True)
+        o_c = mx.sum(e[:, :, :, :, None] * v_g.astype(mx.float32), axis=3) / mx.maximum(l_c, EPS)
+        any_valid = mx.any(mask_c, axis=-1, keepdims=True)
+        o_c = mx.where(any_valid, o_c, mx.zeros_like(o_c))
+        l_c = mx.where(any_valid, l_c, mx.zeros_like(l_c))
+        m_c = mx.where(any_valid, m_c, mx.full(m_c.shape, -1e30, dtype=mx.float32))
+        mx.eval(o_c, l_c, m_c)
+        o_chunks.append(o_c)
+        l_chunks.append(l_c)
+        m_chunks.append(m_c)
+
+    if len(o_chunks) == 1:
+        o, l, m = o_chunks[0], l_chunks[0], m_chunks[0]
+    else:
+        o = mx.concatenate(o_chunks, axis=2)
+        l = mx.concatenate(l_chunks, axis=2)
+        m = mx.concatenate(m_chunks, axis=2)
+    return o.astype(q.dtype), l, m
+
+
 def compressed_butterfly_attention_from_cache(
     q: mx.array,
     tail_k: mx.array,
@@ -1427,6 +1834,20 @@ def compressed_butterfly_attention_from_cache(
     scale: Optional[float] = None,
     query_chunk_size: int = 0,
 ) -> Tuple[mx.array, mx.array | None]:
+    """Cache-aware compressed Butterfly attention via two streams + online merge.
+
+    Replaces the prior gather-raw + gather-summary + concatenate + single SDPA
+    pattern. Per active query:
+      Stream 1 (SWA): attention over the cached tail (recent raw tokens).
+      Stream 2 (compressed routed): attention over Butterfly-routed compressed
+        block summaries strictly older than the SWA window.
+    Streams are merged by online softmax `(m, l, o)` accumulators so the union
+    K/V tensor is never materialized.
+
+    `query_chunk_size > 0` controls per-chunk graph evaluation in the
+    compressed stream (the SWA stream's keys/values are already small —
+    bounded by `tail_k.shape[2]` — so it does not need chunking).
+    """
     if return_weights:
         raise NotImplementedError("return_weights is not supported for compressed cache attention")
     B, H, Tq, dh = q.shape
@@ -1437,65 +1858,27 @@ def compressed_butterfly_attention_from_cache(
     if int(tail_k.shape[-1]) != dh or int(tail_v.shape[-1]) != dh:
         raise ValueError("q and cache head_dim mismatch")
 
-    q_chunk = int(query_chunk_size)
-    if q_chunk > 0 and q_chunk < Tq:
-        out_chunks: list[mx.array] = []
-        for start in range(0, Tq, q_chunk):
-            end = min(start + q_chunk, Tq)
-            y_i, _ = compressed_butterfly_attention_from_cache(
-                q[:, :, start:end, :],
-                tail_k,
-                tail_v,
-                k_summary,
-                v_summary,
-                layout=layout,
-                query_positions=query_positions[start:end],
-                local_window_tokens=local_window_tokens,
-                tail_start=tail_start,
-                kv_len=kv_len,
-                return_weights=False,
-                scale=scale,
-                query_chunk_size=0,
-            )
-            mx.eval(y_i)
-            out_chunks.append(y_i)
-        return mx.concatenate(out_chunks, axis=2), None
-
-    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_indices_from_tail(
-        layout,
-        kv_len=int(kv_len),
-        tail_start=int(tail_start),
-        num_summary_blocks=int(k_summary.shape[2]),
-        tail_len=int(tail_k.shape[2]),
-        query_positions=query_positions,
-        local_window_tokens=int(local_window_tokens),
-    )
-    raw_k = mx.take(tail_k, raw_idx, axis=2)
-    raw_v = mx.take(tail_v, raw_idx, axis=2)
-    summary_k = mx.take(k_summary, summary_idx, axis=2)
-    summary_v = mx.take(v_summary, summary_idx, axis=2)
-    k_g = mx.concatenate([raw_k, summary_k], axis=3)
-    v_g = mx.concatenate([raw_v, summary_v], axis=3)
-    mask = mx.concatenate([raw_mask, summary_mask], axis=1)
-
     q_scale = float(scale if scale is not None else (dh ** -0.5))
-    slots = int(k_g.shape[3])
-    if (
-        not _COMPRESS_FORCE_MANUAL
-        and hasattr(mx, "fast")
-        and hasattr(mx.fast, "scaled_dot_product_attention")
-    ):
-        q_r = q.transpose(0, 2, 1, 3).reshape(B * Tq, H, 1, dh)
-        k_r = k_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
-        v_r = v_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
-        mask_r = mx.broadcast_to(mask[None, :, None, :], (B, Tq, H, slots)).reshape(B * Tq, H, 1, slots)
-        out = mx.fast.scaled_dot_product_attention(q_r, k_r, v_r, scale=q_scale, mask=mask_r)
-        return out.reshape(B, Tq, H, dh).transpose(0, 2, 1, 3).astype(tail_v.dtype), None
+    n_win = int(local_window_tokens)
 
-    scores = mx.sum(q[:, :, :, None, :].astype(mx.float32) * k_g.astype(mx.float32), axis=-1) * q_scale
-    w = stable_masked_softmax(scores, mask[None, None, :, :], axis=-1)
-    out = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(tail_v.dtype)
-    return out, None
+    swa_o, swa_l, swa_m = _swa_stream_from_cache(
+        q, tail_k, tail_v,
+        query_positions=query_positions,
+        tail_start=int(tail_start),
+        n_win=n_win,
+        scale=q_scale,
+    )
+    cmp_o, cmp_l, cmp_m = _compressed_stream_from_cache(
+        q, k_summary, v_summary,
+        layout=layout,
+        query_positions=query_positions,
+        local_window_tokens=n_win,
+        scale=q_scale,
+        query_chunk_size=int(query_chunk_size),
+    )
+
+    out = _online_softmax_merge((swa_o, swa_l, swa_m), (cmp_o, cmp_l, cmp_m))
+    return out.astype(tail_v.dtype), None
 
 
 def block_sparse_butterfly_attention(
