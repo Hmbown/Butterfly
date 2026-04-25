@@ -93,13 +93,13 @@ Environment preflight:
 ./scripts/verify_install_and_preflight.sh
 ```
 
-Qwen 3.5 9B Butterfly smoke (uses `--mode wayfinder` internally; `--mode butterfly` also accepted):
+Qwen 3.5 9B Butterfly smoke (`--mode butterfly` is the primary name; `--mode wayfinder` is accepted as a legacy alias):
 
 ```bash
 ./.venv-macos-metal/bin/python scripts/bench_qwen_consumer_mlx.py \
   --model-path mlx-community/Qwen3.5-9B-MLX-4bit \
   --hf-offline \
-  --mode wayfinder \
+  --mode butterfly \
   --seq-lens 512 \
   --decode-len 16 \
   --repeats 1 \
@@ -114,14 +114,14 @@ Recommended reproducible Qwen 3.5 9B run:
 ```bash
 ./.venv-macos-metal/bin/python scripts/bench_qwen_consumer_mlx.py \
   --model-path mlx-community/Qwen3.5-9B-MLX-4bit \
-  --mode wayfinder \
+  --mode butterfly \
   --seq-lens 2048 8192 32768 65536 98304 131072 163840 \
   --decode-len 256 \
   --repeats 3 \
   --window 64 \
   --head-chunk-size 2 \
   --query-chunk-size 384 \
-  --out-dir results/benchmarks/qwen35_9b_mlx/wayfinder_repro
+  --out-dir results/benchmarks/qwen35_9b_mlx/butterfly_repro
 ```
 
 Dense baseline:

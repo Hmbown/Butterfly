@@ -2,7 +2,7 @@
 
 This document is contributor-facing and focuses on how Butterfly is structured and why the current implementation behaves the way it does.
 
-Public naming note: the GitHub landing page now uses `Butterfly` / `BNA` as the main project name. This document keeps the older `Wayfinder` / `HCSA` terminology because much of the implementation and benchmark history still uses it.
+Naming note: `Butterfly` / `BNA` is the project name everywhere user-facing. `Wayfinder` / `HCSA` are legacy identifiers that survive in some module names (`bna/attention_hcsa.py`), CLI mode strings (`--mode wayfinder` is a legacy alias for `--mode butterfly`), and historical benchmark paths. They mean the same runtime; new readers should treat any "wayfinder" / "HCSA" mention as "Butterfly".
 
 ## Graph ABI
 Source: `bna/graph/abi.py`
