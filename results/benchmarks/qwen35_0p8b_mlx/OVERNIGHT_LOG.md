@@ -333,6 +333,18 @@ peak memory**, and has an **81× smaller retained KV cache** than stock — on
 a frozen pretrained checkpoint with deterministic causal_shift routing as
 the no-train sparse selector.
 
+#### 512k attempt: blocked by bench harness, not by the architecture
+
+A 512k compressed bench was started after 256k. It timed out at 3600s
+during the **prompt_build** stage (tokenization / synthetic-prompt
+construction), before any attention forward pass started. Compressed
+attention itself was never exercised at 512k. The harness has an O(T²)
+component in synthetic prompt construction that becomes the bottleneck
+above ~256k. Empty result dir was removed; adding 512k+ measurement
+requires a different prompt-build code path (streamed tokenization or a
+pre-tokenized fixture) and is out of scope for the architecture work on
+this branch. **256k stands as the validated ceiling for this run.**
+
 ### Diagnostic artifacts
 
 - `results/benchmarks/qwen35_0p8b_mlx/diag_stock_32768/peak_journal.json`
