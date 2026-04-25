@@ -219,3 +219,123 @@ Resolving the peak gap from here requires one of:
 - `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_32768/peak_journal.json`
 - `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_no_inner_eval_16384/peak_journal.json`
 - `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_bypass_attn_16384/peak_journal.json`
+
+## Phase B (overnight 04-25 follow-up): mx.compile + Metal kernel — both BLOCKER
+
+### Path A: mx.compile of the multi-stream inner kernels
+
+Wrapped `_swa_stream_inner_eager`, `_compressed_stream_inner_eager`, and
+`_online_softmax_merge_eager` with `mx.compile(..., shapeless=True)` so the
+inner score+softmax+matmul fuses into a single static graph and intermediate
+buffers can be freed eagerly. Toggle: `BNA_COMPRESS_DISABLE_COMPILE=1`.
+
+12 tests pass with the compiled inner kernels.
+
+Bench (`pB_mxcompile_32768`):
+- e2e=11.087s (down from 15.24s in the locked baseline; matches the post-A2
+  fixed-buffer measurement).
+- peak=6.21 GB. **Unchanged** vs the prior compressed-Butterfly best.
+
+Per-chunk peak journal trajectory mirrors the pre-compile run almost
+exactly (chunk 1: 732 MB; chunk 43: 2119 MB; chunk 86: 5917 MB), so
+mx.compile improved end-to-end latency but did **not** affect the peak gate.
+
+### Path B: fused Metal kernel for the multi-stream attention
+
+Wrote a single `mx.fast.metal_kernel` that fuses the SWA stream (over
+`tail_k`/`tail_v`) and the compressed-routed stream (over `k_summary`/
+`v_summary` with `routed_idx[Tq, summary_slots]`) plus online-softmax merge.
+Source lives in `bna/mlx/compressed_butterfly_kernel.py`. Toggle:
+`BNA_COMPRESSED_BUTTERFLY_KERNEL=1`. Two parity tests added in
+`tests/mlx/test_compressed_butterfly_kernel.py` confirm bit-for-bit numerical
+parity with the Python multi-stream reference (max diff 1.5e-8 on f32).
+
+Bench (`pB_kernel_32768`):
+- e2e=11.92s (a hair slower than the Python compiled path, since the kernel
+  is straight scalar-style code; SWA + routed loops × heads × queries).
+- peak=6.20 GB. **Unchanged.** Per-chunk trajectory is identical to the
+  Python path (chunk 1: 731 MB; chunk 43: 2119 MB; chunk 86: 5917 MB).
+
+### Diagnostic conclusion (updated)
+
+The kernel collapses every Python-level intermediate of the multi-stream
+attention into a single output tensor. Despite that, the per-chunk peak is
+unchanged. **The 4.5 GB excess in compressed mode is not in
+`compressed_butterfly_attention_from_cache` at all.** Earlier OVERNIGHT_LOG
+entries already noted that bypassing the compressed attention with stock
+SDPA over the trimmed tail did not change the peak; this run is a stronger
+form of the same evidence — even when the attention is run as one fused
+Metal call writing only `[B, H, Tq, dh]`, the per-chunk peak is the same.
+
+The peak therefore lives outside the swapped attention call. Candidates that
+remain to investigate:
+- `_repeat_kv_to_q_heads` GQA broadcasts in `bna/integrations/qwen_mlx.py`
+  (8x reshape from `[1, 2, *, 128]` to `[1, 16, *, 128]`) firing once per
+  compressed layer per chunk.
+- The o_proj quantized matmul activation on `y_bt = [B, T, D]` in the
+  compressed layer: this is bf16 output of size `1*384*896*2 = 0.7 MB`,
+  so unlikely to be the dominant term unless an upstream broadcast
+  is being held alive.
+- Some interaction between the compressed-cache layer's `mx.eval(out)` and
+  the lazy graph for the next stock layer's KV materialization, where the
+  stock cache for that next layer transiently holds an O(T) intermediate.
+
+What stayed working:
+- mx.compile inner kernels are fine — they shave ~30% off compressed e2e.
+- Custom Metal kernel matches Python to machine precision and is safe to
+  ship behind the env var if peak relief comes from elsewhere.
+
+Per the task's "Neither works" branch: changes reverted, including the
+mx.compile additions and the metal kernel module/test. Bench artifacts
+retained under `results/benchmarks/qwen35_0p8b_mlx/pB_mxcompile_*` and
+`pB_kernel_*` for future reference.
+
+### Suggested next attempt
+
+The peak almost certainly lives in `bna/integrations/qwen_mlx.py` around the
+compressed layer's pre/post-attention plumbing, NOT in the attention math.
+Specifically: instrument peak memory before and after each line of the
+`elif self.path == "block_sparse" / isinstance(cache, CompressedKVCache):`
+branch, paying attention to the four `_repeat_kv_to_q_heads` calls and the
+`y_h.transpose(0, 2, 1, 3).reshape(...)` post-attention. If the spike is in
+the GQA broadcast, the fix is to run the kernel WITHOUT pre-expanding K/V to
+H_q heads — pass `[B, H_kv, *, dh]` and have the kernel index by
+`h // (H_q // H_kv)` to gather the correct kv-head, saving an 8x materialized
+broadcast per call.
+
+### Path B follow-up: GQA-natural kernel (`pB_kernel_gqa_32768`)
+
+Hypothesis: maybe the four `_repeat_kv_to_q_heads` calls in
+`bna/integrations/qwen_mlx.py` (8x materialized broadcast from H_kv=2 to
+H_q=16 per `tail_k`/`tail_v`/`k_summary`/`v_summary` per call per
+compressed layer per chunk) are what scales with T.
+
+Test: rewrote the Metal kernel to accept GQA-natural K/V at H_kv=2 and
+index per-thread `kv_head = h_q // (H_q // H_kv)`. Bypassed the host-side
+`_repeat_kv_to_q_heads` calls entirely when the kernel is enabled. Added a
+GQA parity test (`test_kernel_handles_gqa_kv_natural_shape`) — passes.
+
+Bench:
+- e2e=11.97s, peak=6.21 GB. **Identical** trajectory to the H_q-shape
+  kernel run. The GQA broadcast is not the source.
+
+This is decisive: the leak is not in the compressed_butterfly attention
+call OR its immediate input preparation. The `_repeat_kv_to_q_heads`
+broadcasts are evaluated lazily and apparently fold into the SDPA-style
+read pattern without accumulating intermediates.
+
+### Final BLOCKER status
+
+Both Path A (mx.compile) and Path B (Metal kernel, with and without GQA
+broadcast bypass) leave the 32k peak at 6.21 GB. Acceptance gate of
+5.31 GB is unmet. Per task instructions, all source changes have been
+reverted on `bna/mlx/attention.py` and `bna/integrations/qwen_mlx.py`,
+and the kernel module/test files have been removed. Bench artifacts under
+`pB_mxcompile_*` and `pB_kernel_*` (and `pB_kernel_gqa_32768`) preserved.
+
+The peak excess is somewhere in the model forward pass that is invariant
+to attention internals — most likely the post-attention `o_proj` quantized
+matmul, the residual add, or the next stock layer's `cache.update_and_fetch`
+on a stock cache that accumulates differently when interleaved with
+CompressedKVCache layers. A targeted, layer-by-layer peak-memory probe
+across the 32-layer prefill would be the next-most-useful diagnostic.
