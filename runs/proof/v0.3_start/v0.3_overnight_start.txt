@@ -1,4 +1,0 @@
-v0.3_overnight_start
-Created: 2026-02-07 (UTC)
-Context: baseline lock before overnight P0-P4 modifications.
-Note: git branch has no commits yet in this workspace snapshot, so this marker serves as the start tag note.

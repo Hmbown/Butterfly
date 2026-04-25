@@ -1,2 +1,0 @@
-{"run": "dense", "attn": "dense", "step": 1, "train_loss": 4.207839012145996, "train_ppl": 67.21114030556389, "tokens_per_sec": 83670.95187042115, "val_loss": 3.655597686767578, "val_ppl": 38.69063908883224}
-{"run": "dense", "attn": "dense", "step": 2, "train_loss": 3.4439923763275146, "train_ppl": 31.311717118455668, "tokens_per_sec": 214984.91020095863, "checkpoint": "runs/mlx/tiny_long/debug_repro/checkpoints/step_000002.npz", "val_loss": 3.820674180984497, "val_ppl": 45.63496417725354}
