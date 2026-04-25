@@ -49,6 +49,38 @@ _QWEN_GRAPH_CACHE_BY_KEY: Dict[tuple, "_QwenGraphCache"] = {}
 EXPECTED_QWEN35_FULL_ATTENTION_LAYERS: tuple[int, ...] = (3, 7, 11, 15, 19, 23, 27, 31)
 
 
+def _qwen_graph_cache_drop_other_keys(current_T: int) -> int:
+    """Evict every `_QWEN_GRAPH_CACHE_BY_KEY` entry whose T does not equal
+    `current_T`. Returns the number of entries dropped.
+
+    Used by chunked prefill: every chunk has a different sequence length, so
+    the by-key cache otherwise accumulates one entry per (T, layer_idx, ...).
+    Sharing across the 6 swapped full-attention layers within ONE chunk still
+    benefits because all 6 layers see the same T at the same moment; we only
+    drop entries from prior chunks.
+    """
+    dropped = 0
+    keys_to_drop: list = []
+    for key in _QWEN_GRAPH_CACHE_BY_KEY:
+        # Cache key for path="block_sparse" has T at index 2 per `cache_key`.
+        # For other paths T is at index 1. Both branches use plain int.
+        if not isinstance(key, tuple) or len(key) < 3:
+            continue
+        # Find the T in the key; for block_sparse it's index 2, otherwise index 1.
+        path_field = key[3] if len(key) >= 4 else None
+        t_index = 2 if path_field == "block_sparse" else 1
+        try:
+            entry_T = int(key[t_index])
+        except Exception:
+            continue
+        if entry_T != int(current_T):
+            keys_to_drop.append(key)
+    for key in keys_to_drop:
+        _QWEN_GRAPH_CACHE_BY_KEY.pop(key, None)
+        dropped += 1
+    return dropped
+
+
 @dataclass
 class QwenButterflyConfig:
     path: Literal["sparse", "permute", "block_sparse"] = "permute"

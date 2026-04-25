@@ -586,27 +586,106 @@ def _run_chunked_prefill(
     peak_journal_path = os.environ.get("BNA_PEAK_JOURNAL_PATH", "").strip()
     peak_journal: Optional[List[Dict[str, Any]]] = [] if peak_journal_path else None
 
+    per_layer_journal_path = os.environ.get("BNA_PER_LAYER_PEAK_JOURNAL_PATH", "").strip()
+    per_layer_target_chunks_env = os.environ.get("BNA_PER_LAYER_PROBE_CHUNKS", "1,21,41,61,81").strip()
+    per_layer_target_chunks: set[int] = set()
+    if per_layer_journal_path:
+        try:
+            per_layer_target_chunks = {int(x) for x in per_layer_target_chunks_env.split(",") if x.strip()}
+        except Exception:
+            per_layer_target_chunks = {1}
+    per_layer_journal: Optional[List[Dict[str, Any]]] = [] if per_layer_journal_path else None
+    per_layer_active = {"chunk_idx": -1, "list": per_layer_journal}
+
+    class _PeakProbeLayer:
+        def __init__(self, layer: Any, idx: int) -> None:
+            self._layer = layer
+            self._idx = idx
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            chunk_id = per_layer_active["chunk_idx"]
+            if chunk_id not in per_layer_target_chunks:
+                return self._layer(*args, **kwargs)
+            _reset_peak_memory()
+            t_before = time.perf_counter()
+            out = self._layer(*args, **kwargs)
+            mx.eval(out)
+            peak = _peak_memory()
+            elapsed = time.perf_counter() - t_before
+            per_layer_active["list"].append(
+                {
+                    "chunk_idx": int(chunk_id),
+                    "layer_idx": int(self._idx),
+                    "is_linear": bool(getattr(self._layer, "is_linear", False)),
+                    "peak_memory_bytes_layer": int(peak),
+                    "elapsed_sec": float(elapsed),
+                }
+            )
+            return out
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._layer, name)
+
+    if per_layer_journal_path:
+        layers_owner = model.model if hasattr(model, "model") else model
+        if hasattr(layers_owner, "layers") and not isinstance(layers_owner.layers[0], _PeakProbeLayer):
+            wrapped = [_PeakProbeLayer(layer, i) for i, layer in enumerate(layers_owner.layers)]
+            layers_owner.layers = wrapped
+
     t0 = time.perf_counter()
     last_beat = t0
     chunk_idx = 0
     for start in range(0, seq_len, chunk_size):
         end = min(seq_len, start + chunk_size)
         chunk_idx += 1
+        if per_layer_journal is not None:
+            per_layer_active["chunk_idx"] = chunk_idx
         if peak_journal is not None:
             _reset_peak_memory()
             chunk_t0 = time.perf_counter()
+        # Evict prior-T graph cache entries to prevent unbounded growth across
+        # chunked prefill. Within-chunk sharing across the 6 swapped full-
+        # attention layers still works (they all see the same T).
+        try:
+            from bna.integrations.qwen_mlx import _qwen_graph_cache_drop_other_keys
+            _qwen_graph_cache_drop_other_keys(int(end))
+        except Exception:
+            pass
         logits = model(prompt_tokens[:, start:end], cache=cache)
         mx.eval(logits)
         if peak_journal is not None:
             chunk_peak = _peak_memory()
             chunk_t = time.perf_counter() - chunk_t0
+            try:
+                active_mem = int(mx.get_active_memory()) if hasattr(mx, "get_active_memory") else 0
+                cache_mem = int(mx.get_cache_memory()) if hasattr(mx, "get_cache_memory") else 0
+            except Exception:
+                active_mem, cache_mem = 0, 0
             cache_bytes = 0
-            for entry in cache:
-                cache_bytes += int(_array_nbytes(entry) or 0)
+            cache_breakdown: list[Dict[str, Any]] = []
+            for ci, entry in enumerate(cache):
+                eb = int(_array_nbytes(entry) or 0)
+                if eb <= 0:
+                    state_obj = getattr(entry, "state", None)
+                    if isinstance(state_obj, (list, tuple)):
+                        eb = sum(int(_array_nbytes(x) or 0) for x in state_obj)
+                cache_bytes += int(eb)
+                cls = entry.__class__.__name__
+                if chunk_idx in (1, 21, 41, 61, 81, 86):
+                    state_obj = getattr(entry, "state", None)
+                    state_shapes = []
+                    if isinstance(state_obj, (list, tuple)):
+                        for x in state_obj:
+                            if hasattr(x, "shape"):
+                                state_shapes.append({"shape": list(x.shape), "nb": int(getattr(x, "nbytes", 0) or 0)})
+                    cache_breakdown.append({"layer": ci, "cls": cls, "nbytes": int(eb), "state_shapes": state_shapes})
             peak_journal.append(
                 {
                     "chunk_idx": int(chunk_idx),
                     "tokens_end": int(end),
+                    "active_memory_bytes_after_chunk": int(active_mem),
+                    "cache_memory_bytes_after_chunk": int(cache_mem),
+                    "cache_breakdown": cache_breakdown,
                     "peak_memory_bytes_chunk": int(chunk_peak),
                     "cache_bytes_after_chunk": int(cache_bytes),
                     "chunk_sec": float(chunk_t),
@@ -667,6 +746,14 @@ def _run_chunked_prefill(
             result["peak_journal_path"] = str(peak_journal_path)
         except Exception as exc:  # noqa: BLE001
             _log(f"warning: failed to write peak journal: {exc}")
+    if per_layer_journal is not None and per_layer_journal_path:
+        try:
+            Path(per_layer_journal_path).parent.mkdir(parents=True, exist_ok=True)
+            with Path(per_layer_journal_path).open("w") as fh:
+                json.dump(per_layer_journal, fh, indent=2)
+            result["per_layer_peak_journal_path"] = str(per_layer_journal_path)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"warning: failed to write per-layer peak journal: {exc}")
     return result
 
 

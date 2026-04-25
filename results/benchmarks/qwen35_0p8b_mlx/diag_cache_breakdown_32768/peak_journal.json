@@ -1,0 +1,5008 @@
+[
+  {
+    "chunk_idx": 1,
+    "tokens_end": 384,
+    "active_memory_bytes_after_chunk": 766338782,
+    "cache_memory_bytes_after_chunk": 157170353,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 790528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              384,
+              256
+            ],
+            "nb": 393216
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          },
+          {
+            "shape": [
+              1,
+              2,
+              2,
+              256
+            ],
+            "nb": 2048
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 767125214,
+    "cache_bytes_after_chunk": 14843904,
+    "chunk_sec": 0.11080275000131223
+  },
+  {
+    "chunk_idx": 2,
+    "tokens_end": 768,
+    "active_memory_bytes_after_chunk": 769648350,
+    "cache_memory_bytes_after_chunk": 255651705,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 903536897,
+    "cache_bytes_after_chunk": 16453632,
+    "chunk_sec": 0.09493024999392219
+  },
+  {
+    "chunk_idx": 3,
+    "tokens_end": 1152,
+    "active_memory_bytes_after_chunk": 762570462,
+    "cache_memory_bytes_after_chunk": 202426573,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 904466378,
+    "cache_bytes_after_chunk": 16490496,
+    "chunk_sec": 0.09382466599345207
+  },
+  {
+    "chunk_idx": 4,
+    "tokens_end": 1536,
+    "active_memory_bytes_after_chunk": 769648350,
+    "cache_memory_bytes_after_chunk": 241131745,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 904466378,
+    "cache_bytes_after_chunk": 16527360,
+    "chunk_sec": 0.09636475000297651
+  },
+  {
+    "chunk_idx": 5,
+    "tokens_end": 1920,
+    "active_memory_bytes_after_chunk": 761784030,
+    "cache_memory_bytes_after_chunk": 249061649,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 904466378,
+    "cache_bytes_after_chunk": 16564224,
+    "chunk_sec": 0.09371249999094289
+  },
+  {
+    "chunk_idx": 6,
+    "tokens_end": 2304,
+    "active_memory_bytes_after_chunk": 778311838,
+    "cache_memory_bytes_after_chunk": 258531651,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 912341049,
+    "cache_bytes_after_chunk": 16601088,
+    "chunk_sec": 0.10162487500929274
+  },
+  {
+    "chunk_idx": 7,
+    "tokens_end": 2688,
+    "active_memory_bytes_after_chunk": 780469438,
+    "cache_memory_bytes_after_chunk": 265050483,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 922393689,
+    "cache_bytes_after_chunk": 16637952,
+    "chunk_sec": 0.103030750004109
+  },
+  {
+    "chunk_idx": 8,
+    "tokens_end": 3072,
+    "active_memory_bytes_after_chunk": 798716606,
+    "cache_memory_bytes_after_chunk": 256243747,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 933603929,
+    "cache_bytes_after_chunk": 16674816,
+    "chunk_sec": 0.10292208299506456
+  },
+  {
+    "chunk_idx": 9,
+    "tokens_end": 3456,
+    "active_memory_bytes_after_chunk": 811378438,
+    "cache_memory_bytes_after_chunk": 262289491,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 946370257,
+    "cache_bytes_after_chunk": 16711680,
+    "chunk_sec": 0.10392925000633113
+  },
+  {
+    "chunk_idx": 10,
+    "tokens_end": 3840,
+    "active_memory_bytes_after_chunk": 822699526,
+    "cache_memory_bytes_after_chunk": 265117827,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 960513537,
+    "cache_bytes_after_chunk": 16748544,
+    "chunk_sec": 0.10372958300285973
+  },
+  {
+    "chunk_idx": 11,
+    "tokens_end": 4224,
+    "active_memory_bytes_after_chunk": 842038918,
+    "cache_memory_bytes_after_chunk": 258723247,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 974595954,
+    "cache_bytes_after_chunk": 16785408,
+    "chunk_sec": 0.10613924999779556
+  },
+  {
+    "chunk_idx": 12,
+    "tokens_end": 4608,
+    "active_memory_bytes_after_chunk": 860932230,
+    "cache_memory_bytes_after_chunk": 240651299,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 994480161,
+    "cache_bytes_after_chunk": 16822272,
+    "chunk_sec": 0.10653849999653175
+  },
+  {
+    "chunk_idx": 13,
+    "tokens_end": 4992,
+    "active_memory_bytes_after_chunk": 878842886,
+    "cache_memory_bytes_after_chunk": 245042211,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1014029217,
+    "cache_bytes_after_chunk": 16859136,
+    "chunk_sec": 0.10698770900489762
+  },
+  {
+    "chunk_idx": 14,
+    "tokens_end": 5376,
+    "active_memory_bytes_after_chunk": 899926982,
+    "cache_memory_bytes_after_chunk": 239672355,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1035248481,
+    "cache_bytes_after_chunk": 16896000,
+    "chunk_sec": 0.10684125000261702
+  },
+  {
+    "chunk_idx": 15,
+    "tokens_end": 5760,
+    "active_memory_bytes_after_chunk": 919533046,
+    "cache_memory_bytes_after_chunk": 245144611,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1057574289,
+    "cache_bytes_after_chunk": 16932864,
+    "chunk_sec": 0.10721766699862201
+  },
+  {
+    "chunk_idx": 16,
+    "tokens_end": 6144,
+    "active_memory_bytes_after_chunk": 946710006,
+    "cache_memory_bytes_after_chunk": 241638435,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1081245073,
+    "cache_bytes_after_chunk": 16969728,
+    "chunk_sec": 0.10773062499356456
+  },
+  {
+    "chunk_idx": 17,
+    "tokens_end": 6528,
+    "active_memory_bytes_after_chunk": 964752886,
+    "cache_memory_bytes_after_chunk": 248783907,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1106433425,
+    "cache_bytes_after_chunk": 17006592,
+    "chunk_sec": 0.10974616699968465
+  },
+  {
+    "chunk_idx": 18,
+    "tokens_end": 6912,
+    "active_memory_bytes_after_chunk": 992036342,
+    "cache_memory_bytes_after_chunk": 248063011,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1132995985,
+    "cache_bytes_after_chunk": 17043456,
+    "chunk_sec": 0.10954541599494405
+  },
+  {
+    "chunk_idx": 19,
+    "tokens_end": 7296,
+    "active_memory_bytes_after_chunk": 1022957046,
+    "cache_memory_bytes_after_chunk": 247079971,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1161229713,
+    "cache_bytes_after_chunk": 17080320,
+    "chunk_sec": 0.11021820800669957
+  },
+  {
+    "chunk_idx": 20,
+    "tokens_end": 7680,
+    "active_memory_bytes_after_chunk": 1056630262,
+    "cache_memory_bytes_after_chunk": 239543331,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1190643089,
+    "cache_bytes_after_chunk": 17117184,
+    "chunk_sec": 0.11092704099428374
+  },
+  {
+    "chunk_idx": 21,
+    "tokens_end": 8064,
+    "active_memory_bytes_after_chunk": 1085584886,
+    "cache_memory_bytes_after_chunk": 241116195,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 1175552,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          },
+          {
+            "shape": [
+              1,
+              2,
+              62,
+              256
+            ],
+            "nb": 63488
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 1221170577,
+    "cache_bytes_after_chunk": 17154048,
+    "chunk_sec": 0.10935291700297967
+  },
+  {
+    "chunk_idx": 22,
+    "tokens_end": 8448,
+    "active_memory_bytes_after_chunk": 1118160374,
+    "cache_memory_bytes_after_chunk": 258614051,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1253008785,
+    "cache_bytes_after_chunk": 17190912,
+    "chunk_sec": 0.1140808750060387
+  },
+  {
+    "chunk_idx": 23,
+    "tokens_end": 8832,
+    "active_memory_bytes_after_chunk": 1151276534,
+    "cache_memory_bytes_after_chunk": 259433251,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1286157713,
+    "cache_bytes_after_chunk": 17227776,
+    "chunk_sec": 0.11322125000879169
+  },
+  {
+    "chunk_idx": 24,
+    "tokens_end": 9216,
+    "active_memory_bytes_after_chunk": 1178445302,
+    "cache_memory_bytes_after_chunk": 261825315,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1320437137,
+    "cache_bytes_after_chunk": 17264640,
+    "chunk_sec": 0.11318904199288227
+  },
+  {
+    "chunk_idx": 25,
+    "tokens_end": 9600,
+    "active_memory_bytes_after_chunk": 1221981686,
+    "cache_memory_bytes_after_chunk": 258745123,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1356174737,
+    "cache_bytes_after_chunk": 17301504,
+    "chunk_sec": 0.11466674999974202
+  },
+  {
+    "chunk_idx": 26,
+    "tokens_end": 9984,
+    "active_memory_bytes_after_chunk": 1258194422,
+    "cache_memory_bytes_after_chunk": 259597091,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1393239441,
+    "cache_bytes_after_chunk": 17338368,
+    "chunk_sec": 0.1148490000050515
+  },
+  {
+    "chunk_idx": 27,
+    "tokens_end": 10368,
+    "active_memory_bytes_after_chunk": 1296782838,
+    "cache_memory_bytes_after_chunk": 259629859,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1431860625,
+    "cache_bytes_after_chunk": 17375232,
+    "chunk_sec": 0.11607804099912755
+  },
+  {
+    "chunk_idx": 28,
+    "tokens_end": 10752,
+    "active_memory_bytes_after_chunk": 1336501750,
+    "cache_memory_bytes_after_chunk": 259662627,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1471612305,
+    "cache_bytes_after_chunk": 17412096,
+    "chunk_sec": 0.11614225000084843
+  },
+  {
+    "chunk_idx": 29,
+    "tokens_end": 11136,
+    "active_memory_bytes_after_chunk": 1369703926,
+    "cache_memory_bytes_after_chunk": 267581475,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1512740241,
+    "cache_bytes_after_chunk": 17448960,
+    "chunk_sec": 0.11668774999270681
+  },
+  {
+    "chunk_idx": 30,
+    "tokens_end": 11520,
+    "active_memory_bytes_after_chunk": 1420027382,
+    "cache_memory_bytes_after_chunk": 258652195,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1555314065,
+    "cache_bytes_after_chunk": 17485824,
+    "chunk_sec": 0.11766808399988804
+  },
+  {
+    "chunk_idx": 31,
+    "tokens_end": 11904,
+    "active_memory_bytes_after_chunk": 1463846390,
+    "cache_memory_bytes_after_chunk": 258635811,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1599116689,
+    "cache_bytes_after_chunk": 17522688,
+    "chunk_sec": 0.1182712919980986
+  },
+  {
+    "chunk_idx": 32,
+    "tokens_end": 12288,
+    "active_memory_bytes_after_chunk": 1508795894,
+    "cache_memory_bytes_after_chunk": 258668579,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1644098961,
+    "cache_bytes_after_chunk": 17559552,
+    "chunk_sec": 0.11785941699054092
+  },
+  {
+    "chunk_idx": 33,
+    "tokens_end": 12672,
+    "active_memory_bytes_after_chunk": 1549667702,
+    "cache_memory_bytes_after_chunk": 266215459,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1691331857,
+    "cache_bytes_after_chunk": 17596416,
+    "chunk_sec": 0.1210796660016058
+  },
+  {
+    "chunk_idx": 34,
+    "tokens_end": 13056,
+    "active_memory_bytes_after_chunk": 1596685430,
+    "cache_memory_bytes_after_chunk": 267853859,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1739987985,
+    "cache_bytes_after_chunk": 17633280,
+    "chunk_sec": 0.1208706670004176
+  },
+  {
+    "chunk_idx": 35,
+    "tokens_end": 13440,
+    "active_memory_bytes_after_chunk": 1647473398,
+    "cache_memory_bytes_after_chunk": 267100195,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1790022289,
+    "cache_bytes_after_chunk": 17670144,
+    "chunk_sec": 0.12409399999887682
+  },
+  {
+    "chunk_idx": 36,
+    "tokens_end": 13824,
+    "active_memory_bytes_after_chunk": 1698640118,
+    "cache_memory_bytes_after_chunk": 265560099,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1841221777,
+    "cache_bytes_after_chunk": 17707008,
+    "chunk_sec": 0.1235891249962151
+  },
+  {
+    "chunk_idx": 37,
+    "tokens_end": 14208,
+    "active_memory_bytes_after_chunk": 1751234166,
+    "cache_memory_bytes_after_chunk": 267198499,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1893881361,
+    "cache_bytes_after_chunk": 17743872,
+    "chunk_sec": 0.13018404200556688
+  },
+  {
+    "chunk_idx": 38,
+    "tokens_end": 14592,
+    "active_memory_bytes_after_chunk": 1805321078,
+    "cache_memory_bytes_after_chunk": 267001891,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 1948033809,
+    "cache_bytes_after_chunk": 17780736,
+    "chunk_sec": 0.12286491700797342
+  },
+  {
+    "chunk_idx": 39,
+    "tokens_end": 14976,
+    "active_memory_bytes_after_chunk": 1860737014,
+    "cache_memory_bytes_after_chunk": 267034659,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2003482513,
+    "cache_bytes_after_chunk": 17817600,
+    "chunk_sec": 0.14683358299953397
+  },
+  {
+    "chunk_idx": 40,
+    "tokens_end": 15360,
+    "active_memory_bytes_after_chunk": 1924461558,
+    "cache_memory_bytes_after_chunk": 259989539,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2060161937,
+    "cache_bytes_after_chunk": 17854464,
+    "chunk_sec": 0.1306867079983931
+  },
+  {
+    "chunk_idx": 41,
+    "tokens_end": 15744,
+    "active_memory_bytes_after_chunk": 1982568310,
+    "cache_memory_bytes_after_chunk": 260120611,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 1298432,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          },
+          {
+            "shape": [
+              1,
+              2,
+              122,
+              256
+            ],
+            "nb": 124928
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 2118399761,
+    "cache_bytes_after_chunk": 17891328,
+    "chunk_sec": 0.13216462499985937
+  },
+  {
+    "chunk_idx": 42,
+    "tokens_end": 16128,
+    "active_memory_bytes_after_chunk": 2041873014,
+    "cache_memory_bytes_after_chunk": 260120611,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2177704465,
+    "cache_bytes_after_chunk": 17928192,
+    "chunk_sec": 0.13126429199473932
+  },
+  {
+    "chunk_idx": 43,
+    "tokens_end": 16512,
+    "active_memory_bytes_after_chunk": 2092880790,
+    "cache_memory_bytes_after_chunk": 266706995,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2226586337,
+    "cache_bytes_after_chunk": 17965056,
+    "chunk_sec": 0.1334431669965852
+  },
+  {
+    "chunk_idx": 44,
+    "tokens_end": 16896,
+    "active_memory_bytes_after_chunk": 2164249494,
+    "cache_memory_bytes_after_chunk": 243064931,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2300146545,
+    "cache_bytes_after_chunk": 18001920,
+    "chunk_sec": 0.14751695800805464
+  },
+  {
+    "chunk_idx": 45,
+    "tokens_end": 17280,
+    "active_memory_bytes_after_chunk": 2229916566,
+    "cache_memory_bytes_after_chunk": 243916947,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2366665633,
+    "cache_bytes_after_chunk": 18038784,
+    "chunk_sec": 0.1407103749952512
+  },
+  {
+    "chunk_idx": 46,
+    "tokens_end": 17664,
+    "active_memory_bytes_after_chunk": 2298729366,
+    "cache_memory_bytes_after_chunk": 243196099,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2434757585,
+    "cache_bytes_after_chunk": 18075648,
+    "chunk_sec": 0.1353433330077678
+  },
+  {
+    "chunk_idx": 47,
+    "tokens_end": 18048,
+    "active_memory_bytes_after_chunk": 2368131990,
+    "cache_memory_bytes_after_chunk": 243228915,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2504193025,
+    "cache_bytes_after_chunk": 18112512,
+    "chunk_sec": 0.13507162500172853
+  },
+  {
+    "chunk_idx": 48,
+    "tokens_end": 18432,
+    "active_memory_bytes_after_chunk": 2438910870,
+    "cache_memory_bytes_after_chunk": 243261731,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2575004721,
+    "cache_bytes_after_chunk": 18149376,
+    "chunk_sec": 0.13813020900124684
+  },
+  {
+    "chunk_idx": 49,
+    "tokens_end": 18816,
+    "active_memory_bytes_after_chunk": 2510377878,
+    "cache_memory_bytes_after_chunk": 244113747,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2647323745,
+    "cache_bytes_after_chunk": 18186240,
+    "chunk_sec": 0.13485683299950324
+  },
+  {
+    "chunk_idx": 50,
+    "tokens_end": 19200,
+    "active_memory_bytes_after_chunk": 2584794006,
+    "cache_memory_bytes_after_chunk": 243392899,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2721019025,
+    "cache_bytes_after_chunk": 18223104,
+    "chunk_sec": 0.14952879199699964
+  },
+  {
+    "chunk_idx": 51,
+    "tokens_end": 19584,
+    "active_memory_bytes_after_chunk": 2652820374,
+    "cache_memory_bytes_after_chunk": 250503603,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2796156097,
+    "cache_bytes_after_chunk": 18259968,
+    "chunk_sec": 0.1344851670000935
+  },
+  {
+    "chunk_idx": 52,
+    "tokens_end": 19968,
+    "active_memory_bytes_after_chunk": 2729104278,
+    "cache_memory_bytes_after_chunk": 250536419,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2872472817,
+    "cache_bytes_after_chunk": 18296832,
+    "chunk_sec": 0.13333154098654632
+  },
+  {
+    "chunk_idx": 53,
+    "tokens_end": 20352,
+    "active_memory_bytes_after_chunk": 2806862742,
+    "cache_memory_bytes_after_chunk": 250602003,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 2950296865,
+    "cache_bytes_after_chunk": 18333696,
+    "chunk_sec": 0.13837612500356045
+  },
+  {
+    "chunk_idx": 54,
+    "tokens_end": 20736,
+    "active_memory_bytes_after_chunk": 2887668630,
+    "cache_memory_bytes_after_chunk": 249881155,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3030381905,
+    "cache_bytes_after_chunk": 18370560,
+    "chunk_sec": 0.1431887920043664
+  },
+  {
+    "chunk_idx": 55,
+    "tokens_end": 21120,
+    "active_memory_bytes_after_chunk": 2974667670,
+    "cache_memory_bytes_after_chunk": 244408947,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3111908737,
+    "cache_bytes_after_chunk": 18407424,
+    "chunk_sec": 0.13457729200308677
+  },
+  {
+    "chunk_idx": 56,
+    "tokens_end": 21504,
+    "active_memory_bytes_after_chunk": 3054588822,
+    "cache_memory_bytes_after_chunk": 247194275,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3194615217,
+    "cache_bytes_after_chunk": 18444288,
+    "chunk_sec": 0.14434708299813792
+  },
+  {
+    "chunk_idx": 57,
+    "tokens_end": 21888,
+    "active_memory_bytes_after_chunk": 3142472598,
+    "cache_memory_bytes_after_chunk": 243458771,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3279025633,
+    "cache_bytes_after_chunk": 18481152,
+    "chunk_sec": 0.13769599999068305
+  },
+  {
+    "chunk_idx": 58,
+    "tokens_end": 22272,
+    "active_memory_bytes_after_chunk": 3228193686,
+    "cache_memory_bytes_after_chunk": 243524355,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3364812305,
+    "cache_bytes_after_chunk": 18518016,
+    "chunk_sec": 0.14174383399949875
+  },
+  {
+    "chunk_idx": 59,
+    "tokens_end": 22656,
+    "active_memory_bytes_after_chunk": 3308409750,
+    "cache_memory_bytes_after_chunk": 250241843,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3452139073,
+    "cache_bytes_after_chunk": 18554880,
+    "chunk_sec": 0.14477679099945817
+  },
+  {
+    "chunk_idx": 60,
+    "tokens_end": 23040,
+    "active_memory_bytes_after_chunk": 3397669782,
+    "cache_memory_bytes_after_chunk": 249488227,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3540645489,
+    "cache_bytes_after_chunk": 18591744,
+    "chunk_sec": 0.14496870900620706
+  },
+  {
+    "chunk_idx": 61,
+    "tokens_end": 23424,
+    "active_memory_bytes_after_chunk": 3486045078,
+    "cache_memory_bytes_after_chunk": 251388819,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 1421312,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          },
+          {
+            "shape": [
+              1,
+              2,
+              182,
+              256
+            ],
+            "nb": 186368
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 3630659233,
+    "cache_bytes_after_chunk": 18628608,
+    "chunk_sec": 0.14085945799888577
+  },
+  {
+    "chunk_idx": 62,
+    "tokens_end": 23808,
+    "active_memory_bytes_after_chunk": 3586216854,
+    "cache_memory_bytes_after_chunk": 238150595,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3722311377,
+    "cache_bytes_after_chunk": 18665472,
+    "chunk_sec": 0.14219479200255591
+  },
+  {
+    "chunk_idx": 63,
+    "tokens_end": 24192,
+    "active_memory_bytes_after_chunk": 3678229398,
+    "cache_memory_bytes_after_chunk": 238937075,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3815110401,
+    "cache_bytes_after_chunk": 18702336,
+    "chunk_sec": 0.15158912500191946
+  },
+  {
+    "chunk_idx": 64,
+    "tokens_end": 24576,
+    "active_memory_bytes_after_chunk": 3772208022,
+    "cache_memory_bytes_after_chunk": 239723555,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 3909089073,
+    "cache_bytes_after_chunk": 18739200,
+    "chunk_sec": 0.14427145900845062
+  },
+  {
+    "chunk_idx": 65,
+    "tokens_end": 24960,
+    "active_memory_bytes_after_chunk": 3862270870,
+    "cache_memory_bytes_after_chunk": 249635923,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4005525345,
+    "cache_bytes_after_chunk": 18776064,
+    "chunk_sec": 0.15166912499989849
+  },
+  {
+    "chunk_idx": 66,
+    "tokens_end": 25344,
+    "active_memory_bytes_after_chunk": 3959280534,
+    "cache_memory_bytes_after_chunk": 251257987,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4103370641,
+    "cache_bytes_after_chunk": 18812928,
+    "chunk_sec": 0.1524121670081513
+  },
+  {
+    "chunk_idx": 67,
+    "tokens_end": 25728,
+    "active_memory_bytes_after_chunk": 4062106518,
+    "cache_memory_bytes_after_chunk": 247751859,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4202690497,
+    "cache_bytes_after_chunk": 18849792,
+    "chunk_sec": 0.1481442919903202
+  },
+  {
+    "chunk_idx": 68,
+    "tokens_end": 26112,
+    "active_memory_bytes_after_chunk": 4162671510,
+    "cache_memory_bytes_after_chunk": 247784675,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4303288305,
+    "cache_bytes_after_chunk": 18886656,
+    "chunk_sec": 0.15215404200716875
+  },
+  {
+    "chunk_idx": 69,
+    "tokens_end": 26496,
+    "active_memory_bytes_after_chunk": 4268151702,
+    "cache_memory_bytes_after_chunk": 244311315,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4405295137,
+    "cache_bytes_after_chunk": 18923520,
+    "chunk_sec": 0.155435791995842
+  },
+  {
+    "chunk_idx": 70,
+    "tokens_end": 26880,
+    "active_memory_bytes_after_chunk": 4364587926,
+    "cache_memory_bytes_after_chunk": 251454787,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4508874833,
+    "cache_bytes_after_chunk": 18960384,
+    "chunk_sec": 0.15410537499701604
+  },
+  {
+    "chunk_idx": 71,
+    "tokens_end": 27264,
+    "active_memory_bytes_after_chunk": 4469674902,
+    "cache_memory_bytes_after_chunk": 251094387,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4613994625,
+    "cache_bytes_after_chunk": 18997248,
+    "chunk_sec": 0.1479972500092117
+  },
+  {
+    "chunk_idx": 72,
+    "tokens_end": 27648,
+    "active_memory_bytes_after_chunk": 4583019414,
+    "cache_memory_bytes_after_chunk": 244049315,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4720294065,
+    "cache_bytes_after_chunk": 19034112,
+    "chunk_sec": 0.15401620899501722
+  },
+  {
+    "chunk_idx": 73,
+    "tokens_end": 28032,
+    "active_memory_bytes_after_chunk": 4690760598,
+    "cache_memory_bytes_after_chunk": 244114899,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4828100833,
+    "cache_bytes_after_chunk": 19070976,
+    "chunk_sec": 0.1554040419869125
+  },
+  {
+    "chunk_idx": 74,
+    "tokens_end": 28416,
+    "active_memory_bytes_after_chunk": 4799976342,
+    "cache_memory_bytes_after_chunk": 244573699,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 4937382161,
+    "cache_bytes_after_chunk": 19107840,
+    "chunk_sec": 0.15243349999946076
+  },
+  {
+    "chunk_idx": 75,
+    "tokens_end": 28800,
+    "active_memory_bytes_after_chunk": 4911453078,
+    "cache_memory_bytes_after_chunk": 244606515,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5048891713,
+    "cache_bytes_after_chunk": 19144704,
+    "chunk_sec": 0.1613223750027828
+  },
+  {
+    "chunk_idx": 76,
+    "tokens_end": 29184,
+    "active_memory_bytes_after_chunk": 5024207766,
+    "cache_memory_bytes_after_chunk": 244639331,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5161679217,
+    "cache_bytes_after_chunk": 19181568,
+    "chunk_sec": 0.15535095799714327
+  },
+  {
+    "chunk_idx": 77,
+    "tokens_end": 29568,
+    "active_memory_bytes_after_chunk": 5134898070,
+    "cache_memory_bytes_after_chunk": 248243859,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5275974049,
+    "cache_bytes_after_chunk": 19218432,
+    "chunk_sec": 0.16134245801367797
+  },
+  {
+    "chunk_idx": 78,
+    "tokens_end": 29952,
+    "active_memory_bytes_after_chunk": 5254927254,
+    "cache_memory_bytes_after_chunk": 243984067,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5391743441,
+    "cache_bytes_after_chunk": 19255296,
+    "chunk_sec": 0.16081704100361094
+  },
+  {
+    "chunk_idx": 79,
+    "tokens_end": 30336,
+    "active_memory_bytes_after_chunk": 5371319190,
+    "cache_memory_bytes_after_chunk": 244803315,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5508954625,
+    "cache_bytes_after_chunk": 19292160,
+    "chunk_sec": 0.16282225000031758
+  },
+  {
+    "chunk_idx": 80,
+    "tokens_end": 30720,
+    "active_memory_bytes_after_chunk": 5489775510,
+    "cache_memory_bytes_after_chunk": 244836131,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5627443761,
+    "cache_bytes_after_chunk": 19329024,
+    "chunk_sec": 0.1602974580018781
+  },
+  {
+    "chunk_idx": 81,
+    "tokens_end": 31104,
+    "active_memory_bytes_after_chunk": 5609804694,
+    "cache_memory_bytes_after_chunk": 244901715,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 1544192,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              512,
+              256
+            ],
+            "nb": 524288
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          },
+          {
+            "shape": [
+              1,
+              2,
+              242,
+              256
+            ],
+            "nb": 247808
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 5747538529,
+    "cache_bytes_after_chunk": 19365888,
+    "chunk_sec": 0.1630070419923868
+  },
+  {
+    "chunk_idx": 82,
+    "tokens_end": 31488,
+    "active_memory_bytes_after_chunk": 5724230550,
+    "cache_memory_bytes_after_chunk": 252045187,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5869107857,
+    "cache_bytes_after_chunk": 19402752,
+    "chunk_sec": 0.1631807499943534
+  },
+  {
+    "chunk_idx": 83,
+    "tokens_end": 31872,
+    "active_memory_bytes_after_chunk": 5854516118,
+    "cache_memory_bytes_after_chunk": 245032883,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 5992381121,
+    "cache_bytes_after_chunk": 19439616,
+    "chunk_sec": 0.16208920801000204
+  },
+  {
+    "chunk_idx": 84,
+    "tokens_end": 32256,
+    "active_memory_bytes_after_chunk": 5971006358,
+    "cache_memory_bytes_after_chunk": 252962787,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 6116801265,
+    "cache_bytes_after_chunk": 19476480,
+    "chunk_sec": 0.1555393750022631
+  },
+  {
+    "chunk_idx": 85,
+    "tokens_end": 32640,
+    "active_memory_bytes_after_chunk": 6100964246,
+    "cache_memory_bytes_after_chunk": 248637459,
+    "cache_breakdown": [],
+    "peak_memory_bytes_chunk": 6242433825,
+    "cache_bytes_after_chunk": 19513344,
+    "chunk_sec": 0.15639079100219533
+  },
+  {
+    "chunk_idx": 86,
+    "tokens_end": 32768,
+    "active_memory_bytes_after_chunk": 6041523094,
+    "cache_memory_bytes_after_chunk": 357667763,
+    "cache_breakdown": [
+      {
+        "layer": 0,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 1,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 2,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 3,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      },
+      {
+        "layer": 4,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 5,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 6,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 7,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      },
+      {
+        "layer": 8,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 9,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 10,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 11,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      },
+      {
+        "layer": 12,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 13,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 14,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 15,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      },
+      {
+        "layer": 16,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 17,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 18,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 19,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      },
+      {
+        "layer": 20,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 21,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 22,
+        "cls": "ArraysCache",
+        "nbytes": 561152,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              3,
+              6144
+            ],
+            "nb": 36864
+          },
+          {
+            "shape": [
+              1,
+              16,
+              128,
+              128
+            ],
+            "nb": 524288
+          }
+        ]
+      },
+      {
+        "layer": 23,
+        "cls": "CompressedKVCache",
+        "nbytes": 1046528,
+        "state_shapes": [
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              256,
+              256
+            ],
+            "nb": 262144
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          },
+          {
+            "shape": [
+              1,
+              2,
+              255,
+              256
+            ],
+            "nb": 261120
+          }
+        ]
+      }
+    ],
+    "peak_memory_bytes_chunk": 6216312545,
+    "cache_bytes_after_chunk": 16379904,
+    "chunk_sec": 0.09914608299732208
+  }
+]

@@ -1,0 +1,842 @@
+[
+  {
+    "chunk_idx": 1,
+    "layer_idx": 0,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 494981470,
+    "elapsed_sec": 0.01189012499526143
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 1,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 500052318,
+    "elapsed_sec": 0.005435290993773378
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 2,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 505344350,
+    "elapsed_sec": 0.004880416992818937
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 3,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 540408689,
+    "elapsed_sec": 0.005168207993847318
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 4,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 513945950,
+    "elapsed_sec": 0.0032115409994730726
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 5,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 519237982,
+    "elapsed_sec": 0.0028580829966813326
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 6,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 524530014,
+    "elapsed_sec": 0.003133542006253265
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 7,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 559594353,
+    "elapsed_sec": 0.004383500010590069
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 8,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 533131614,
+    "elapsed_sec": 0.0028401250019669533
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 9,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 538423646,
+    "elapsed_sec": 0.002943166997283697
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 10,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 543715678,
+    "elapsed_sec": 0.002885915993829258
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 11,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 578780017,
+    "elapsed_sec": 0.004545292002148926
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 12,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 552317278,
+    "elapsed_sec": 0.0028548340051202103
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 13,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 557609310,
+    "elapsed_sec": 0.002715916998567991
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 14,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 562901342,
+    "elapsed_sec": 0.0029113750060787424
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 15,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 597965681,
+    "elapsed_sec": 0.004132084010052495
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 16,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 571502942,
+    "elapsed_sec": 0.0033429159957449883
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 17,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 576794974,
+    "elapsed_sec": 0.0027807500009657815
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 18,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 582087006,
+    "elapsed_sec": 0.0027495409885887057
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 19,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 617151345,
+    "elapsed_sec": 0.004068333000759594
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 20,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 590688606,
+    "elapsed_sec": 0.003066416989895515
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 21,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 595980638,
+    "elapsed_sec": 0.0029251670057419688
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 22,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 601272670,
+    "elapsed_sec": 0.003181583000696264
+  },
+  {
+    "chunk_idx": 1,
+    "layer_idx": 23,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 636337009,
+    "elapsed_sec": 0.003998000000137836
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 0,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1086410866,
+    "elapsed_sec": 0.0036616249999497086
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 1,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1086189682,
+    "elapsed_sec": 0.0026385839883005247
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 2,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1086189682,
+    "elapsed_sec": 0.002615500008687377
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 3,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1192382465,
+    "elapsed_sec": 0.009434166000573896
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 4,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1091281010,
+    "elapsed_sec": 0.002655332995345816
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 5,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1091281010,
+    "elapsed_sec": 0.0025847499928204343
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 6,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1091281010,
+    "elapsed_sec": 0.002559749991632998
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 7,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1197473793,
+    "elapsed_sec": 0.007560166995972395
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 8,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1096368242,
+    "elapsed_sec": 0.0024762499961070716
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 9,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1096368242,
+    "elapsed_sec": 0.002677291995496489
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 10,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1096368242,
+    "elapsed_sec": 0.0028661660035140812
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 11,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1202565121,
+    "elapsed_sec": 0.007171874996856786
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 12,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1101455474,
+    "elapsed_sec": 0.002515959000447765
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 13,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1101455474,
+    "elapsed_sec": 0.0025070420088013634
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 14,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1101455474,
+    "elapsed_sec": 0.002671875001396984
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 15,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1207656449,
+    "elapsed_sec": 0.007929542000056244
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 16,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1106542706,
+    "elapsed_sec": 0.0025080000050365925
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 17,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1106542706,
+    "elapsed_sec": 0.0024495000106981024
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 18,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1106542706,
+    "elapsed_sec": 0.0026134999934583902
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 19,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1212747777,
+    "elapsed_sec": 0.007675166998524219
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 20,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1111629938,
+    "elapsed_sec": 0.0025181670062011108
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 21,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1111629938,
+    "elapsed_sec": 0.002431750006508082
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 22,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1111629938,
+    "elapsed_sec": 0.002508083009161055
+  },
+  {
+    "chunk_idx": 21,
+    "layer_idx": 23,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 1217839105,
+    "elapsed_sec": 0.006888749994686805
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 0,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1955028594,
+    "elapsed_sec": 0.003700249988469295
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 1,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1954807410,
+    "elapsed_sec": 0.0024507499911123887
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 2,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1954807410,
+    "elapsed_sec": 0.002777000001515262
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 3,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2066922369,
+    "elapsed_sec": 0.012037417007377371
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 4,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1964833778,
+    "elapsed_sec": 0.002498083995305933
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 5,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1964833778,
+    "elapsed_sec": 0.0026470419979887083
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 6,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1964833778,
+    "elapsed_sec": 0.002754417000687681
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 7,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2059127681,
+    "elapsed_sec": 0.008686250002938323
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 8,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1972759538,
+    "elapsed_sec": 0.002548250005929731
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 9,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1972759538,
+    "elapsed_sec": 0.0025565830001141876
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 10,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1972759538,
+    "elapsed_sec": 0.002715292008360848
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 11,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2084923649,
+    "elapsed_sec": 0.009375041001476347
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 12,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1982769522,
+    "elapsed_sec": 0.0026182500005234033
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 13,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1982769522,
+    "elapsed_sec": 0.0027632090059341863
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 14,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1982769522,
+    "elapsed_sec": 0.0025781250005820766
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 15,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2094966401,
+    "elapsed_sec": 0.009399165996001102
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 16,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1992812274,
+    "elapsed_sec": 0.0026581249985611066
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 17,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1992812274,
+    "elapsed_sec": 0.002816457999870181
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 18,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 1992812274,
+    "elapsed_sec": 0.0024388750025536865
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 19,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2105009153,
+    "elapsed_sec": 0.010778666997794062
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 20,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 2002855026,
+    "elapsed_sec": 0.002938707999419421
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 21,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 2002855026,
+    "elapsed_sec": 0.0025034999998752028
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 22,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 2002855026,
+    "elapsed_sec": 0.0032967080041998997
+  },
+  {
+    "chunk_idx": 41,
+    "layer_idx": 23,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 2115051905,
+    "elapsed_sec": 0.009912583002005704
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 0,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3434511890,
+    "elapsed_sec": 0.003884041987475939
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 1,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3434290706,
+    "elapsed_sec": 0.0033844580029835925
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 2,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3434290706,
+    "elapsed_sec": 0.0024754579935688525
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 3,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3552354577,
+    "elapsed_sec": 0.014660417000413872
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 4,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3449282066,
+    "elapsed_sec": 0.0025021670007845387
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 5,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3449282066,
+    "elapsed_sec": 0.0026253340038238093
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 6,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3449282066,
+    "elapsed_sec": 0.002506000004359521
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 7,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3567345937,
+    "elapsed_sec": 0.011262750005698763
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 8,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3464273426,
+    "elapsed_sec": 0.002536083004088141
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 9,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3464273426,
+    "elapsed_sec": 0.0026594579976517707
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 10,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3464273426,
+    "elapsed_sec": 0.00300995800353121
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 11,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3582337297,
+    "elapsed_sec": 0.011615875002462417
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 12,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3479264786,
+    "elapsed_sec": 0.00280379100877326
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 13,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3479264786,
+    "elapsed_sec": 0.002610999988974072
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 14,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3479264786,
+    "elapsed_sec": 0.0024408749886788428
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 15,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3597328657,
+    "elapsed_sec": 0.012267500002053566
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 16,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3494256146,
+    "elapsed_sec": 0.002547957992646843
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 17,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3494256146,
+    "elapsed_sec": 0.0025316670071333647
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 18,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3494256146,
+    "elapsed_sec": 0.003119874992989935
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 19,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3612320017,
+    "elapsed_sec": 0.01173295799526386
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 20,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3509247506,
+    "elapsed_sec": 0.0032885420077946037
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 21,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3509247506,
+    "elapsed_sec": 0.0025179170042974874
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 22,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 3509247506,
+    "elapsed_sec": 0.0024434160004602745
+  },
+  {
+    "chunk_idx": 61,
+    "layer_idx": 23,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 3627311377,
+    "elapsed_sec": 0.011776542000006884
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 0,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5520326162,
+    "elapsed_sec": 0.004112833004910499
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 1,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5520104978,
+    "elapsed_sec": 0.0028993750020163134
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 2,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5520104978,
+    "elapsed_sec": 0.0025034999998752028
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 3,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5644166353,
+    "elapsed_sec": 0.016889165999600664
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 4,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5540109842,
+    "elapsed_sec": 0.003231875001802109
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 5,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5540109842,
+    "elapsed_sec": 0.0024579589953646064
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 6,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5540109842,
+    "elapsed_sec": 0.0025861250032903627
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 7,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5664171217,
+    "elapsed_sec": 0.013403707998804748
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 8,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5560114706,
+    "elapsed_sec": 0.0024935419933171943
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 9,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5560114706,
+    "elapsed_sec": 0.0025777080008992925
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 10,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5560114706,
+    "elapsed_sec": 0.0026611669891281053
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 11,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5684176081,
+    "elapsed_sec": 0.01393804200051818
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 12,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5580119570,
+    "elapsed_sec": 0.002705417005927302
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 13,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5580119570,
+    "elapsed_sec": 0.0025194579939125106
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 14,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5580119570,
+    "elapsed_sec": 0.0030146670032991096
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 15,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5704180945,
+    "elapsed_sec": 0.013109834006172605
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 16,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5600124434,
+    "elapsed_sec": 0.00302041599934455
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 17,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5600124434,
+    "elapsed_sec": 0.002706208993913606
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 18,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5600124434,
+    "elapsed_sec": 0.0024372079933527857
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 19,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5724185809,
+    "elapsed_sec": 0.017240792003576644
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 20,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5620129298,
+    "elapsed_sec": 0.002669874986167997
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 21,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5620129298,
+    "elapsed_sec": 0.0028045409999322146
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 22,
+    "is_linear": true,
+    "peak_memory_bytes_layer": 5620129298,
+    "elapsed_sec": 0.002472874999511987
+  },
+  {
+    "chunk_idx": 81,
+    "layer_idx": 23,
+    "is_linear": false,
+    "peak_memory_bytes_layer": 5744190673,
+    "elapsed_sec": 0.013086916005704552
+  }
+]
