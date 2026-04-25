@@ -153,8 +153,13 @@ What this proves on MLX:
 
 Still not claimed:
 
-- Quality preservation under sparse routing (no retrieval probe yet — see
-  `OVERNIGHT_LOG.md` Phase 5 in the plan; future work).
+- Quality preservation under sparse routing — only a smoke run exists
+  (`scripts/quality_smoke.py`, `OVERNIGHT_LOG.md` Phase 5). At 1k / 4k / 16k
+  context, compressed produces coherent text that diverges from stock's
+  exact tokens; top-50 candidate overlap is ~40-50%, top-1 differs, greedy
+  decode of 32 tokens matches 0/32. This rules out catastrophic breakage
+  but is not a quality measurement; perplexity / downstream-task / retrieval
+  evaluations remain future work.
 - Learned-compressor competitive parity with V4-Pro (mean-pool stays as a
   no-train placeholder; a learned compressor would need training).
 - Generalization to other model families beyond Qwen 3.5 (only this
