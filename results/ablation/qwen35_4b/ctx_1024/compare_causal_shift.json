@@ -1,0 +1,36 @@
+{
+  "stock_config": {
+    "seq_len": 1024,
+    "decode_len": 32,
+    "chunk_size": 384,
+    "block_size": 128,
+    "compressed_local_window_tokens": 64,
+    "query_chunk_size": 64,
+    "block_partner_rule": "causal_shift",
+    "block_partner_count": 1,
+    "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-4B-MLX-4bit/snapshots/32f3e8ecf65426fc3306969496342d504bfa13f3"
+  },
+  "compressed_config": {
+    "seq_len": 1024,
+    "decode_len": 32,
+    "chunk_size": 384,
+    "block_size": 128,
+    "compressed_local_window_tokens": 64,
+    "query_chunk_size": 64,
+    "block_partner_rule": "causal_shift",
+    "block_partner_count": 1,
+    "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-4B-MLX-4bit/snapshots/32f3e8ecf65426fc3306969496342d504bfa13f3"
+  },
+  "compare": {
+    "top_k_overlap": 16,
+    "top_k_total": 50,
+    "kl_stock_compressed": 0.2372637558043996,
+    "kl_compressed_stock": 0.7643348403331479,
+    "top1_agree": true,
+    "decoded_token_agreement": 1.0,
+    "decoded_token_agreement_count": 32,
+    "decoded_token_total": 32
+  },
+  "stock_decoded_text": " cache and a fast forward pass.\n\nThe compressed attention mechanism keeps the most recent tokens in raw form and summarizes older blocks into a single mean-pooled representation.",
+  "compressed_decoded_text": " cache and a fast forward pass.\n\nThe compressed attention mechanism keeps the most recent tokens in raw form and summarizes older blocks into a single mean-pooled representation."
+}

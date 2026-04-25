@@ -30,8 +30,12 @@ trend.
 
 V4-style compressed attention picks blocks with a *learned, content-relevant*
 top-k indexer. **Butterfly picks them with a *deterministic, structure-relevant*
-graph: `partner = block − 2^stage`.** Zero learned parameters → drops in on a
-frozen checkpoint.
+graph: `partner = block − 2^stage`.** Zero learned parameters → pure
+zero-train retrofit on a frozen checkpoint.
+
+(The same-KV ablation below is honest about which parts of this story are
+already evidenced — the architecture as a whole, and not yet the topology
+choice specifically.)
 
 ![V4 Lightning Indexer vs Butterfly causal_shift adjacency](docs/assets/butterfly_vs_v4.png)
 
@@ -54,6 +58,29 @@ full-prefix coverage.
 agrees. At 4 k / 16 k the candidate distributions overlap (top-50 32 / 50,
 23 / 50), but greedy decode diverges — expected for sparse routing without
 indexer retraining, not breakage. RULER / NIAH is the next evidence step.
+
+## Topology ablation — *honest null result*
+
+![Same-KV-budget ablation: all 5 selectors tie within noise](docs/assets/butterfly_ablation.png)
+
+We ran the same-KV-budget ablation that the topology claim deserves
+(`local-only` vs `random` vs `fixed-stride` vs `xor` vs `causal_shift`,
+identical compressor and SWA window, on both 0.8B and 4B at 4 k and 16 k).
+**Every variant lands within 1–2 / 50 of the others.** The smoke does
+*not* yet distinguish the butterfly composition from any other
+deterministic causal selector — including dropping the compressed-block
+stream entirely. So today's defensible claim is:
+
+> **Compressed Butterfly retrofits onto frozen Qwen 3.5 4-bit checkpoints
+> and recovers smoke-level quality at 27 % peak / 81 × less retained KV.
+> The architecture (SWA + mean-pool compressor + one deterministic
+> partner per layer) is the load-bearing piece. The choice of *which*
+> partner does not yet differentiate.**
+
+Whether `causal_shift` specifically matters at long context with retrieval
+stress is the next experimental question; the smoke can't tell.
+[BUTTERFLY_POSITIONING §D.3](docs/BUTTERFLY_POSITIONING.md#d3-same-kv-budget-topology-ablation--null-result)
+has the full table.
 
 ## Replicate in one shell
 

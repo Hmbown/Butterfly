@@ -391,8 +391,72 @@ def render_quality_card() -> None:
     print(f"wrote {ASSETS / 'butterfly_quality_card.png'}")
 
 
+def render_ablation() -> None:
+    """Same-KV-budget ablation: 5 partner rules at 4k and 16k on 0.8B + 4B."""
+    rules = ["local_only", "random", "fixed_stride", "xor", "causal_shift"]
+    rule_label = {"local_only": "local-only", "random": "random",
+                  "fixed_stride": "fixed-stride", "xor": "xor (alt butterfly)",
+                  "causal_shift": "causal_shift (default)"}
+    rule_color = {"local_only": "#cf222e", "random": "#9a6700",
+                  "fixed_stride": "#bf8700", "xor": "#1a7f37",
+                  "causal_shift": C_COMP}
+
+    def _read_compare(p: Path) -> dict:
+        return json.loads(p.read_text())["compare"]
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8.5),
+                             gridspec_kw={"hspace": 0.55, "wspace": 0.30})
+    rows = [
+        ("Qwen 3.5 0.8B 4-bit MLX",
+         ROOT / "results" / "ablation" / "qwen35_0p8b"),
+        ("Qwen 3.5 4B 4-bit MLX",
+         ROOT / "results" / "ablation" / "qwen35_4b"),
+    ]
+    for row, (title, base) in enumerate(rows):
+        for col, ctx in enumerate((4096, 16384)):
+            ax = axes[row, col]
+            d = base / f"ctx_{ctx}"
+            top50 = []
+            kl_sc = []
+            for r in rules:
+                cmp = _read_compare(d / f"compare_{r}.json")
+                top50.append(int(cmp["top_k_overlap"]))
+                kl_sc.append(float(cmp["kl_stock_compressed"]))
+            x = np.arange(len(rules))
+            colors = [rule_color[r] for r in rules]
+            bars = ax.bar(x, top50, color=colors, alpha=0.9)
+            ax.set_xticks(x)
+            ax.set_xticklabels([rule_label[r] for r in rules], rotation=30,
+                               ha="right", fontsize=9)
+            ax.set_ylim(0, 50)
+            ax.set_ylabel("top-50 overlap (out of 50)", fontsize=10)
+            ax.set_title(f"{title} — ctx {ctx//1024} k",
+                         fontsize=11, weight="bold")
+            for b, v in zip(bars, top50):
+                ax.text(b.get_x() + b.get_width() / 2, v + 0.6, str(v),
+                        ha="center", fontsize=9, color=C_TEXT)
+
+    fig.suptitle(
+        "Same-KV-budget topology ablation — every selector lands within noise",
+        fontsize=14, weight="bold", y=0.995,
+    )
+    fig.text(
+        0.5, -0.02,
+        "All 5 selectors (local-only, random, fixed-stride, xor, causal_shift) tie within 1-2 / 50 "
+        "on the synthetic-prompt smoke at 4k and 16k. The smoke does not yet distinguish the "
+        "butterfly composition from any other deterministic causal selector. The next test "
+        "(RULER / NIAH at 32 k+) is what would show whether the topology matters under "
+        "retrieval-style stress.",
+        ha="center", fontsize=9, color="#57606a", style="italic",
+    )
+    fig.savefig(ASSETS / "butterfly_ablation.png", bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {ASSETS / 'butterfly_ablation.png'}")
+
+
 if __name__ == "__main__":
     render_ladder()
     render_topology()
     render_v4_vs_butterfly()
     render_quality_card()
+    render_ablation()
