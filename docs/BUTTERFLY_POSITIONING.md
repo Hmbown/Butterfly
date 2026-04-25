@@ -19,17 +19,21 @@ checkpoints. Validated on Apple Silicon (MLX) for the Qwen 3.5 hybrid family.
 
 Butterfly Compressed Attention is a sparse-attention runtime that takes the
 DeepSeek-V4 systems shape — two-pool fixed-buffer KV cache, multi-stream
-SWA + compressed-block attention, online-softmax merge — and replaces V4's
-*learned top-k Lightning Indexer* with a *deterministic Butterfly
-`causal_shift` adjacency*. That single substitution removes V4's
-training-dependence: the indexer is a fixed graph baked from
-`(num_blocks, layer_idx)`, not three trainable projections + ReLU scoring
-trained jointly with the model. Because nothing in the routing depends on
-unseen weights, Butterfly drops in on a **frozen** pretrained checkpoint and
-delivers V4's long-context efficiency wins without the V4 pretraining bill.
-Butterfly is not a quality replacement for V4-Pro; the compressor is still
-parameter-free mean-pool, and decode falls back to stock dense attention. It
-is a measured-wins-on-prefill story.
+SWA + compressed-block attention, online-softmax merge — and substitutes
+V4's *learned, content-relevant* Lightning Indexer with a *deterministic,
+structure-relevant* Butterfly `causal_shift` adjacency. The trade is "pick
+the most semantically relevant compressed blocks" → "guaranteed structured
+mixing with zero learned parameters". Because nothing in the routing depends
+on unseen weights, Butterfly is a **pure zero-train retrofit** on a frozen
+pretrained checkpoint and delivers V4's long-context efficiency wins without
+the V4 pretraining bill. (V4's selector is not impossible to retrofit either
+— you could distill or fine-tune one in — Butterfly just doesn't need that
+step.) Butterfly is not a quality replacement for V4-Pro: the compressor is
+still parameter-free mean-pool, decode falls back to stock dense, and the
+selector is structure-relevant rather than content-relevant. It is a
+measured-wins-on-prefill story whose surprising claim is that a deterministic
+topology can stand in for a learned selector well enough to be useful at all
+on a frozen checkpoint.
 
 ---
 
@@ -87,7 +91,7 @@ the lazy MLX graph never accumulates intermediate tensors.
 
 | Component | DeepSeek V4 (paper §2.3, Fig 6) | Butterfly | Consequence |
 |---|---|---|---|
-| **Selector / "indexer"** | Learned Lightning Indexer: 3 trainable projections (W^DQ, W^IUQ, W^w) + ReLU score → top-k over compressed blocks (eqs. 13–17) | Deterministic `causal_shift`: `partner = block_idx - (1 << bit_idx)`, `stage_idx = layer_idx % width`. Fixed adjacency, zero parameters. | V4's quality depends on its trained indexer; you cannot bolt CSA onto a frozen checkpoint without that subsystem trained jointly. Butterfly's adjacency is set once from `(num_blocks, layer_idx)` and works on any frozen Qwen 3.5 checkpoint. |
+| **Selector / "indexer"** | Learned, content-relevant Lightning Indexer: 3 trainable projections (W^DQ, W^IUQ, W^w) + ReLU score → top-k over compressed blocks (eqs. 13–17) | Deterministic, structure-relevant `causal_shift`: `partner = block_idx - (1 << bit_idx)`, `stage_idx = layer_idx % width`. Fixed adjacency, zero parameters. | V4's quality depends on its trained indexer, so dropping V4's CSA onto a frozen checkpoint is not a *pure zero-train* operation — you'd need to distill or fine-tune the indexer in. Butterfly's adjacency is set once from `(num_blocks, layer_idx)` and works as-is on any frozen Qwen 3.5 checkpoint. |
 | **Compressor** | Learned softmax-weighted sum across overlapping 2m windows with positional biases B^a, B^b (eqs. 9–12) | Parameter-free **mean pool** over each block | Real gap. A learned compressor needs training. The mean-pool placeholder gets the cache shape and routing right; quality improvements would come from a learned compressor later. |
 | **SWA branch** | n_win=128 raw tokens added to compressed entries (§2.3.3) | n_win=64 raw tokens, identical structural role | Same idea, smaller window. |
 | **Cache layout** | Pre-allocated state cache (SWA tail) + classical cache (compressed slots), Fig 6 | Same: pre-allocated tail buffer + summary buffer, all `mx.slice_update` | Direct adaptation. |
@@ -104,11 +108,13 @@ sees — and substitutes a fixed graph for a trained network. Everything else
 not "we re-invented V4".
 
 Butterfly's indexer also inherits classical butterfly-graph mixing
-properties: under `causal_shift`, between any two blocks `b_i < b_j`, there
-exists a path of length at most ⌈log₂ num_blocks⌉ across the per-layer
-adjacencies (the staged shift offsets cover all bits of the block index
-difference). V4 makes no such structural-mixing claim about its learned
-top-k.
+properties — but as **reachability through composition**, not direct
+adjacency. Direct edges hit power-of-two causal offsets only (`b−1`,
+`b−2`, `b−4`, …); arbitrary earlier blocks reach later ones through binary
+decomposition over ⌈log₂ num_blocks⌉ stages, because each stage's
+compressed states already carry the previous stage's mixed context forward.
+This is the core butterfly composition property, adapted for causal LMs.
+V4 makes no such structural-mixing claim about its learned top-k.
 
 ---
 
@@ -408,7 +414,27 @@ time).
 
 The next evidence steps, roughly in priority order:
 
-1. **Streamed prompt-build** in the bench harness. Removes the O(T²)
+1. **Same-KV-budget topology ablation.** The single most load-bearing test
+   for the *unique* claim. Compare these five at the same retained-KV
+   budget on RULER / NIAH at 32 k–128 k:
+
+   | Mode | Selector |
+   |---|---|
+   | stock | full attention |
+   | local-only | only the SWA tail; no compressed-block partners |
+   | random-partner | one random causal block per query block per layer |
+   | fixed-stride | `partner = b − stride` (constant across layers) |
+   | causal_shift Butterfly | `partner = b − 2^stage` |
+
+   If `causal_shift` beats random / local / fixed at the same memory, the
+   topology is doing real work — not "any KV trim helps". This is the
+   ablation that turns the result from "cool engineering" into "the
+   topology matters". Without it, all of the wins above are
+   equally consistent with "the model tolerates aggressive KV trimming";
+   with it, we'd have evidence the butterfly composition property is
+   load-bearing.
+
+2. **Streamed prompt-build** in the bench harness. Removes the O(T²)
    tokenization wall that capped 0.8B at 256 k and 4B at 128 k in this run.
    Would let us measure 4B at 256 k and either model at 512 k+. Pure bench
    plumbing — not architecture.

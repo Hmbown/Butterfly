@@ -212,8 +212,8 @@ def render_topology() -> None:
     fig.text(
         0.5, -0.05,
         "Each query block (top) attends to one compressed-block partner (bottom). "
-        f"Across {len(stages)} stages, the union covers every causal predecessor "
-        f"in ⌈log₂ {num_blocks}⌉ = {width} layers.",
+        "Direct edges hit power-of-two offsets only; arbitrary earlier blocks "
+        f"reach later ones through composition over ⌈log₂ {num_blocks}⌉ = {width} stages.",
         ha="center", fontsize=9, color="#57606a", style="italic",
     )
     fig.savefig(ASSETS / "butterfly_topology.png", bbox_inches="tight")
@@ -269,7 +269,7 @@ def render_v4_vs_butterfly() -> None:
             ha="center", fontsize=11, weight="bold")
     ax.annotate("", xy=(6.7, 2.4), xytext=(6.7, 3.0),
                 arrowprops=dict(arrowstyle="->", color=C_TEXT, lw=1.3))
-    ax.text(0.6, 0.0, "needs joint pretraining; cannot retrofit on a frozen checkpoint.",
+    ax.text(0.6, 0.0, "not a pure zero-train retrofit; needs distillation / fine-tuning.",
             ha="left", fontsize=10, color="#cf222e", weight="bold")
 
     # right: Butterfly
@@ -317,7 +317,7 @@ def render_v4_vs_butterfly() -> None:
             ha="center", fontsize=11, weight="bold")
     ax.annotate("", xy=(5.0, 2.4), xytext=(5.0, 3.0),
                 arrowprops=dict(arrowstyle="->", color=C_TEXT, lw=1.3))
-    ax.text(0.6, 0.0, "drops in on a frozen pretrained checkpoint. no training.",
+    ax.text(0.6, 0.0, "pure zero-train retrofit on a frozen pretrained checkpoint.",
             ha="left", fontsize=10, color="#1a7f37", weight="bold")
 
     fig.suptitle(
