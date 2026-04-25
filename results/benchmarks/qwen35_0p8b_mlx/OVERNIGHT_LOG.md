@@ -307,7 +307,7 @@ cache in the layer-swap dispatch code. With that one-line fix:
 This is the unique contribution to ship: V4-systems architecture +
 Butterfly deterministic routing + frozen-model retrofit.
 
-### Phase A4: Ladder up — 64k and 128k validation
+### Phase A4: Ladder up — 32k → 256k validation
 
 With the eviction fix, the win compounds with context length.
 
@@ -319,16 +319,19 @@ With the eviction fix, the win compounds with context length.
 | **compressed 64k** | **25.54** | **1.14** | **21.1** |
 | stock 128k | 80.95 | 4.26 | 1622 |
 | **compressed 128k** | **72.23** | **1.44** | **25.8** |
+| stock 256k | 277.85 | 7.84 | 3233 |
+| **compressed 256k** | **220.74** | **2.10** | **40.0** |
 
 Ratios vs stock:
-- e2e:    32k 1.06×,  64k 1.02×,  **128k 0.89×** (compressed becomes faster).
-- peak:   32k 0.51×,  64k 0.43×,  **128k 0.34×** (gap widens with T).
-- KV:     32k 0.040×, 64k 0.026×, **128k 0.016×** (62× smaller at 128k).
+- e2e:    32k 1.06×, 64k 1.02×, 128k 0.89×, **256k 0.79×**.
+- peak:   32k 0.51×, 64k 0.43×, 128k 0.34×, **256k 0.27×**.
+- KV:     32k 0.040×, 64k 0.026×, 128k 0.016×, **256k 0.012×** (81× smaller).
 
-The benefit GROWS with context. At 128k, compressed Butterfly attention on
-Qwen 3.5 0.8B 4-bit MLX is faster, uses 1/3 the peak memory, and has a 62×
-smaller retained KV cache than stock — on a frozen pretrained checkpoint
-with deterministic causal_shift routing as the no-train sparse selector.
+The benefit GROWS monotonically with context. At 256k, compressed Butterfly
+attention on Qwen 3.5 0.8B 4-bit MLX is **21% faster**, uses **27% of the
+peak memory**, and has an **81× smaller retained KV cache** than stock — on
+a frozen pretrained checkpoint with deterministic causal_shift routing as
+the no-train sparse selector.
 
 ### Diagnostic artifacts
 

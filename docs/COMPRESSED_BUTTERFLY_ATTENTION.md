@@ -128,12 +128,14 @@ SWA window n_win=64, block_size=128, query_chunk_size=64):
 
 | context | e2e (s) | peak (GB) | retained KV (MB) | vs stock e2e | vs stock peak | vs stock KV |
 |---|---:|---:|---:|---:|---:|---:|
-| 32k stock      | 9.52  | 1.78 | 414  | — | — | — |
-| 32k compressed | 10.09 | 0.91 |  16  | 1.06× | **0.51×** | **0.040×** |
-| 64k stock      | 25.10 | 2.64 | 817  | — | — | — |
-| 64k compressed | 25.54 | 1.14 |  21  | 1.02× | **0.43×** | **0.026×** |
-| 128k stock     | 80.95 | 4.26 | 1622 | — | — | — |
-| 128k compressed| 72.23 | 1.44 |  26  | **0.89×** | **0.34×** | **0.016×** |
+| 32k stock      | 9.52   | 1.78 | 414  | — | — | — |
+| 32k compressed | 10.09  | 0.91 |  16  | 1.06×    | **0.51×** | **0.040×** |
+| 64k stock      | 25.10  | 2.64 | 817  | — | — | — |
+| 64k compressed | 25.54  | 1.14 |  21  | 1.02×    | **0.43×** | **0.026×** |
+| 128k stock     | 80.95  | 4.26 | 1622 | — | — | — |
+| 128k compressed| 72.23  | 1.44 |  26  | **0.89×** | **0.34×** | **0.016×** |
+| 256k stock     | 277.85 | 7.84 | 3233 | — | — | — |
+| 256k compressed| 220.74 | 2.10 |  40  | **0.79×** | **0.27×** | **0.012×** |
 
 Artifacts: `results/benchmarks/qwen35_0p8b_mlx/pA3_*` and `OVERNIGHT_LOG.md`.
 
@@ -145,8 +147,9 @@ What this proves on MLX:
 - Butterfly `causal_shift` deterministic routing as the sparse selector
   (replacing V4's learned top-k indexer) produces measurable wins on a
   **frozen** pretrained checkpoint. No training required.
-- The advantage **grows** with context length: at 128k compressed Butterfly
-  is faster than stock, uses 1/3 the peak memory, and retains 62× less KV.
+- The advantage **grows** with context length: at 256k compressed Butterfly
+  is 21% faster than stock, uses 27% of stock's peak memory, and retains 81×
+  less KV cache.
 
 Still not claimed:
 
@@ -158,7 +161,7 @@ Still not claimed:
   checkpoint validated).
 - CUDA path improvements (this run cut over MLX only; the CUDA mirror tests
   still pass against the prior algorithmic surface).
-- Performance at 256k+ (validation in progress; see `OVERNIGHT_LOG.md`).
+- Performance beyond 256k (not yet measured).
 
 The legacy items below remain not claimed for the same reasons:
 
