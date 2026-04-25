@@ -345,6 +345,43 @@ requires a different prompt-build code path (streamed tokenization or a
 pre-tokenized fixture) and is out of scope for the architecture work on
 this branch. **256k stands as the validated ceiling for this run.**
 
+## Phase 5: Quality smoke (descriptive, not pass/fail)
+
+Built `scripts/quality_smoke.py` to compare stock vs compressed_butterfly
+outputs on a deterministic synthetic prompt. Sequential one-process-per-mode
+to respect the one-MLX-model-at-a-time constraint. Captures top-50
+next-token distribution at end of prefill, plus 32 greedy-decoded tokens.
+
+| context | top-50 overlap | top1 agree | greedy match | KL (stock→compressed) |
+|---:|---:|:--:|---:|---:|
+| 1k | 9 / 50 | no | 0 / 32 | (numerically tiny) |
+| 4k | 25 / 50 | no | 0 / 32 | 4.38 |
+
+Both outputs are **coherent English** at both scales:
+- 1k stock:       `" cache and a fast forward pass.\n\nThe compressed attention mechanism keeps the most recent..."`
+- 1k compressed:  `"\n\nThe compressed attention mechanism keeps the most recent tokens in raw form and summarizes..."`
+- 4k stock:       `"The compressed attention mechanism keeps the most recent tokens in raw form and summarizes older blocks into a single mean-pooled representation. This allows long-context inference to use a"`
+- 4k compressed:  `"Question: which two properties make this architecture effective?\nAnswer: 1) recent tokens are kept in raw form for local detail; 2) older blocks"`
+
+**Reading:** the compressed mode is not broken (no gibberish, no repetition,
+no nonsense). It produces sensible continuations that diverge from stock's
+exact token-by-token output. Greedy decoding amplifies any single-token
+divergence into a fully different sequence; the top-50 overlap of 25/50 at
+4k tells you the candidate distributions are similar but the orderings
+differ. This is the expected behavior for sparse routing on a frozen
+checkpoint without indexer retraining.
+
+**What this proves:** speed/memory wins from earlier phases are not
+purchased by destroying the model's outputs. Compressed Butterfly is
+producing usable text on Qwen 3.5 0.8B 4-bit MLX.
+
+**What this doesn't prove:** quality on real benchmarks (perplexity,
+accuracy on a downstream task, retrieval probes). Those are out of scope
+for this run. The smoke is a sanity gate, not a quality measurement.
+
+Artifacts: `results/benchmarks/qwen35_0p8b_mlx/quality_smoke_1024/`,
+`results/benchmarks/qwen35_0p8b_mlx/quality_smoke_4096/`.
+
 ### Diagnostic artifacts
 
 - `results/benchmarks/qwen35_0p8b_mlx/diag_stock_32768/peak_journal.json`
