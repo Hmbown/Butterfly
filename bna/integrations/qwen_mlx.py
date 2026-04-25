@@ -148,7 +148,10 @@ class QwenButterflyConfig:
             raise ValueError("block_partner_count must be >= 0")
         if int(self.block_sink_blocks) < 0:
             raise ValueError("block_sink_blocks must be >= 0")
-        if self.block_partner_rule not in {"xor", "bit_reversal", "benes", "causal_shift"}:
+        if self.block_partner_rule not in {
+            "xor", "bit_reversal", "benes", "causal_shift",
+            "fixed_stride", "random",
+        }:
             raise ValueError(f"Unsupported block_partner_rule: {self.block_partner_rule!r}")
         if self.block_compression not in {"none", "mean"}:
             raise ValueError(f"Unsupported block_compression: {self.block_compression!r}")
