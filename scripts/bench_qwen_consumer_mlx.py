@@ -581,14 +581,35 @@ def _run_chunked_prefill(
     if os.environ.get("BNA_COMPRESS_PROFILE") == "1":
         _compress_profile_reset()
 
+    peak_journal_path = os.environ.get("BNA_PEAK_JOURNAL_PATH", "").strip()
+    peak_journal: Optional[List[Dict[str, Any]]] = [] if peak_journal_path else None
+
     t0 = time.perf_counter()
     last_beat = t0
     chunk_idx = 0
     for start in range(0, seq_len, chunk_size):
         end = min(seq_len, start + chunk_size)
         chunk_idx += 1
+        if peak_journal is not None:
+            _reset_peak_memory()
+            chunk_t0 = time.perf_counter()
         logits = model(prompt_tokens[:, start:end], cache=cache)
         mx.eval(logits)
+        if peak_journal is not None:
+            chunk_peak = _peak_memory()
+            chunk_t = time.perf_counter() - chunk_t0
+            cache_bytes = 0
+            for entry in cache:
+                cache_bytes += int(_array_nbytes(entry) or 0)
+            peak_journal.append(
+                {
+                    "chunk_idx": int(chunk_idx),
+                    "tokens_end": int(end),
+                    "peak_memory_bytes_chunk": int(chunk_peak),
+                    "cache_bytes_after_chunk": int(cache_bytes),
+                    "chunk_sec": float(chunk_t),
+                }
+            )
         if hsa_trace_samples is not None:
             layer_rows = _collect_hsa_trace_snapshot(
                 model,
@@ -636,6 +657,14 @@ def _run_chunked_prefill(
     }
     if os.environ.get("BNA_COMPRESS_PROFILE") == "1":
         result["compress_profile"] = _compress_profile_dump()
+    if peak_journal is not None and peak_journal_path:
+        try:
+            Path(peak_journal_path).parent.mkdir(parents=True, exist_ok=True)
+            with Path(peak_journal_path).open("w") as fh:
+                json.dump(peak_journal, fh, indent=2)
+            result["peak_journal_path"] = str(peak_journal_path)
+        except Exception as exc:  # noqa: BLE001
+            _log(f"warning: failed to write peak journal: {exc}")
     return result
 
 

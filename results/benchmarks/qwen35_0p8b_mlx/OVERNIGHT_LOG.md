@@ -66,3 +66,90 @@ The ~4 s wall-clock improvement from the architectural cutover is real and worth
 ## Phase B-F: not executed (stop rule)
 
 See plan section "Stop Rules" item #1.
+
+## Diagnostic: per-chunk peak memory profile (post-Phase A)
+
+Added `BNA_PEAK_JOURNAL_PATH` env var to `_run_chunked_prefill` in
+`scripts/bench_qwen_consumer_mlx.py`. With this set, the bench resets MLX peak
+memory before each prefill chunk and records peak after each chunk's
+`mx.eval(logits)`. Output is a JSON list of `{chunk_idx, tokens_end,
+peak_memory_bytes_chunk, cache_bytes_after_chunk, chunk_sec}`.
+
+### Per-chunk peak: stock vs compressed at 32k
+
+| chunk | tokens_end | stock peak (MB) | compressed peak (MB) | excess (MB) |
+|---:|---:|---:|---:|---:|
+| 1 | 384 | 1243 | 752 | -491 |
+| 5 | 1920 | 1378 | 886 | -492 |
+| 20 | 7680 | 1560 | 1171 | -388 |
+| 30 | 11520 | 1460 | 1535 | +75 |
+| 50 | 19200 | 1398 | 2696 | +1298 |
+| 70 | 26880 | 1609 | 4479 | +2871 |
+| 80 | 30720 | 1717 | 5595 | +3878 |
+| 86 | 32768 | 1281 | 6195 | +4914 |
+
+**Stock per-chunk peak is flat (~1500 MB regardless of T). Compressed grows
+linearly+ with cumulative T.**
+
+### Microbenchmarks (component isolation)
+
+Standalone scripts at `/tmp/diag_cache_only.py` and `/tmp/diag_attn_only.py`:
+
+- **`CompressedKVCache.update_and_fetch` alone:** per-chunk peak 2.4 → 9.6 MB
+  across 86 chunks of 384 tokens with growing summary buffer. Cache itself is
+  bounded.
+- **`compressed_butterfly_attention_from_cache` alone:** per-chunk peak 23.3 →
+  24.2 MB regardless of growing `k_summary` size. Attention itself is bounded.
+
+### Bypass diagnostic
+
+Added `BNA_DIAG_BYPASS_COMPRESSED_ATTN=1` (now removed) which replaced
+`compressed_butterfly_attention_from_cache(...)` with stock
+`scaled_dot_product_attention(queries, tail_k_q, tail_v_q, ...)` — same
+swapped-layer dispatch path, but the compressed attention math is bypassed.
+
+| chunk | tokens_end | bypassed peak (MB) | full compressed peak (MB) |
+|---:|---:|---:|---:|
+| 1 | 384 | 752 | 752 |
+| 11 | 4224 | 957 | 957 |
+| 21 | 8064 | 1202 | 1202 |
+| 31 | 11904 | 1578 | (16k bench was earlier) |
+| 43 | 16384 | 2145 | 2152 |
+
+**Bypassing the compressed attention compute ENTIRELY does not change the
+per-chunk peak growth.** The growth is not in `compressed_butterfly_attention_from_cache`.
+
+### Conclusion
+
+The 4.5 GB excess peak at 32k is **not** in any of:
+- `CompressedKVCache` data structure (bounded in isolation),
+- `compressed_butterfly_attention_from_cache` math (bounded in isolation),
+- the lazy-graph evaluation pattern of the multi-stream helpers (removing inner
+  `mx.eval` calls did not change the growth pattern).
+
+It IS specific to having `CompressedKVCache` in place of the standard
+`KVCache` for the swapped layers, but emerges only inside the full model
+forward pass — i.e., from some interaction between the cache type and how MLX
+schedules the rest of the layer's compute (q/k/v projections, RoPE,
+`_repeat_kv_to_q_heads`, residual stream, MLP, the next layer's input...).
+
+Most plausible remaining hypothesis: `mx.concatenate`-based summary growth in
+`CompressedKVCache._append_summary` produces a chain of intermediate tensors
+that downstream graph nodes hold references to until the outer `mx.eval(logits)`
+fires; under the standard `KVCache` (which uses fixed-size pre-allocated
+buffers and `slice_update`) this chain doesn't exist.
+
+### Recommended next experiment
+
+Rebuild `CompressedKVCache` to use pre-allocated fixed-size buffers with
+`slice_update` (no `mx.concatenate`) — match V4's "state cache + classical
+cache" design from the Aleph brief (Figure 6, paper §3.6.1). If this hypothesis
+is correct, peak should track stock. If not, the issue is somewhere else and
+this whole approach is the wrong shape for MLX.
+
+### Diagnostic artifacts
+
+- `results/benchmarks/qwen35_0p8b_mlx/diag_stock_32768/peak_journal.json`
+- `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_32768/peak_journal.json`
+- `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_no_inner_eval_16384/peak_journal.json`
+- `results/benchmarks/qwen35_0p8b_mlx/diag_compressed_bypass_attn_16384/peak_journal.json`

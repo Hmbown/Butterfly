@@ -356,7 +356,6 @@ def _swa_stream_attention(
         e = mx.where(mask, e, mx.zeros_like(e))
         l_c = mx.sum(e, axis=-1, keepdims=True)
         o_c = mx.matmul(e, v_local.astype(mx.float32)) / mx.maximum(l_c, EPS)
-        mx.eval(o_c, l_c, m_c)
         o_chunks.append(o_c)
         l_chunks.append(l_c)
         m_chunks.append(m_c)
@@ -437,7 +436,6 @@ def _compressed_stream_attention(
         o = mx.where(any_valid, o, zero_o)
         l = mx.where(any_valid, l, zero_l)
         m = mx.where(any_valid, m, neg_m)
-        mx.eval(o, l, m)
         return o.astype(out_dtype), l, m
 
     # Routed mode: per-query-block gather + SDPA, looped with mx.eval flush.
@@ -508,7 +506,6 @@ def _compressed_stream_attention(
         o_c = mx.where(any_valid_h, o_c, zero_o_c)
         l_c = mx.where(any_valid_h, l_c, zero_l_c)
         m_c = mx.where(any_valid_h, m_c, neg_m_c)
-        mx.eval(o_c, l_c, m_c)
         o_chunks.append(o_c)
         l_chunks.append(l_c)
         m_chunks.append(m_c)
@@ -1710,7 +1707,6 @@ def _swa_stream_from_cache(
     o = mx.where(any_valid, o, mx.zeros_like(o))
     l = mx.where(any_valid, l, mx.zeros_like(l))
     m = mx.where(any_valid, m, mx.full(m.shape, -1e30, dtype=mx.float32))
-    mx.eval(o, l, m)
     return o.astype(q.dtype), l, m
 
 
@@ -1804,7 +1800,6 @@ def _compressed_stream_from_cache(
         o_c = mx.where(any_valid, o_c, mx.zeros_like(o_c))
         l_c = mx.where(any_valid, l_c, mx.zeros_like(l_c))
         m_c = mx.where(any_valid, m_c, mx.full(m_c.shape, -1e30, dtype=mx.float32))
-        mx.eval(o_c, l_c, m_c)
         o_chunks.append(o_c)
         l_chunks.append(l_c)
         m_chunks.append(m_c)
