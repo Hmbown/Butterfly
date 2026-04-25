@@ -356,6 +356,7 @@ next-token distribution at end of prefill, plus 32 greedy-decoded tokens.
 |---:|---:|:--:|---:|---:|
 | 1k | 9 / 50 | no | 0 / 32 | (numerically tiny) |
 | 4k | 25 / 50 | no | 0 / 32 | 4.38 |
+| 16k | 20 / 50 | no | 0 / 32 | 4.68 |
 
 Both outputs are **coherent English** at both scales:
 - 1k stock:       `" cache and a fast forward pass.\n\nThe compressed attention mechanism keeps the most recent..."`
