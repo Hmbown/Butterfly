@@ -99,7 +99,10 @@ class QwenButterflyConfig:
     block_local_window_blocks: int = 1
     block_partner_count: int = 1
     block_sink_blocks: int = 1
-    block_partner_rule: Literal["xor", "bit_reversal", "benes", "causal_shift"] = "xor"
+    block_partner_rule: Literal[
+        "xor", "bit_reversal", "benes", "causal_shift",
+        "fixed_stride", "random",
+    ] = "xor"
     block_compression: Literal["none", "mean"] = "none"
     compressed_local_window_tokens: int = 128
     permute_head_chunk_size: int = 8

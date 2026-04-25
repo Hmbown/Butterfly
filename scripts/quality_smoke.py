@@ -84,6 +84,7 @@ def _run_one_mode(
     local_window_tokens: int,
     query_chunk_size: int,
     block_partner_rule: str,
+    block_partner_count: int = 1,
     top_k: int = 50,
 ) -> Dict[str, Any]:
     """Load model, run prefill + greedy decode, return tokens + logits stats."""
@@ -115,7 +116,7 @@ def _run_one_mode(
             edge_bias=True,
             block_size=int(block_size),
             block_local_window_blocks=1,
-            block_partner_count=1,
+            block_partner_count=int(block_partner_count),
             block_sink_blocks=1,
             block_partner_rule=str(block_partner_rule),
             block_compression="mean",
@@ -272,6 +273,7 @@ def _cmd_run(args: argparse.Namespace) -> None:
         local_window_tokens=int(args.compressed_local_window_tokens),
         query_chunk_size=int(args.query_chunk_size),
         block_partner_rule=str(args.block_partner_rule),
+        block_partner_count=int(args.block_partner_count),
     )
     out["config"] = {
         "seq_len": int(args.seq_len),
@@ -281,6 +283,7 @@ def _cmd_run(args: argparse.Namespace) -> None:
         "compressed_local_window_tokens": int(args.compressed_local_window_tokens),
         "query_chunk_size": int(args.query_chunk_size),
         "block_partner_rule": str(args.block_partner_rule),
+        "block_partner_count": int(args.block_partner_count),
         "model_path": str(args.model_path),
     }
     with args.out_path.open("w") as fh:
@@ -322,6 +325,8 @@ def main() -> None:
     pr.add_argument("--compressed-local-window-tokens", type=int, default=64)
     pr.add_argument("--query-chunk-size", type=int, default=64)
     pr.add_argument("--block-partner-rule", type=str, default="causal_shift")
+    pr.add_argument("--block-partner-count", type=int, default=1,
+                    help="0 for local-only (SWA only); 1 for one routed compressed-block partner.")
     pr.add_argument("--out-path", type=Path, required=True)
     pr.set_defaults(func=_cmd_run)
 

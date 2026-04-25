@@ -4,11 +4,17 @@ from dataclasses import dataclass
 import math
 from typing import Literal, Sequence, cast
 
-ButterflyPartnerRule = Literal["xor", "bit_reversal", "benes", "causal_shift"]
+ButterflyPartnerRule = Literal[
+    "xor", "bit_reversal", "benes", "causal_shift",
+    "fixed_stride", "random",
+]
 RoleName = Literal["self", "local", "partner", "sink"]
 
 ROLE_ORDER: tuple[RoleName, ...] = ("self", "local", "partner", "sink")
-_VALID_PARTNER_RULES: set[str] = {"xor", "bit_reversal", "benes", "causal_shift"}
+_VALID_PARTNER_RULES: set[str] = {
+    "xor", "bit_reversal", "benes", "causal_shift",
+    "fixed_stride", "random",
+}
 
 
 @dataclass(frozen=True)
@@ -115,6 +121,18 @@ def butterfly_partner_block(
         partner = int(block_idx) - (1 << int(bit_idx))
     elif rule in {"xor", "benes"}:
         partner = int(block_idx) ^ (1 << int(bit_idx))
+    elif rule == "fixed_stride":
+        # Stride-1 lookback baseline: every layer attends to the same prior
+        # block (b - 1). Stage / bit_idx ignored. Tests whether ANY structured
+        # selector (not just butterfly) recovers the wins.
+        partner = int(block_idx) - 1
+    elif rule == "random":
+        # Per-(block, bit) deterministic random predecessor in [0, b).
+        # Seeded so runs are reproducible; not data-dependent.
+        if int(block_idx) <= 0:
+            return None
+        seed = (int(block_idx) * 2654435761 + int(bit_idx) * 374761393) & 0xFFFFFFFF
+        partner = int(seed % int(block_idx))
     else:
         reversed_idx = bit_reverse(int(block_idx), int(effective_width))
         partner = bit_reverse(reversed_idx ^ (1 << int(bit_idx)), int(effective_width))

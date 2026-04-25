@@ -1567,7 +1567,8 @@ def main() -> None:
         "--block-partner-rule",
         type=str,
         default="xor",
-        choices=["xor", "bit_reversal", "benes", "causal_shift"],
+        choices=["xor", "bit_reversal", "benes", "causal_shift",
+                 "fixed_stride", "random"],
         help="Partner assignment rule for block-sparse Butterfly stages (default: xor).",
     )
     p.add_argument(
