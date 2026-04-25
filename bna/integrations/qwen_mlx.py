@@ -1761,6 +1761,8 @@ def install_compressed_kv_caches(
     layer_indices: Optional[Sequence[int]] = None,
     block_size: int = 128,
     local_window_tokens: int = 128,
+    max_kv_size: Optional[int] = None,
+    max_chunk_size: int = 512,
 ) -> List[int]:
     if not hasattr(model, "layers"):
         raise ValueError("Model has no .layers attribute; expected a mlx_lm Qwen model.")
@@ -1772,6 +1774,8 @@ def install_compressed_kv_caches(
         prompt_cache[idx] = CompressedKVCache(
             block_size=int(block_size),
             local_window_tokens=int(local_window_tokens),
+            max_kv_size=int(max_kv_size) if max_kv_size else None,
+            max_chunk_size=int(max_chunk_size),
         )
         replaced.append(int(idx))
     return replaced

@@ -514,6 +514,8 @@ def _prepare_cache(
             cache,
             block_size=int(block_size),
             local_window_tokens=int(compressed_local_window_tokens),
+            max_kv_size=prealloc_size,
+            max_chunk_size=max(512, int(kv_step) if kv_step else 512),
         )
         _log(f"    compressed_kv_cache_layers={replaced}")
     return cache

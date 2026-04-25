@@ -147,6 +147,72 @@ cache" design from the Aleph brief (Figure 6, paper §3.6.1). If this hypothesis
 is correct, peak should track stock. If not, the issue is somewhere else and
 this whole approach is the wrong shape for MLX.
 
+### Phase A2: fixed-buffer cache rebuild (hypothesis FALSIFIED)
+
+`CompressedKVCache` rewritten to V4-style two-pool fixed-size buffers:
+
+- `_tail_buf_keys/values: [B, H, tail_capacity, dh]`, slice-updated in place;
+  `tail_capacity = local_window + 2*max_chunk_size + 2*block_size`.
+- `_summary_buf_keys/values: [B, H, summary_capacity, dh]`, one slot written
+  per completed compression block.
+- All `mx.concatenate` replaced with `mx.slice_update`.
+- `max_kv_size` and `max_chunk_size` plumbed through `install_compressed_kv_caches`
+  and `_prepare_cache` so the buffers can be sized exactly.
+- Public API and invariants preserved: `keys`, `values`, `k_summary`,
+  `v_summary` are sliced views of the buffers; `state`, `meta_state`,
+  `nbytes`, `make_mask`, `is_trimmable`, `trim`, `empty` unchanged.
+
+All 12 tests pass.
+
+| Variant | prefill_sec | e2e_sec | peak_memory_bytes | cache_after_prefill (bytes) |
+|---|---:|---:|---:|---:|
+| compressed_butterfly fixed-buffer cache, w64 qc64 32768 | (10.61) | 11.410 | 6,213,002,977 | (cache slice valid only) |
+
+Per-chunk peak vs the old concat-based cache:
+
+| chunk | tokens | concat-cache peak (MB) | fixed-buf peak (MB) | diff (MB) |
+|---:|---:|---:|---:|---:|
+| 1 | 384 | 752 | 767 | +15 |
+| 21 | 8064 | 1202 | 1218 | +16 |
+| 41 | 15744 | 2096 | 2115 | +19 |
+| 61 | 23424 | 3603 | 3627 | +24 |
+| 81 | 31104 | 5715 | 5744 | +29 |
+| 86 | 32768 | 6195 | 6213 | +18 |
+
+**The growth is identical.** Replacing `mx.concatenate` with `mx.slice_update`
+into pre-allocated buffers did NOT change the per-chunk peak growth. The cache
+implementation was not the source of the 4.5 GB excess.
+
+### Final diagnostic conclusion
+
+We have eliminated, in order:
+1. `CompressedKVCache` data structure (microbench: 2-10 MB).
+2. `compressed_butterfly_attention_from_cache` math (microbench: 23 MB).
+3. The integrated compressed attention path (bypass test: peak still grows).
+4. Inner `mx.eval` calls in the stream helpers (removing did not help).
+5. `mx.concatenate`-based cache growth (replacing with `mx.slice_update`
+   into fixed buffers did not help).
+
+**The 4.5 GB excess peak at 32k in compressed mode is real, T-dependent, and
+NOT in any individually testable component.** Most likely it lives in MLX's
+lazy graph behavior when the compressed path's many small ops (multi-stream
+SWA + compressed gather + online softmax merge in 6 swapped layers) are
+composed with the rest of the model's forward pass — but we cannot pinpoint
+the exact site with the diagnostic tools available in pure Python.
+
+### Recommendation
+
+Resolving the peak gap from here requires one of:
+- A fused Metal kernel for the compressed-stream attention (FlashAttention-2
+  style tile-streaming over routed compressed blocks + SWA tail; out of scope
+  in this run).
+- Switching to a different MLX abstraction (e.g., `mx.compile` with a static
+  graph wrapping the multi-stream attention) — speculative; depends on whether
+  MLX's compilation layer would coalesce the intermediates.
+- Accepting the current Pareto: 25× retained-KV win + 27% e2e improvement at
+  the cost of 3.5× peak. Useful for serving many concurrent long sessions on
+  one device; not a peak-memory-wall win on Apple silicon.
+
 ### Diagnostic artifacts
 
 - `results/benchmarks/qwen35_0p8b_mlx/diag_stock_32768/peak_journal.json`
