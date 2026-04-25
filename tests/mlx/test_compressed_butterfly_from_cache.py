@@ -63,3 +63,20 @@ def test_compressed_butterfly_from_cache_matches_active_reference() -> None:
     )
     mx.eval(ref, got)
     assert np.allclose(np.asarray(got, dtype=np.float32), np.asarray(ref, dtype=np.float32), atol=3e-4, rtol=3e-4)
+
+    got_chunked, _ = compressed_butterfly_attention_from_cache(
+        mx.array(q_np),
+        tail_k,
+        tail_v,
+        k_summary,
+        v_summary,
+        layout=layout,
+        query_positions=mx.array(query_positions, dtype=mx.int32),
+        local_window_tokens=local_window,
+        tail_start=tail_start,
+        kv_len=offset,
+        return_weights=False,
+        query_chunk_size=1,
+    )
+    mx.eval(got_chunked)
+    assert np.allclose(np.asarray(got_chunked, dtype=np.float32), np.asarray(ref, dtype=np.float32), atol=3e-4, rtol=3e-4)

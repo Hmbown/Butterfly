@@ -170,6 +170,20 @@ def test_compressed_butterfly_active_with_precomputed_summaries_matches_referenc
     )
     assert np.allclose(np.asarray(y, dtype=np.float32), ref, atol=3e-4, rtol=3e-4)
 
+    y_chunked, _ = compressed_butterfly_attention_active(
+        mx.array(q_np),
+        mx.array(k_np),
+        mx.array(v_np),
+        layout=layout,
+        query_positions=mx.array(query_positions, dtype=mx.int32),
+        local_window_tokens=4,
+        precomputed_k_summary=mx.array(k_summary_np),
+        precomputed_v_summary=mx.array(v_summary_np),
+        query_chunk_size=1,
+    )
+    mx.eval(y_chunked)
+    assert np.allclose(np.asarray(y_chunked, dtype=np.float32), ref, atol=3e-4, rtol=3e-4)
+
 
 def test_compressed_butterfly_active_matches_reference_small() -> None:
     rng = np.random.default_rng(19)

@@ -519,6 +519,49 @@ def _prepare_cache(
     return cache
 
 
+def _array_nbytes(x: Any) -> int:
+    try:
+        return int(getattr(x, "nbytes", 0) or 0)
+    except Exception:
+        return 0
+
+
+def _prompt_cache_storage_summary(cache: Sequence[Any]) -> Dict[str, Any]:
+    total = 0
+    compressed_entries = 0
+    full_entries = 0
+    empty_entries = 0
+    max_offset = 0
+    for entry in cache:
+        entry_bytes = _array_nbytes(entry)
+        if entry_bytes <= 0:
+            state = getattr(entry, "state", None)
+            if isinstance(state, (tuple, list)):
+                entry_bytes = sum(_array_nbytes(x) for x in state)
+        total += int(entry_bytes)
+        if entry.__class__.__name__ == "CompressedKVCache":
+            compressed_entries += 1
+        else:
+            full_entries += 1
+        try:
+            if bool(entry.empty()):
+                empty_entries += 1
+        except Exception:
+            pass
+        try:
+            max_offset = max(max_offset, int(getattr(entry, "offset", 0) or 0))
+        except Exception:
+            pass
+    return {
+        "total_bytes": int(total),
+        "total_gib": float(total / (1024**3)),
+        "compressed_entries": int(compressed_entries),
+        "full_entries": int(full_entries),
+        "empty_entries": int(empty_entries),
+        "max_offset": int(max_offset),
+    }
+
+
 def _run_chunked_prefill(
     model: Any,
     *,
@@ -896,6 +939,7 @@ def _run_single_turn(
                     observability_default_path=expected_primary_path,
                 )
             pre_kv_quant = maybe_quantize_mlx_prompt_cache(cache, config=kv_quantization)
+            cache_storage_after_prefill = _prompt_cache_storage_summary(cache)
             with _stage_timeout(
                 stage_timeout_sec,
                 stage="decode",
@@ -916,6 +960,7 @@ def _run_single_turn(
                     hsa_trace_max_steps=hsa_trace_max_steps,
                     observability_default_path=expected_primary_path,
                 )
+            cache_storage_after_decode = _prompt_cache_storage_summary(cache)
             e2e = float(pre["prefill_sec"] + dec["decode_sec"])
             hsa_summary = _summarize_hsa_trace(hsa_trace_samples)
             row: Dict[str, Any] = {
@@ -934,6 +979,8 @@ def _run_single_turn(
                 "decode_backend": str(butterfly_decode_backend),
                 "kv_quantization": dict(dec.get("kv_quantization") or pre_kv_quant),
                 "kv_quantization_after_prefill": dict(pre_kv_quant),
+                "cache_storage_after_prefill": cache_storage_after_prefill,
+                "cache_storage_after_decode": cache_storage_after_decode,
                 "expected_primary_path": expected_primary_path,
                 "hsa_trace_summary": hsa_summary,
                 "path_counts": dict(hsa_summary.get("path_counts", {})),

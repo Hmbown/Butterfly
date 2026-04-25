@@ -1495,6 +1495,7 @@ class QwenButterflyAttention(nn.Module):
                             kv_len=int(cache_offset),
                             return_weights=False,
                             scale=self.scale,
+                            query_chunk_size=int(self.query_chunk_size),
                         )
                     else:
                         k_summary, v_summary = self._get_compressed_summaries(
@@ -1516,6 +1517,7 @@ class QwenButterflyAttention(nn.Module):
                             scale=self.scale,
                             precomputed_k_summary=k_summary,
                             precomputed_v_summary=v_summary,
+                            query_chunk_size=int(self.query_chunk_size),
                         )
                 else:
                     y_h, _w = block_sparse_butterfly_attention_active(

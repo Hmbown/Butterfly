@@ -45,6 +45,7 @@ _GRAPH_CACHE_STORE: Dict[int, "_GraphCache"] = {}
 # Lightweight instrumentation for compressed-butterfly diagnosis.
 # Set BNA_COMPRESS_PROFILE=1 to collect counters.
 _COMPRESS_PROFILE = os.environ.get("BNA_COMPRESS_PROFILE", "0") == "1"
+_COMPRESS_FORCE_MANUAL = os.environ.get("BNA_COMPRESS_FORCE_MANUAL", "0") == "1"
 _compress_stats: Dict[str, Any] = {"calls": 0, "summary_ms": 0.0, "attn_ms": 0.0, "shapes": []}
 
 
@@ -1224,6 +1225,7 @@ def compressed_butterfly_attention_active(
     scale: Optional[float] = None,
     precomputed_k_summary: Optional[mx.array] = None,
     precomputed_v_summary: Optional[mx.array] = None,
+    query_chunk_size: int = 0,
 ) -> Tuple[mx.array, mx.array | None]:
     """Compressed Butterfly attention for active decode rows.
 
@@ -1240,6 +1242,36 @@ def compressed_butterfly_attention_active(
         raise ValueError("k and v sequence length mismatch")
     if dhk != dh or dhv != dh:
         raise ValueError("q, k, v head_dim mismatch")
+
+    q_chunk = int(query_chunk_size)
+    if q_chunk > 0 and q_chunk < Tq:
+        out_chunks: list[mx.array] = []
+        weight_chunks: list[mx.array] = []
+        for start in range(0, Tq, q_chunk):
+            end = min(start + q_chunk, Tq)
+            y_i, w_i = compressed_butterfly_attention_active(
+                q[:, :, start:end, :],
+                k,
+                v,
+                layout=layout,
+                query_positions=query_positions[start:end],
+                local_window_tokens=local_window_tokens,
+                return_weights=return_weights,
+                scale=scale,
+                precomputed_k_summary=precomputed_k_summary,
+                precomputed_v_summary=precomputed_v_summary,
+                query_chunk_size=0,
+            )
+            if w_i is None:
+                mx.eval(y_i)
+            else:
+                mx.eval(y_i, w_i)
+                weight_chunks.append(w_i)
+            out_chunks.append(y_i)
+        out = mx.concatenate(out_chunks, axis=2)
+        if return_weights:
+            return out, mx.concatenate(weight_chunks, axis=2)
+        return out, None
 
     raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_indices(
         layout,
@@ -1273,7 +1305,12 @@ def compressed_butterfly_attention_active(
     q_scale = float(scale if scale is not None else (dh ** -0.5))
     if _COMPRESS_PROFILE:
         t_attn0 = time.perf_counter()
-    if not return_weights and hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+    if (
+        not _COMPRESS_FORCE_MANUAL
+        and not return_weights
+        and hasattr(mx, "fast")
+        and hasattr(mx.fast, "scaled_dot_product_attention")
+    ):
         q_r = q.transpose(0, 2, 1, 3).reshape(B * Tq, H, 1, dh)
         k_r = k_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, int(k_g.shape[3]), dh)
         v_r = v_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, int(v_g.shape[3]), dh)
@@ -1388,6 +1425,7 @@ def compressed_butterfly_attention_from_cache(
     kv_len: int,
     return_weights: bool = False,
     scale: Optional[float] = None,
+    query_chunk_size: int = 0,
 ) -> Tuple[mx.array, mx.array | None]:
     if return_weights:
         raise NotImplementedError("return_weights is not supported for compressed cache attention")
@@ -1398,6 +1436,30 @@ def compressed_butterfly_attention_from_cache(
         raise ValueError("q and cache head dimensions must match")
     if int(tail_k.shape[-1]) != dh or int(tail_v.shape[-1]) != dh:
         raise ValueError("q and cache head_dim mismatch")
+
+    q_chunk = int(query_chunk_size)
+    if q_chunk > 0 and q_chunk < Tq:
+        out_chunks: list[mx.array] = []
+        for start in range(0, Tq, q_chunk):
+            end = min(start + q_chunk, Tq)
+            y_i, _ = compressed_butterfly_attention_from_cache(
+                q[:, :, start:end, :],
+                tail_k,
+                tail_v,
+                k_summary,
+                v_summary,
+                layout=layout,
+                query_positions=query_positions[start:end],
+                local_window_tokens=local_window_tokens,
+                tail_start=tail_start,
+                kv_len=kv_len,
+                return_weights=False,
+                scale=scale,
+                query_chunk_size=0,
+            )
+            mx.eval(y_i)
+            out_chunks.append(y_i)
+        return mx.concatenate(out_chunks, axis=2), None
 
     raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_indices_from_tail(
         layout,
@@ -1418,7 +1480,11 @@ def compressed_butterfly_attention_from_cache(
 
     q_scale = float(scale if scale is not None else (dh ** -0.5))
     slots = int(k_g.shape[3])
-    if hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+    if (
+        not _COMPRESS_FORCE_MANUAL
+        and hasattr(mx, "fast")
+        and hasattr(mx.fast, "scaled_dot_product_attention")
+    ):
         q_r = q.transpose(0, 2, 1, 3).reshape(B * Tq, H, 1, dh)
         k_r = k_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
         v_r = v_g.transpose(0, 2, 1, 3, 4).reshape(B * Tq, H, slots, dh)
