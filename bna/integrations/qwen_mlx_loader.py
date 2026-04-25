@@ -174,7 +174,9 @@ def build_qwen35_model_config(model_path: str | Path) -> Dict[str, Any]:
         "tie_word_embeddings": _infer_tie_word_embeddings(path, source),
     }
 
-    return overrides
+    merged = dict(source)
+    merged.update(overrides)
+    return merged
 
 
 def _normalize_qwen35_weight_keys(weights: Dict[str, Any]) -> Dict[str, Any]:
@@ -192,6 +194,7 @@ def _normalize_qwen35_weight_keys(weights: Dict[str, Any]) -> Dict[str, Any]:
             new_key.startswith("model.visual.")
             or new_key.startswith("visual.")
             or new_key.startswith("vision.")
+            or new_key.startswith("vision_tower.")
             or new_key.startswith("multi_modal_projector.")
         ):
             continue

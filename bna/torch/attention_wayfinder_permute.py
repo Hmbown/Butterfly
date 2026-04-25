@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, Sequence
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from bna.cycles import block_hamiltonian_cycles, cycle_prev_next_from_perm, log_landmark_blocks, num_blocks_for_seq_len
 from bna.graph.abi import EdgeType
@@ -602,7 +603,7 @@ def build_block_butterfly_layout(
         raise ValueError("sink_count must be >= 0")
     if partner_count < 0:
         raise ValueError("partner_count must be >= 0")
-    if partner_rule not in {"xor", "bit_reversal", "benes"}:
+    if partner_rule not in {"xor", "bit_reversal", "benes", "causal_shift"}:
         raise ValueError(f"Unsupported block-sparse Butterfly partner rule: {partner_rule!r}")
 
     target_device = device or torch.device("cpu")
@@ -906,6 +907,294 @@ def wayfinder_block_sparse_sdpa_attention(
     if pad_len > 0:
         out = out[:, :, :T, :]
     return out
+
+
+def _compressed_butterfly_block_index_tensors(
+    layout: "BlockHamiltonianLayout",
+    *,
+    T: int,
+    local_window_tokens: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    if int(T) <= 0:
+        raise ValueError("T must be positive")
+    if int(local_window_tokens) <= 0:
+        raise ValueError("local_window_tokens must be positive")
+
+    BS = int(layout.block_size)
+    N = int(layout.num_blocks)
+    raw_slots = int(local_window_tokens) + BS - 1
+    summary_slots = int(layout.block_neighbors.shape[-1])
+
+    raw_idx = torch.zeros((N, raw_slots), device=device, dtype=torch.long)
+    raw_mask = torch.zeros((N, BS, raw_slots), device=device, dtype=torch.bool)
+    summary_idx = torch.zeros((N, summary_slots), device=device, dtype=torch.long)
+    summary_mask = torch.zeros((N, BS, summary_slots), device=device, dtype=torch.bool)
+
+    neighbors = layout.block_neighbors[0].to(device=device)
+    raw_offsets = torch.arange(raw_slots, device=device, dtype=torch.long)
+    block_offsets = torch.arange(BS, device=device, dtype=torch.long)
+
+    for block_idx in range(N):
+        q_start = int(block_idx) * BS
+        q_positions = q_start + block_offsets
+        q_valid = q_positions < int(T)
+        local_start = max(0, q_start - int(local_window_tokens) + 1)
+        raw_positions = local_start + raw_offsets
+        raw_valid = raw_positions < int(T)
+        raw_idx[block_idx] = raw_positions.clamp(0, max(0, int(T) - 1))
+        raw_mask[block_idx] = (
+            q_valid[:, None]
+            & raw_valid[None, :]
+            & (raw_positions[None, :] <= q_positions[:, None])
+            & (raw_positions[None, :] >= (q_positions[:, None] - int(local_window_tokens) + 1))
+        )
+
+        cursor = 0
+        for neighbor_t in neighbors[block_idx]:
+            neighbor = int(neighbor_t.item())
+            if neighbor < 0 or neighbor >= block_idx:
+                continue
+            if (neighbor + 1) * BS > local_start:
+                continue
+            summary_idx[block_idx, cursor] = neighbor
+            summary_mask[block_idx, :, cursor] = q_valid
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+
+    return raw_idx, raw_mask, summary_idx, summary_mask
+
+
+def _compressed_butterfly_active_index_tensors(
+    layout: "BlockHamiltonianLayout",
+    *,
+    kv_len: int,
+    query_positions: torch.Tensor,
+    local_window_tokens: int,
+    device: torch.device,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    if int(kv_len) <= 0:
+        raise ValueError("kv_len must be positive")
+    if int(local_window_tokens) <= 0:
+        raise ValueError("local_window_tokens must be positive")
+
+    q_pos = query_positions.to(device=device, dtype=torch.long).view(-1)
+    Tq = int(q_pos.numel())
+    BS = int(layout.block_size)
+    N = int(layout.num_blocks)
+    raw_slots = int(local_window_tokens)
+    summary_slots = int(layout.block_neighbors.shape[-1])
+
+    raw_idx = torch.zeros((Tq, raw_slots), device=device, dtype=torch.long)
+    raw_mask = torch.zeros((Tq, raw_slots), device=device, dtype=torch.bool)
+    summary_idx = torch.zeros((Tq, summary_slots), device=device, dtype=torch.long)
+    summary_mask = torch.zeros((Tq, summary_slots), device=device, dtype=torch.bool)
+
+    neighbors = layout.block_neighbors[0].to(device=device)
+    offsets = torch.arange(raw_slots, device=device, dtype=torch.long)
+
+    for row_idx in range(Tq):
+        q_abs = int(q_pos[row_idx].item())
+        block_idx = min(max(0, q_abs // max(1, BS)), max(0, N - 1))
+        local_start = max(0, q_abs - int(local_window_tokens) + 1)
+        raw_positions = local_start + offsets
+        raw_valid = (raw_positions <= q_abs) & (raw_positions < int(kv_len))
+        raw_idx[row_idx] = raw_positions.clamp(0, max(0, int(kv_len) - 1))
+        raw_mask[row_idx] = raw_valid
+
+        cursor = 0
+        for neighbor_t in neighbors[block_idx]:
+            neighbor = int(neighbor_t.item())
+            if neighbor < 0 or neighbor >= block_idx:
+                continue
+            if (neighbor + 1) * BS > local_start:
+                continue
+            summary_idx[row_idx, cursor] = neighbor
+            summary_mask[row_idx, cursor] = True
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+
+    return raw_idx, raw_mask, summary_idx, summary_mask
+
+
+def _block_mean_summaries_torch(
+    x: torch.Tensor,
+    *,
+    seq_len: int,
+    block_size: int,
+    num_blocks: int,
+) -> torch.Tensor:
+    batch, heads, T, dh = x.shape
+    if int(T) != int(seq_len):
+        raise ValueError(f"summary seq_len mismatch: x has T={T}, expected {seq_len}")
+    pad_len = int(num_blocks) * int(block_size) - int(seq_len)
+    x_work = F.pad(x, (0, 0, 0, pad_len)) if pad_len > 0 else x
+    x_blocks = x_work.view(batch, heads, int(num_blocks), int(block_size), dh)
+    token_pos = torch.arange(
+        int(num_blocks) * int(block_size),
+        device=x.device,
+        dtype=torch.long,
+    ).view(int(num_blocks), int(block_size))
+    valid = (token_pos < int(seq_len)).to(dtype=torch.float32)
+    denom = valid.sum(dim=1, keepdim=True).clamp_min(1.0)
+    summed = (x_blocks.float() * valid.view(1, 1, int(num_blocks), int(block_size), 1)).sum(dim=3)
+    return (summed / denom.view(1, 1, int(num_blocks), 1)).to(dtype=x.dtype)
+
+
+def butterfly_compressed_attention(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    layout: "BlockHamiltonianLayout",
+    local_window_tokens: int,
+    block_chunk_size: int = 0,
+) -> torch.Tensor:
+    """Compressed Butterfly: exact local token window plus routed block summaries."""
+    batch, H_q, T, dh = q.shape
+    H_kv = int(k.shape[1])
+    if int(k.shape[0]) != batch or int(v.shape[0]) != batch:
+        raise ValueError("q, k, v batch size mismatch")
+    if int(k.shape[2]) != T or int(v.shape[2]) != T:
+        raise ValueError("Compressed Butterfly prefill requires matching q/k/v lengths")
+    if int(k.shape[-1]) != dh or int(v.shape[-1]) != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+
+    BS = int(layout.block_size)
+    N = int(layout.num_blocks)
+    device = q.device
+    enable_gqa = H_kv < H_q
+
+    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_block_index_tensors(
+        layout,
+        T=int(T),
+        local_window_tokens=int(local_window_tokens),
+        device=device,
+    )
+    raw_slots = int(raw_idx.shape[-1])
+    summary_slots = int(summary_idx.shape[-1])
+
+    k_summary = _block_mean_summaries_torch(k, seq_len=int(T), block_size=BS, num_blocks=N)
+    v_summary = _block_mean_summaries_torch(v, seq_len=int(T), block_size=BS, num_blocks=N)
+
+    pad_len = N * BS - int(T)
+    q_work = F.pad(q, (0, 0, 0, pad_len)) if pad_len > 0 else q
+    q_blocked = q_work.view(batch, H_q, N, BS, dh)
+
+    C = N if int(block_chunk_size) <= 0 else min(int(block_chunk_size), N)
+    out_pieces: list[torch.Tensor] = []
+    for start in range(0, N, C):
+        end = min(start + C, N)
+        n_c = end - start
+        q_c = q_blocked[:, :, start:end].permute(0, 2, 1, 3, 4)
+        q_c = q_c.reshape(batch * n_c, H_q, BS, dh)
+
+        raw_idx_c = raw_idx[start:end]
+        k_raw = k[:, :, raw_idx_c].permute(0, 2, 1, 3, 4).reshape(batch * n_c, H_kv, raw_slots, dh)
+        v_raw = v[:, :, raw_idx_c].permute(0, 2, 1, 3, 4).reshape(batch * n_c, H_kv, raw_slots, dh)
+
+        summary_idx_c = summary_idx[start:end]
+        k_sum = k_summary[:, :, summary_idx_c].permute(0, 2, 1, 3, 4)
+        v_sum = v_summary[:, :, summary_idx_c].permute(0, 2, 1, 3, 4)
+        k_sum = k_sum.reshape(batch * n_c, H_kv, summary_slots, dh)
+        v_sum = v_sum.reshape(batch * n_c, H_kv, summary_slots, dh)
+
+        k_c = torch.cat([k_raw, k_sum], dim=2)
+        v_c = torch.cat([v_raw, v_sum], dim=2)
+        mask_c = torch.cat([raw_mask[start:end], summary_mask[start:end]], dim=2)
+        mask_c = mask_c.unsqueeze(0).expand(batch, n_c, BS, raw_slots + summary_slots)
+        mask_c = mask_c.reshape(batch * n_c, 1, BS, raw_slots + summary_slots)
+
+        y_c = torch.nn.functional.scaled_dot_product_attention(
+            q_c,
+            k_c,
+            v_c,
+            attn_mask=mask_c,
+            enable_gqa=enable_gqa,
+        )
+        out_pieces.append(y_c.view(batch, n_c, H_q, BS, dh))
+
+    out = torch.cat(out_pieces, dim=1).permute(0, 2, 1, 3, 4).reshape(batch, H_q, N * BS, dh)
+    if pad_len > 0:
+        out = out[:, :, :T, :]
+    return out
+
+
+def butterfly_compressed_attention_active(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    *,
+    layout: "BlockHamiltonianLayout",
+    query_positions: torch.Tensor,
+    local_window_tokens: int,
+) -> torch.Tensor:
+    """Compressed Butterfly for active cached rows."""
+    batch, H_q, Tq, dh = q.shape
+    H_kv = int(k.shape[1])
+    Tk = int(k.shape[2])
+    if int(k.shape[0]) != batch or int(v.shape[0]) != batch:
+        raise ValueError("q, k, v batch size mismatch")
+    if int(v.shape[2]) != Tk:
+        raise ValueError("k and v sequence length mismatch")
+    if int(k.shape[-1]) != dh or int(v.shape[-1]) != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+
+    device = q.device
+    enable_gqa = H_kv < H_q
+    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_index_tensors(
+        layout,
+        kv_len=int(Tk),
+        query_positions=query_positions,
+        local_window_tokens=int(local_window_tokens),
+        device=device,
+    )
+    raw_slots = int(raw_idx.shape[-1])
+    summary_slots = int(summary_idx.shape[-1])
+
+    k_summary = _block_mean_summaries_torch(
+        k,
+        seq_len=int(Tk),
+        block_size=int(layout.block_size),
+        num_blocks=int(layout.num_blocks),
+    )
+    v_summary = _block_mean_summaries_torch(
+        v,
+        seq_len=int(Tk),
+        block_size=int(layout.block_size),
+        num_blocks=int(layout.num_blocks),
+    )
+
+    k_raw = k[:, :, raw_idx].permute(0, 2, 1, 3, 4).reshape(batch * Tq, H_kv, raw_slots, dh)
+    v_raw = v[:, :, raw_idx].permute(0, 2, 1, 3, 4).reshape(batch * Tq, H_kv, raw_slots, dh)
+    k_sum = k_summary[:, :, summary_idx].permute(0, 2, 1, 3, 4).reshape(
+        batch * Tq,
+        H_kv,
+        summary_slots,
+        dh,
+    )
+    v_sum = v_summary[:, :, summary_idx].permute(0, 2, 1, 3, 4).reshape(
+        batch * Tq,
+        H_kv,
+        summary_slots,
+        dh,
+    )
+    k_rows = torch.cat([k_raw, k_sum], dim=2)
+    v_rows = torch.cat([v_raw, v_sum], dim=2)
+    q_rows = q.permute(0, 2, 1, 3).reshape(batch * Tq, H_q, 1, dh)
+    mask = torch.cat([raw_mask, summary_mask], dim=1)
+    mask = mask.unsqueeze(0).expand(batch, Tq, raw_slots + summary_slots)
+    mask = mask.reshape(batch * Tq, 1, 1, raw_slots + summary_slots)
+    out = torch.nn.functional.scaled_dot_product_attention(
+        q_rows,
+        k_rows,
+        v_rows,
+        attn_mask=mask,
+        enable_gqa=enable_gqa,
+    )
+    return out.reshape(batch, Tq, H_q, dh).permute(0, 2, 1, 3).contiguous()
 
 
 def build_flex_block_mask(

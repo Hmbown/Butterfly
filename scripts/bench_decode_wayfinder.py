@@ -300,7 +300,12 @@ def main() -> None:
     p.add_argument("--block-local-window-blocks", type=int, default=1)
     p.add_argument("--block-partner-count", type=int, default=1)
     p.add_argument("--block-sink-blocks", type=int, default=1)
-    p.add_argument("--block-partner-rule", type=str, default="xor")
+    p.add_argument(
+        "--block-partner-rule",
+        type=str,
+        default="xor",
+        choices=["xor", "bit_reversal", "benes", "causal_shift"],
+    )
     p.add_argument("--block-chunk-size", type=int, default=64)
     p.add_argument("--output", type=Path, default=None)
     args = p.parse_args()

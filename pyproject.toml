@@ -20,11 +20,13 @@ dependencies = [
 
 [project.optional-dependencies]
 bpe = ["transformers>=4.38"]
-hf = ["datasets>=2.18"]
+hf = ["datasets>=2.18", "sentencepiece>=0.2"]
 dev = ["pytest>=8.0", "ruff>=0.3", "mypy>=1.8", "hypothesis>=6.0", "pytest-benchmark>=4.0"]
 viz = ["matplotlib>=3.7", "networkx>=3.0"]
 kernels = ["triton>=2.1"]
-mlx = ["mlx>=0.10", "mlx-lm>=0.20", "zmlx>=0.9"]
+cuda4bit = ["bitsandbytes>=0.43", "accelerate>=0.30", "transformers>=4.44"]
+server = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+mlx = ["mlx>=0.10", "mlx-lm>=0.20", "zmlx>=0.9", "fastapi>=0.110", "uvicorn[standard]>=0.29"]
 sweep = ["wandb"]
 experiments = ["pyyaml>=6.0"]
 

@@ -14,7 +14,7 @@ import torch
 import mlx.core as mx
 import mlx.nn as nn
 
-from bna.graph.abi import WayfinderGraphABI, validate_graph_abi
+from bna.graph.abi import EdgeType, WayfinderGraphABI, validate_graph_abi
 from bna.graph.analysis import expansion_proxy, spectral_gap
 from bna.mlx.graph_abi import (
     MLXGraphABI,
@@ -27,6 +27,11 @@ from bna.mlx.fused_attention import (
     _fused_dispatch_eligible,
 )
 from bna.topology import Topology, TopologyGraph
+from bna.topology.butterfly import (
+    ButterflyLayoutMetadata,
+    build_butterfly_neighbor_role_row,
+    butterfly_layout_metadata,
+)
 
 
 NEG_INF = mx.array(-1e30, dtype=mx.float32)
@@ -58,6 +63,45 @@ class _GraphCache:
     source: str = "runtime"
     artifact_dir: str | None = None
     persistent_bytes: int = 0
+
+
+@dataclass(frozen=True)
+class BlockSparseButterflyLayout:
+    """Static block-sparse Butterfly neighborhood for MLX attention kernels."""
+
+    seq_len: int
+    block_size: int
+    num_blocks: int
+    block_neighbors: mx.array  # [Hq, N, K]
+    block_mask: mx.array  # [Hq, N, N]
+    block_token_idx: mx.array  # [N, K * block_size]
+    block_causal_mask: mx.array  # [N, block_size, K * block_size]
+    metadata: ButterflyLayoutMetadata
+    topology_name: str = "butterfly"
+
+    @property
+    def sink_blocks(self) -> tuple[int, ...]:
+        return tuple(int(block_idx) for block_idx in self.metadata.sink_blocks)
+
+    @property
+    def stage_idx(self) -> int:
+        return int(self.metadata.stage_idx)
+
+    @property
+    def stage_count(self) -> int:
+        return int(self.metadata.stage_count)
+
+    @property
+    def local_window_blocks(self) -> int:
+        return int(self.metadata.local_window_blocks)
+
+    @property
+    def partner_rule(self) -> str:
+        return str(self.metadata.partner_rule)
+
+    @property
+    def partner_count(self) -> int:
+        return int(self.metadata.partner_count)
 
 
 @dataclass
@@ -102,6 +146,122 @@ def _schedule_bias_to_vec(schedule_bias: Optional[Dict[str, float]]) -> np.ndarr
             continue
         vec[idx] = float(v)
     return vec
+
+
+def _neighbor_roles_to_edge_type(roles: tuple[str, ...]) -> int:
+    if "partner" in roles:
+        return int(EdgeType.REWIRE)
+    if "sink" in roles:
+        return int(EdgeType.LANDMARK)
+    return int(EdgeType.WINDOW)
+
+
+def build_block_butterfly_layout(
+    *,
+    seq_len: int,
+    block_size: int,
+    num_key_value_heads: int,
+    num_key_value_groups: int,
+    layer_idx: int,
+    local_window_blocks: int = 4,
+    sink_count: int = 1,
+    partner_count: int = 1,
+    partner_rule: str = "xor",
+) -> BlockSparseButterflyLayout:
+    """Build a staged Butterfly block topology for MLX block-sparse attention."""
+    if int(seq_len) <= 0:
+        raise ValueError("seq_len must be positive")
+    if int(block_size) <= 0:
+        raise ValueError("block_size must be positive")
+    if int(num_key_value_heads) <= 0:
+        raise ValueError("num_key_value_heads must be positive")
+    if int(num_key_value_groups) <= 0:
+        raise ValueError("num_key_value_groups must be positive")
+    if int(local_window_blocks) < 0:
+        raise ValueError("local_window_blocks must be >= 0")
+    if int(sink_count) < 0:
+        raise ValueError("sink_count must be >= 0")
+    if int(partner_count) < 0:
+        raise ValueError("partner_count must be >= 0")
+
+    num_blocks = (int(seq_len) + int(block_size) - 1) // int(block_size)
+    metadata = butterfly_layout_metadata(
+        num_blocks=int(num_blocks),
+        layer_idx=int(layer_idx),
+        partner_rule=str(partner_rule),
+        partner_count=int(partner_count),
+        sink_count=int(sink_count),
+        local_window_blocks=int(local_window_blocks),
+    )
+
+    row_specs_by_block = [
+        build_butterfly_neighbor_role_row(block_idx=block_idx, metadata=metadata)
+        for block_idx in range(int(num_blocks))
+    ]
+    max_neighbors = max(1, max(len(row_specs) for row_specs in row_specs_by_block))
+    num_query_heads = int(num_key_value_heads) * int(num_key_value_groups)
+
+    block_neighbors = np.full(
+        (int(num_query_heads), int(num_blocks), int(max_neighbors)),
+        -1,
+        dtype=np.int32,
+    )
+    block_mask = np.zeros(
+        (int(num_query_heads), int(num_blocks), int(num_blocks)),
+        dtype=np.bool_,
+    )
+
+    key_tokens_per_block = int(max_neighbors) * int(block_size)
+    safe_fill = max(int(seq_len) - 1, 0)
+    block_token_idx = np.full(
+        (int(num_blocks), int(key_tokens_per_block)),
+        safe_fill,
+        dtype=np.int32,
+    )
+    block_causal_mask = np.zeros(
+        (int(num_blocks), int(block_size), int(key_tokens_per_block)),
+        dtype=np.bool_,
+    )
+
+    for block_idx, row_specs in enumerate(row_specs_by_block):
+        neighbor_ids = [int(spec.neighbor) for spec in row_specs]
+        if neighbor_ids:
+            block_neighbors[:, block_idx, : len(neighbor_ids)] = np.asarray(
+                neighbor_ids,
+                dtype=np.int32,
+            )
+            block_mask[:, block_idx, np.asarray(neighbor_ids, dtype=np.int32)] = True
+
+        q_start = int(block_idx) * int(block_size)
+        q_end = min(int(seq_len), q_start + int(block_size))
+        q_count = max(0, q_end - q_start)
+        if q_count <= 0:
+            continue
+        q_positions = np.arange(q_start, q_end, dtype=np.int32)
+
+        for spec_idx, spec in enumerate(row_specs):
+            tok_start = int(spec.neighbor) * int(block_size)
+            tok_end = min(int(seq_len), tok_start + int(block_size))
+            tok_count = max(0, tok_end - tok_start)
+            if tok_count <= 0:
+                continue
+            base = int(spec_idx) * int(block_size)
+            token_positions = np.arange(tok_start, tok_end, dtype=np.int32)
+            block_token_idx[block_idx, base : base + tok_count] = token_positions
+            block_causal_mask[block_idx, :q_count, base : base + tok_count] = (
+                token_positions[None, :] <= q_positions[:, None]
+            )
+
+    return BlockSparseButterflyLayout(
+        seq_len=int(seq_len),
+        block_size=int(block_size),
+        num_blocks=int(num_blocks),
+        block_neighbors=mx.array(block_neighbors, dtype=mx.int32),
+        block_mask=mx.array(block_mask, dtype=mx.bool_),
+        block_token_idx=mx.array(block_token_idx, dtype=mx.int32),
+        block_causal_mask=mx.array(block_causal_mask, dtype=mx.bool_),
+        metadata=metadata,
+    )
 
 
 def stable_masked_softmax(
@@ -377,6 +537,58 @@ def _sparse_gather_attention_vectorized(
     return mx.concatenate(y_chunks, axis=2) if len(y_chunks) > 1 else y_chunks[0]
 
 
+def _sparse_gather_attention_vectorized_active(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    s_idx: mx.array,
+    mask: mx.array,
+    *,
+    chunk_size: int = 256,
+) -> mx.array:
+    """Vectorized sparse attention for active rows where Tq <= Tk."""
+    B, H, Tq, dh = q.shape
+    Hkv = k.shape[1]
+    Tk = int(k.shape[2])
+    D = int(s_idx.shape[-1])
+    scale = 1.0 / math.sqrt(dh)
+
+    if Hkv < H:
+        reps = H // Hkv
+        k = mx.repeat(k, repeats=reps, axis=1)
+        v = mx.repeat(v, repeats=reps, axis=1)
+
+    BH = B * H
+    k_flat = k.reshape(BH, Tk, dh)
+    v_flat = v.reshape(BH, Tk, dh)
+
+    y_chunks: list[mx.array] = []
+    for s in range(0, Tq, chunk_size):
+        e = min(Tq, s + chunk_size)
+        q_blk_len = e - s
+
+        q_blk = q[:, :, s:e, :]
+        idx_blk = s_idx[:, s:e, :]
+        mask_blk = mask[:, s:e, :]
+
+        idx_flat = mx.broadcast_to(idx_blk[None], (B, H, q_blk_len, D)).reshape(BH, q_blk_len * D)
+        idx_exp = mx.broadcast_to(idx_flat[:, :, None], (BH, q_blk_len * D, dh))
+
+        k_g = mx.take_along_axis(k_flat, idx_exp, axis=1).reshape(B, H, q_blk_len, D, dh)
+        v_g = mx.take_along_axis(v_flat, idx_exp, axis=1).reshape(B, H, q_blk_len, D, dh)
+
+        scores = mx.matmul(
+            q_blk[:, :, :, None, :].astype(mx.float32),
+            k_g.astype(mx.float32).transpose(0, 1, 2, 4, 3),
+        ).squeeze(3) * scale
+
+        w = stable_masked_softmax(scores, mask_blk[None, :, :, :], axis=-1)
+        y_blk = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(v.dtype)
+        y_chunks.append(y_blk)
+
+    return mx.concatenate(y_chunks, axis=2) if len(y_chunks) > 1 else y_chunks[0]
+
+
 def _sparse_gather_attention_metal(
     q: mx.array,
     k: mx.array,
@@ -468,7 +680,10 @@ def sparse_gather_attention(
 
         if Tq <= 32 and has_sparse_neighbor_kernel():
             # Decode (few queries): K7 Metal kernel — fused, zero overhead
-            y = _sparse_gather_attention_metal(q, k, v, s_idx, mask)
+            try:
+                y = _sparse_gather_attention_metal(q, k, v, s_idx, mask)
+            except Exception:
+                y = _sparse_gather_attention_vectorized(q, k, v, s_idx, mask)
         else:
             # Prefill (many queries): vectorized gather + batched matmul
             y = _sparse_gather_attention_vectorized(q, k, v, s_idx, mask)
@@ -636,6 +851,536 @@ def sparse_gather_attention_active(
     if return_weights:
         return y, mx.stack(ws, axis=1)
     return y, None
+
+
+def _build_block_sparse_active_indices(
+    layout: BlockSparseButterflyLayout,
+    *,
+    kv_len: int,
+    query_positions: mx.array,
+) -> tuple[mx.array, mx.array]:
+    """Expand block neighborhoods only for the active query rows."""
+    if int(kv_len) <= 0:
+        raise ValueError("kv_len must be positive")
+
+    q_pos_np = np.asarray(query_positions, dtype=np.int32)
+    if q_pos_np.ndim != 1:
+        raise ValueError(f"query_positions must be 1D, got {q_pos_np.shape}")
+    if q_pos_np.size == 0:
+        shape = (int(layout.block_neighbors.shape[0]), 0, int(layout.block_token_idx.shape[-1]))
+        return (
+            mx.zeros(shape, dtype=mx.int32),
+            mx.zeros(shape, dtype=mx.bool_),
+        )
+
+    block_size = int(layout.block_size)
+    num_blocks = int(layout.num_blocks)
+    block_idx = np.clip(q_pos_np // max(1, block_size), 0, max(0, num_blocks - 1))
+
+    block_rows = np.asarray(mx.take(layout.block_neighbors[0], mx.array(block_idx, dtype=mx.int32), axis=0))
+    valid_blocks = block_rows >= 0
+    safe_blocks = np.clip(block_rows, 0, max(0, num_blocks - 1))
+
+    offsets = np.arange(block_size, dtype=np.int32)
+    token_idx_raw = (
+        safe_blocks[:, :, None] * int(block_size) + offsets[None, None, :]
+    ).reshape(int(q_pos_np.shape[0]), -1)
+    valid_tokens = np.repeat(valid_blocks[:, :, None], int(block_size), axis=2).reshape(
+        int(q_pos_np.shape[0]),
+        -1,
+    )
+
+    causal_mask = valid_tokens & (token_idx_raw <= q_pos_np[:, None]) & (token_idx_raw < int(kv_len))
+    safe_idx = np.clip(token_idx_raw, 0, int(max(0, kv_len - 1)))
+
+    heads = int(layout.block_neighbors.shape[0])
+    safe_idx_h = np.broadcast_to(safe_idx[None, :, :], (heads, *safe_idx.shape)).copy()
+    causal_mask_h = np.broadcast_to(causal_mask[None, :, :], (heads, *causal_mask.shape)).copy()
+    return mx.array(safe_idx_h, dtype=mx.int32), mx.array(causal_mask_h, dtype=mx.bool_)
+
+
+def _block_sparse_attention_manual(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    mask: mx.array,
+    scale: float,
+) -> mx.array:
+    scores = mx.matmul(
+        q.astype(mx.float32),
+        k.transpose(0, 1, 3, 2).astype(mx.float32),
+    ) * float(scale)
+    weights = stable_masked_softmax(scores, mask, axis=-1, preserve_dtype=False)
+    return mx.matmul(weights, v.astype(mx.float32)).astype(v.dtype)
+
+
+def _compressed_butterfly_block_indices(
+    layout: BlockSparseButterflyLayout,
+    *,
+    kv_len: int,
+    local_window_tokens: int,
+) -> tuple[mx.array, mx.array, mx.array, mx.array]:
+    """Build token-local and summary-block indices for compressed Butterfly."""
+    if int(kv_len) <= 0:
+        raise ValueError("kv_len must be positive")
+    if int(local_window_tokens) <= 0:
+        raise ValueError("local_window_tokens must be positive")
+
+    num_blocks = int(layout.num_blocks)
+    block_size = int(layout.block_size)
+    raw_slots = int(local_window_tokens) + int(block_size) - 1
+    summary_slots = int(layout.block_neighbors.shape[-1])
+
+    raw_idx = np.zeros((num_blocks, raw_slots), dtype=np.int32)
+    raw_mask = np.zeros((num_blocks, block_size, raw_slots), dtype=np.bool_)
+    summary_idx = np.zeros((num_blocks, summary_slots), dtype=np.int32)
+    summary_mask = np.zeros((num_blocks, block_size, summary_slots), dtype=np.bool_)
+
+    neighbors = np.asarray(layout.block_neighbors[0], dtype=np.int32)
+    raw_offsets = np.arange(raw_slots, dtype=np.int32)
+
+    for block_idx in range(num_blocks):
+        q_start = int(block_idx) * block_size
+        q_positions = q_start + np.arange(block_size, dtype=np.int32)
+        q_valid = q_positions < int(kv_len)
+        local_start = max(0, q_start - int(local_window_tokens) + 1)
+
+        raw_positions = local_start + raw_offsets
+        raw_valid = raw_positions < int(kv_len)
+        raw_idx[block_idx] = np.clip(raw_positions, 0, max(0, int(kv_len) - 1))
+        raw_mask[block_idx] = (
+            q_valid[:, None]
+            & raw_valid[None, :]
+            & (raw_positions[None, :] <= q_positions[:, None])
+            & (raw_positions[None, :] >= (q_positions[:, None] - int(local_window_tokens) + 1))
+        )
+
+        cursor = 0
+        for neighbor in neighbors[block_idx].tolist():
+            neighbor = int(neighbor)
+            if neighbor < 0 or neighbor >= block_idx:
+                continue
+            # Exact local tokens already cover this region; route only older summaries.
+            neighbor_end = (neighbor + 1) * block_size
+            if neighbor_end > local_start:
+                continue
+            summary_idx[block_idx, cursor] = neighbor
+            summary_mask[block_idx, :, cursor] = q_valid
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+
+    return (
+        mx.array(raw_idx, dtype=mx.int32),
+        mx.array(raw_mask, dtype=mx.bool_),
+        mx.array(summary_idx, dtype=mx.int32),
+        mx.array(summary_mask, dtype=mx.bool_),
+    )
+
+
+def _compressed_butterfly_active_indices(
+    layout: BlockSparseButterflyLayout,
+    *,
+    kv_len: int,
+    query_positions: mx.array,
+    local_window_tokens: int,
+) -> tuple[mx.array, mx.array, mx.array, mx.array]:
+    """Build token-local and summary-block indices for active compressed rows."""
+    if int(kv_len) <= 0:
+        raise ValueError("kv_len must be positive")
+    if int(local_window_tokens) <= 0:
+        raise ValueError("local_window_tokens must be positive")
+
+    q_pos_np = np.asarray(query_positions, dtype=np.int32)
+    if q_pos_np.ndim != 1:
+        raise ValueError(f"query_positions must be 1D, got {q_pos_np.shape}")
+
+    Tq = int(q_pos_np.size)
+    raw_slots = int(local_window_tokens)
+    summary_slots = int(layout.block_neighbors.shape[-1])
+    block_size = int(layout.block_size)
+    num_blocks = int(layout.num_blocks)
+    neighbors = np.asarray(layout.block_neighbors[0], dtype=np.int32)
+
+    raw_idx = np.zeros((Tq, raw_slots), dtype=np.int32)
+    raw_mask = np.zeros((Tq, raw_slots), dtype=np.bool_)
+    summary_idx = np.zeros((Tq, summary_slots), dtype=np.int32)
+    summary_mask = np.zeros((Tq, summary_slots), dtype=np.bool_)
+
+    offsets = np.arange(raw_slots, dtype=np.int32)
+    for row_idx, q_pos_t in enumerate(q_pos_np.tolist()):
+        q_pos = int(q_pos_t)
+        block_idx = min(max(0, q_pos // max(1, block_size)), max(0, num_blocks - 1))
+        local_start = max(0, q_pos - int(local_window_tokens) + 1)
+        raw_positions = local_start + offsets
+        raw_valid = (raw_positions <= q_pos) & (raw_positions < int(kv_len))
+        raw_idx[row_idx] = np.clip(raw_positions, 0, max(0, int(kv_len) - 1))
+        raw_mask[row_idx] = raw_valid
+
+        cursor = 0
+        for neighbor in neighbors[block_idx].tolist():
+            neighbor = int(neighbor)
+            if neighbor < 0 or neighbor >= block_idx:
+                continue
+            neighbor_end = (neighbor + 1) * block_size
+            if neighbor_end > local_start:
+                continue
+            summary_idx[row_idx, cursor] = neighbor
+            summary_mask[row_idx, cursor] = True
+            cursor += 1
+            if cursor >= summary_slots:
+                break
+
+    return (
+        mx.array(raw_idx, dtype=mx.int32),
+        mx.array(raw_mask, dtype=mx.bool_),
+        mx.array(summary_idx, dtype=mx.int32),
+        mx.array(summary_mask, dtype=mx.bool_),
+    )
+
+
+def _block_mean_summaries(x: mx.array, *, seq_len: int, block_size: int, num_blocks: int) -> mx.array:
+    """Mean-pool token states into one summary vector per block."""
+    B, H, T, dh = x.shape
+    if int(T) != int(seq_len):
+        raise ValueError(f"summary seq_len mismatch: x has T={T}, expected {seq_len}")
+    pad_len = int(num_blocks) * int(block_size) - int(seq_len)
+    if pad_len > 0:
+        x_work = mx.pad(x, ((0, 0), (0, 0), (0, pad_len), (0, 0)))
+    else:
+        x_work = x
+
+    x_blocks = x_work.reshape(B, H, int(num_blocks), int(block_size), dh)
+    token_pos = mx.arange(int(num_blocks) * int(block_size), dtype=mx.int32).reshape(
+        int(num_blocks),
+        int(block_size),
+    )
+    valid = token_pos < int(seq_len)
+    valid_f = valid.astype(mx.float32)
+    denom = mx.maximum(mx.sum(valid_f, axis=1, keepdims=True), mx.array(1.0, dtype=mx.float32))
+    summed = mx.sum(x_blocks.astype(mx.float32) * valid_f[None, None, :, :, None], axis=3)
+    return (summed / denom[None, None, :, :]).astype(x.dtype)
+
+
+def compressed_butterfly_attention(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    local_window_tokens: int,
+    return_weights: bool = False,
+    block_chunk_size: int = 0,
+    scale: Optional[float] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    """Compressed Butterfly prefill: exact local tokens plus routed block summaries."""
+    if return_weights:
+        raise NotImplementedError("return_weights is not supported for compressed Butterfly MLX attention")
+
+    B, H, T, dh = q.shape
+    Bk, Hk, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Hk != H or Hv != H:
+        raise ValueError("q, k, v must share batch/head dimensions for compressed Butterfly")
+    if Tk != T or Tv != T:
+        raise ValueError("Compressed Butterfly prefill requires k/v length to match q length")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+    if int(layout.seq_len) != int(T):
+        raise ValueError(f"layout.seq_len={layout.seq_len} must match q length {T}")
+
+    num_blocks = int(layout.num_blocks)
+    block_size = int(layout.block_size)
+    q_scale = float(scale if scale is not None else (dh ** -0.5))
+
+    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_block_indices(
+        layout,
+        kv_len=int(T),
+        local_window_tokens=int(local_window_tokens),
+    )
+    raw_slots = int(raw_idx.shape[-1])
+    summary_slots = int(summary_idx.shape[-1])
+
+    k_summary = _block_mean_summaries(k, seq_len=int(T), block_size=block_size, num_blocks=num_blocks)
+    v_summary = _block_mean_summaries(v, seq_len=int(T), block_size=block_size, num_blocks=num_blocks)
+
+    pad_len = int(num_blocks * block_size - T)
+    q_work = mx.pad(q, ((0, 0), (0, 0), (0, pad_len), (0, 0))) if pad_len > 0 else q
+    q_blocks = q_work.reshape(B, H, num_blocks, block_size, dh)
+
+    chunk_size = int(block_chunk_size)
+    if chunk_size <= 0:
+        chunk_size = min(int(num_blocks), 4)
+    chunk_size = max(1, min(int(num_blocks), int(chunk_size)))
+
+    out_chunks: list[mx.array] = []
+    for start in range(0, num_blocks, chunk_size):
+        end = min(start + chunk_size, num_blocks)
+        n_chunk = int(end - start)
+        chunk_range = mx.arange(start, end, dtype=mx.int32)
+
+        q_chunk = q_blocks[:, :, start:end, :, :]
+        q_chunk = q_chunk.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, block_size, dh)
+
+        raw_idx_chunk = mx.take(raw_idx, chunk_range, axis=0)
+        raw_k = mx.take(k, raw_idx_chunk, axis=2)
+        raw_v = mx.take(v, raw_idx_chunk, axis=2)
+        raw_k = raw_k.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, raw_slots, dh)
+        raw_v = raw_v.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, raw_slots, dh)
+
+        summary_idx_chunk = mx.take(summary_idx, chunk_range, axis=0)
+        summary_k = mx.take(k_summary, summary_idx_chunk, axis=2)
+        summary_v = mx.take(v_summary, summary_idx_chunk, axis=2)
+        summary_k = summary_k.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, summary_slots, dh)
+        summary_v = summary_v.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, summary_slots, dh)
+
+        k_chunk = mx.concatenate([raw_k, summary_k], axis=2)
+        v_chunk = mx.concatenate([raw_v, summary_v], axis=2)
+
+        raw_mask_chunk = mx.take(raw_mask, chunk_range, axis=0)
+        summary_mask_chunk = mx.take(summary_mask, chunk_range, axis=0)
+        mask_chunk = mx.concatenate([raw_mask_chunk, summary_mask_chunk], axis=2)
+        mask_chunk = mx.broadcast_to(
+            mask_chunk[None, :, None, :, :],
+            (B, n_chunk, H, block_size, raw_slots + summary_slots),
+        ).reshape(B * n_chunk, H, block_size, raw_slots + summary_slots)
+
+        if hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+            y_chunk = mx.fast.scaled_dot_product_attention(
+                q_chunk,
+                k_chunk,
+                v_chunk,
+                scale=q_scale,
+                mask=mask_chunk,
+            ).astype(v.dtype)
+        else:
+            y_chunk = _block_sparse_attention_manual(
+                q_chunk,
+                k_chunk,
+                v_chunk,
+                mask=mask_chunk,
+                scale=q_scale,
+            )
+        out_chunks.append(y_chunk.reshape(B, n_chunk, H, block_size, dh))
+
+    out = mx.concatenate(out_chunks, axis=1).transpose(0, 2, 1, 3, 4)
+    out = out.reshape(B, H, num_blocks * block_size, dh)
+    if pad_len > 0:
+        out = out[:, :, :T, :]
+    return out.astype(v.dtype), None
+
+
+def compressed_butterfly_attention_active(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    query_positions: mx.array,
+    local_window_tokens: int,
+    return_weights: bool = False,
+    scale: Optional[float] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    """Compressed Butterfly attention for active decode rows."""
+    B, H, Tq, dh = q.shape
+    Bk, Hk, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Hk != H or Hv != H:
+        raise ValueError("q, k, v must share batch/head dimensions for compressed Butterfly active attention")
+    if Tv != Tk:
+        raise ValueError("k and v sequence length mismatch")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+
+    raw_idx, raw_mask, summary_idx, summary_mask = _compressed_butterfly_active_indices(
+        layout,
+        kv_len=int(Tk),
+        query_positions=query_positions,
+        local_window_tokens=int(local_window_tokens),
+    )
+
+    num_blocks = int(layout.num_blocks)
+    block_size = int(layout.block_size)
+    k_summary = _block_mean_summaries(k, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
+    v_summary = _block_mean_summaries(v, seq_len=int(Tk), block_size=block_size, num_blocks=num_blocks)
+
+    raw_k = mx.take(k, raw_idx, axis=2)
+    raw_v = mx.take(v, raw_idx, axis=2)
+    summary_k = mx.take(k_summary, summary_idx, axis=2)
+    summary_v = mx.take(v_summary, summary_idx, axis=2)
+    k_g = mx.concatenate([raw_k, summary_k], axis=3)
+    v_g = mx.concatenate([raw_v, summary_v], axis=3)
+    mask = mx.concatenate([raw_mask, summary_mask], axis=1)
+
+    q_scale = float(scale if scale is not None else (dh ** -0.5))
+    scores = mx.sum(
+        q[:, :, :, None, :].astype(mx.float32) * k_g.astype(mx.float32),
+        axis=-1,
+    ) * q_scale
+    w = stable_masked_softmax(scores, mask[None, None, :, :], axis=-1)
+    out = mx.sum(w[:, :, :, :, None] * v_g.astype(mx.float32), axis=3).astype(v.dtype)
+    if return_weights:
+        return out, w
+    return out, None
+
+
+def block_sparse_butterfly_attention(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    return_weights: bool = False,
+    block_chunk_size: int = 0,
+    scale: Optional[float] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    """Block-sparse Butterfly attention for full-prefix prefill."""
+    if return_weights:
+        raise NotImplementedError("return_weights is not supported for block-sparse MLX attention")
+
+    B, H, T, dh = q.shape
+    Bk, Hk, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Hk != H or Hv != H:
+        raise ValueError("q, k, v must share batch/head dimensions for block-sparse attention")
+    if Tk != T or Tv != T:
+        raise ValueError("Prefill block-sparse attention requires k/v length to match q length")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+    if int(layout.seq_len) != int(T):
+        raise ValueError(f"layout.seq_len={layout.seq_len} must match q length {T}")
+
+    num_blocks = int(layout.num_blocks)
+    block_size = int(layout.block_size)
+    key_tokens_per_block = int(layout.block_token_idx.shape[-1])
+    if num_blocks * block_size < T:
+        raise ValueError("layout does not cover the requested sequence length")
+
+    q_scale = float(scale if scale is not None else (dh ** -0.5))
+    pad_len = int(num_blocks * block_size - T)
+    if pad_len > 0:
+        q_work = mx.pad(q, ((0, 0), (0, 0), (0, pad_len), (0, 0)))
+    else:
+        q_work = q
+
+    q_blocks = q_work.reshape(B, H, num_blocks, block_size, dh)
+    chunk_size = int(block_chunk_size)
+    if chunk_size <= 0:
+        chunk_size = min(int(num_blocks), 4)
+    chunk_size = max(1, min(int(num_blocks), int(chunk_size)))
+
+    out_chunks: list[mx.array] = []
+    for start in range(0, num_blocks, chunk_size):
+        end = min(start + chunk_size, num_blocks)
+        n_chunk = int(end - start)
+
+        q_chunk = q_blocks[:, :, start:end, :, :]
+        q_chunk = q_chunk.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, block_size, dh)
+
+        idx_chunk = mx.take(layout.block_token_idx, mx.arange(start, end, dtype=mx.int32), axis=0)
+        k_chunk = mx.take(k, idx_chunk, axis=2)
+        v_chunk = mx.take(v, idx_chunk, axis=2)
+        k_chunk = k_chunk.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, key_tokens_per_block, dh)
+        v_chunk = v_chunk.transpose(0, 2, 1, 3, 4).reshape(B * n_chunk, H, key_tokens_per_block, dh)
+
+        mask_chunk = mx.take(layout.block_causal_mask, mx.arange(start, end, dtype=mx.int32), axis=0)
+        mask_chunk = mx.broadcast_to(
+            mask_chunk[None, :, None, :, :],
+            (B, n_chunk, H, block_size, key_tokens_per_block),
+        ).reshape(B * n_chunk, H, block_size, key_tokens_per_block)
+
+        if hasattr(mx, "fast") and hasattr(mx.fast, "scaled_dot_product_attention"):
+            y_chunk = mx.fast.scaled_dot_product_attention(
+                q_chunk,
+                k_chunk,
+                v_chunk,
+                scale=q_scale,
+                mask=mask_chunk,
+            ).astype(v.dtype)
+        else:
+            y_chunk = _block_sparse_attention_manual(
+                q_chunk,
+                k_chunk,
+                v_chunk,
+                mask=mask_chunk,
+                scale=q_scale,
+            )
+
+        out_chunks.append(y_chunk.reshape(B, n_chunk, H, block_size, dh))
+
+    out = mx.concatenate(out_chunks, axis=1).transpose(0, 2, 1, 3, 4)
+    out = out.reshape(B, H, num_blocks * block_size, dh)
+    if pad_len > 0:
+        out = out[:, :, :T, :]
+    return out.astype(v.dtype), None
+
+
+def block_sparse_butterfly_attention_active(
+    q: mx.array,
+    k: mx.array,
+    v: mx.array,
+    *,
+    layout: BlockSparseButterflyLayout,
+    query_positions: mx.array,
+    return_weights: bool = False,
+    scale: Optional[float] = None,
+) -> Tuple[mx.array, mx.array | None]:
+    """Block-sparse Butterfly attention for active decode rows."""
+    B, H, Tq, dh = q.shape
+    Bk, Hk, Tk, dhk = k.shape
+    Bv, Hv, Tv, dhv = v.shape
+    if Bk != B or Bv != B or Hk != H or Hv != H:
+        raise ValueError("q, k, v must share batch/head dimensions for block-sparse active attention")
+    if Tv != Tk:
+        raise ValueError("k and v sequence length mismatch")
+    if dhk != dh or dhv != dh:
+        raise ValueError("q, k, v head_dim mismatch")
+
+    safe_idx, causal_mask = _build_block_sparse_active_indices(
+        layout,
+        kv_len=int(Tk),
+        query_positions=query_positions,
+    )
+
+    if (
+        not return_weights
+        and Tq <= 32
+    ):
+        from bna.mlx.kernels.metal import has_sparse_neighbor_kernel
+
+        if has_sparse_neighbor_kernel():
+            try:
+                return _sparse_gather_attention_metal(q, k, v, safe_idx, causal_mask), None
+            except Exception:
+                pass
+
+    if not return_weights:
+        return _sparse_gather_attention_vectorized_active(q, k, v, safe_idx, causal_mask), None
+
+    del scale  # Same scaling behavior as sparse gather path.
+    ys: list[mx.array] = []
+    ws: list[mx.array] = []
+    q_scale = 1.0 / math.sqrt(dh)
+    for h in range(H):
+        q_h = q[:, h]
+        k_h = k[:, h]
+        v_h = v[:, h]
+        idx_h = safe_idx[h]
+        mask_h = causal_mask[h]
+
+        k_g = k_h[:, idx_h]
+        v_g = v_h[:, idx_h]
+        scores = mx.sum(
+            q_h[:, :, None, :].astype(mx.float32) * k_g.astype(mx.float32),
+            axis=-1,
+        ) * q_scale
+        w_h = stable_masked_softmax(scores, mask_h[None, :, :], axis=-1)
+        y_h = mx.sum(w_h[:, :, :, None] * v_g.astype(mx.float32), axis=2)
+        ys.append(y_h.astype(v.dtype))
+        ws.append(w_h)
+
+    return mx.stack(ys, axis=1), mx.stack(ws, axis=1)
 
 
 def permute_cycle_window_attention_single(
@@ -1498,16 +2243,19 @@ def butterfly_permute_window_attention_active_batched(
             from bna.mlx.fused_attention import (
                 butterfly_fused_permute_window_attention_active_metal,
             )
-            y = butterfly_fused_permute_window_attention_active_metal(
-                q, k, v,
-                all_perms=all_perms,
-                all_inv_perms=all_inv_perms,
-                query_positions=query_positions,
-                window=int(max(0, window)),
-                query_chunk_size=query_chunk_size,
-                scale=scale,
-            )
-            return y, None
+            try:
+                y = butterfly_fused_permute_window_attention_active_metal(
+                    q, k, v,
+                    all_perms=all_perms,
+                    all_inv_perms=all_inv_perms,
+                    query_positions=query_positions,
+                    window=int(max(0, window)),
+                    query_chunk_size=query_chunk_size,
+                    scale=scale,
+                )
+                return y, None
+            except Exception:
+                pass
 
         from bna.mlx.fused_attention import (
             butterfly_fused_permute_window_attention_active,
@@ -2261,8 +3009,14 @@ wayfinder_permute_window_attention_active_batched = (
 )
 
 __all__ = [
+    "BlockSparseButterflyLayout",
     "ButterflyAttentionMLX",
     "WayfinderAttentionMLX",
+    "build_block_butterfly_layout",
+    "block_sparse_butterfly_attention",
+    "block_sparse_butterfly_attention_active",
+    "compressed_butterfly_attention",
+    "compressed_butterfly_attention_active",
     "butterfly_permute_window_attention",
     "butterfly_permute_window_attention_batched",
     "butterfly_covering_attention",

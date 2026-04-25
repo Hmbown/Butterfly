@@ -1,0 +1,724 @@
+{
+  "results": [
+    {
+      "seq_len": 2048,
+      "num_blocks": 32,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 31.84375,
+        "degree_max": 32,
+        "degree_min": 31
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 32,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 5,
+        "degree_mean": 2.90625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 32,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 31.03125,
+        "degree_max": 32,
+        "degree_min": 28
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 32,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 5,
+        "degree_mean": 2.90625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 16,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 8,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 16.0,
+        "degree_max": 16,
+        "degree_min": 16
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 16,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 8,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 4,
+        "degree_mean": 2.8125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 16,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 8,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 15.9375,
+        "degree_max": 16,
+        "degree_min": 15
+      }
+    },
+    {
+      "seq_len": 2048,
+      "num_blocks": 16,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 8,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 4,
+        "degree_mean": 2.8125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 64,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 59.6875,
+        "degree_max": 64,
+        "degree_min": 50
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 64,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 6,
+        "degree_mean": 2.953125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 64,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 58.515625,
+        "degree_max": 64,
+        "degree_min": 51
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 64,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 6,
+        "degree_mean": 2.953125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 32,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 32.0,
+        "degree_max": 32,
+        "degree_min": 32
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 32,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 5,
+        "degree_mean": 2.90625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 32,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 31.53125,
+        "degree_max": 32,
+        "degree_min": 30
+      }
+    },
+    {
+      "seq_len": 4096,
+      "num_blocks": 32,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 10,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 5,
+        "degree_mean": 2.90625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 128,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 14,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 104.7734375,
+        "degree_max": 128,
+        "degree_min": 77
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 128,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 14,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 7,
+        "degree_mean": 2.9765625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 128,
+      "block_size": 64,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 14,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 103.2109375,
+        "degree_max": 128,
+        "degree_min": 75
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 128,
+      "block_size": 64,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 64,
+        "landmark_stride": 64,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 14,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 7,
+        "degree_mean": 2.9765625,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 64,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 63.3125,
+        "degree_max": 64,
+        "degree_min": 60
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 64,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "random",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 6,
+        "degree_mean": 2.953125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 64,
+      "block_size": 128,
+      "config": {
+        "topology": "permute",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 1,
+        "degree_mean": 61.515625,
+        "degree_max": 64,
+        "degree_min": 55
+      }
+    },
+    {
+      "seq_len": 8192,
+      "num_blocks": 64,
+      "block_size": 128,
+      "config": {
+        "topology": "block_sparse",
+        "n_heads": 1,
+        "window": 128,
+        "landmark_stride": 128,
+        "strategy": "regular_partition",
+        "num_cycles": 1,
+        "edge_disjoint": true,
+        "regular_num_clusters": 8,
+        "seed": 0,
+        "block_local_window_blocks": 1,
+        "block_partner_count": 1,
+        "block_sink_blocks": 1,
+        "block_partner_rule": "xor"
+      },
+      "num_layers": 12,
+      "metrics": {
+        "support_coverage_last_row": 1.0,
+        "support_coverage_mean": 1.0,
+        "support_coverage_min": 1.0,
+        "reachability_diameter": 6,
+        "degree_mean": 2.953125,
+        "degree_max": 3,
+        "degree_min": 1
+      }
+    }
+  ]
+}

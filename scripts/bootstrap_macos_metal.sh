@@ -146,7 +146,7 @@ if [[ "${skip_python_deps}" -eq 0 ]]; then
     cd "${repo_root}"
     HF_HOME="${HF_HOME}" HF_HUB_CACHE="${HF_HUB_CACHE}" \
       "${venv_dir}/bin/python" -m pip install \
-        -e ".[hf,dev,viz,experiments]" \
+        -e ".[hf,dev,viz,experiments,server]" \
         mlx==0.31.1 \
         mlx-lm==0.31.1 \
         datasets

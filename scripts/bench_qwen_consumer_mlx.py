@@ -432,8 +432,8 @@ def _expected_primary_path_for_mode(mode: str) -> str:
     mode_s = str(mode).strip().lower()
     if mode_s in {"wayfinder", "butterfly"}:
         return "butterfly_attention"
-    if mode_s == "sparse":
-        return "sparse"
+    if mode_s in {"block_sparse", "compressed_butterfly"}:
+        return "block_sparse"
     return "stock_attention"
 
 
@@ -1092,29 +1092,34 @@ def _resolve_primary_mode(args: argparse.Namespace, parser: argparse.ArgumentPar
     mode_arg = None if args.mode is None else str(args.mode).strip().lower()
     path_arg = None if args.path is None else str(args.path).strip().lower()
 
-    if path_arg is not None and path_arg not in {"permute", "sparse"}:
-        parser.error(f"--path must be one of ['permute', 'sparse']; got {path_arg!r}")
-    if bool(args.no_swap) and path_arg == "sparse":
-        parser.error("--no-swap conflicts with --path sparse")
+    if path_arg is not None and path_arg not in {"butterfly", "compressed_butterfly", "block_sparse"}:
+        parser.error(
+            "--path must be one of ['butterfly', 'compressed_butterfly'] "
+            f"plus legacy alias ['block_sparse']; got {path_arg!r}"
+        )
+    if bool(args.no_swap) and path_arg in {"compressed_butterfly", "block_sparse"}:
+        parser.error(f"--no-swap conflicts with --path {path_arg}")
 
     legacy_mode = None
     if bool(args.no_swap):
         legacy_mode = "stock"
-    elif path_arg == "sparse":
-        legacy_mode = "sparse"
-    elif path_arg == "permute":
+    elif path_arg == "butterfly":
         legacy_mode = "butterfly"
+    elif path_arg in {"compressed_butterfly", "block_sparse"}:
+        legacy_mode = path_arg
 
     if mode_arg is None:
         return legacy_mode or "butterfly"
-    # Public surface: "butterfly" vs "stock". Legacy aliases remain accepted.
+    # Public surface: "butterfly" vs "compressed_butterfly" vs "stock".
+    # Legacy aliases remain accepted.
     if mode_arg == "wayfinder":
         mode_arg = "butterfly"
     if mode_arg in {"native", "hybrid", "dense", "stock"}:
         mode_arg = "stock"
-    if mode_arg not in {"stock", "butterfly", "sparse"}:
+    if mode_arg not in {"stock", "butterfly", "compressed_butterfly", "block_sparse"}:
         parser.error(
-            f"--mode must be one of ['stock', 'butterfly', 'sparse'] plus legacy aliases ['native', 'hybrid', 'dense', 'wayfinder']; got {mode_arg!r}"
+            "--mode must be one of ['stock', 'butterfly', 'compressed_butterfly'] "
+            f"plus legacy aliases ['native', 'hybrid', 'dense', 'wayfinder', 'block_sparse']; got {mode_arg!r}"
         )
     if legacy_mode is not None and legacy_mode != mode_arg:
         parser.error(
@@ -1150,11 +1155,13 @@ def _build_single_turn_summary_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict
 
 def _render_summary_markdown(payload: Dict[str, Any]) -> str:
     butterfly_meta = payload.get("butterfly") or {}
+    butterfly_config = butterfly_meta.get("config") or {}
     kv_quantization = payload.get("kv_quantization") or {}
     lines = [
         "# Qwen MLX Summary",
         "",
         f"- mode: `{payload.get('mode')}`",
+        f"- butterfly path: `{_public_path_label(str(butterfly_config.get('path', 'n/a')))}`",
         f"- butterfly decode backend: `{payload.get('butterfly_decode_backend')}`",
         f"- kv quantization enabled: `{kv_quantization.get('enabled')}`",
         f"- kv quantization bits: `{kv_quantization.get('bits')}`",
@@ -1164,10 +1171,21 @@ def _render_summary_markdown(payload: Dict[str, Any]) -> str:
         f"- butterfly prefill scope: `{butterfly_meta.get('prefill_scope')}`",
         f"- butterfly prefill target layers: `{butterfly_meta.get('target_prefill_layer_indices')}`",
         f"- butterfly prefill active layers: `{butterfly_meta.get('active_prefill_layer_indices')}`",
-        "",
+    ]
+    # Block-sparse topology metadata
+    if butterfly_config.get("block_size") is not None:
+        lines.extend([
+            f"- block_size: `{butterfly_config.get('block_size')}`",
+            f"- block_local_window_blocks: `{butterfly_config.get('block_local_window_blocks')}`",
+            f"- block_partner_count: `{butterfly_config.get('block_partner_count')}`",
+            f"- block_sink_blocks: `{butterfly_config.get('block_sink_blocks')}`",
+            f"- block_partner_rule: `{butterfly_config.get('block_partner_rule')}`",
+        ])
+    lines.append("")
+    lines.extend([
         "| Prompt | Prefill s | TTFT s | Decode tok/s | E2E s | Decode backend | Stock fallback share |",
         "| ---: | ---: | ---: | ---: | ---: | :--- | ---: |",
-    ]
+    ])
     for row in _build_single_turn_summary_rows(payload.get("single_turn") or []):
         stock_share = row.get("stock_fallback_share_run")
         stock_share_str = "n/a" if stock_share is None else f"{float(stock_share):.2f}"
@@ -1191,7 +1209,7 @@ def main() -> None:
     p = argparse.ArgumentParser(
         description="Qwen MLX benchmark with stock vs Butterfly single-turn, multi-turn, and quality flows."
     )
-    p.add_argument("--model-path", type=str, default="mlx-community/Qwen3-1.7B-4bit")
+    p.add_argument("--model-path", type=str, default="/Volumes/VIXinSSD/models/Qwen3.5-2B-MLX-4bit-text")
     p.add_argument(
         "--hf-home",
         type=str,
@@ -1217,9 +1235,9 @@ def main() -> None:
         help=(
             "Primary attention mode selector. "
             "'stock' = default Qwen 3.5 attention path. "
-            "'butterfly' = Butterfly attention for the 8 swapped prefill layers on Qwen 3.5. "
-            "Legacy aliases remain accepted. "
-            "'sparse' = legacy sparse-gather path."
+            "'butterfly' = Butterfly attention for the 8 swapped prefill layers (default). "
+            "'compressed_butterfly' = exact local tokens plus compressed routed block summaries. "
+            "Legacy aliases remain accepted."
         ),
     )
     p.add_argument("--seq-lens", type=int, nargs="+", default=[2048, 8192, 32768])
@@ -1261,7 +1279,12 @@ def main() -> None:
         default=30.0,
         help="Emit heartbeat logs every N seconds during prompt-build/prefill/decode (<=0 disables).",
     )
-    p.add_argument("--path", type=str, default=None, help=argparse.SUPPRESS)
+    p.add_argument(
+        "--path",
+        type=str,
+        default=None,
+        help="Butterfly attention path: 'butterfly' (default) or 'compressed_butterfly'.",
+    )
     p.add_argument("--window", type=int, default=64)
     p.add_argument("--landmark-stride", type=int, default=0)
     p.add_argument("--num-cycles", type=int, default=1)
@@ -1291,7 +1314,7 @@ def main() -> None:
         "--butterfly-decode-backend",
         type=str,
         default="stock",
-        help="Decode backend policy. 'stock' (legacy alias: 'dense') keeps the default stock decode path on swapped layers. 'experimental' (legacy alias: 'active_permute') enables Butterfly decode experiments.",
+        help="Decode backend policy. 'stock' keeps the default stock decode path on swapped layers. 'experimental' enables Butterfly decode experiments.",
     )
     p.add_argument("--debug-wayfinder-decode-backend", type=str, default="", help=argparse.SUPPRESS)
     p.add_argument("--wayfinder-decode-backend", type=str, default="", help=argparse.SUPPRESS)
@@ -1305,6 +1328,44 @@ def main() -> None:
         "--disable-fused-dispatch", action="store_true", default=False, help=argparse.SUPPRESS
     )
     p.add_argument("--window-drop", type=float, default=0.0)
+    # Block-sparse Butterfly parameters (used when --mode block_sparse or --path block_sparse)
+    p.add_argument(
+        "--block-size",
+        type=int,
+        default=128,
+        help="Block size for block-sparse Butterfly attention (default: 128).",
+    )
+    p.add_argument(
+        "--block-local-window-blocks",
+        type=int,
+        default=1,
+        help="Number of local neighbor blocks in block-sparse layout (default: 1).",
+    )
+    p.add_argument(
+        "--block-partner-count",
+        type=int,
+        default=1,
+        help="Number of butterfly partner blocks per stage (default: 1).",
+    )
+    p.add_argument(
+        "--block-sink-blocks",
+        type=int,
+        default=1,
+        help="Number of global sink blocks in block-sparse layout (default: 1).",
+    )
+    p.add_argument(
+        "--block-partner-rule",
+        type=str,
+        default="xor",
+        choices=["xor", "bit_reversal", "benes", "causal_shift"],
+        help="Partner assignment rule for block-sparse Butterfly stages (default: xor).",
+    )
+    p.add_argument(
+        "--compressed-local-window-tokens",
+        type=int,
+        default=128,
+        help="Exact raw-token sliding window used by compressed Butterfly (default: 128).",
+    )
     p.add_argument("--retro-backfill", action="store_true")
     p.add_argument("--retro-alpha", type=float, default=0.2)
     p.add_argument(
@@ -1439,8 +1500,8 @@ def main() -> None:
         validate_mlx_kv_quantization_config(kv_quantization)
     except ValueError as exc:
         p.error(str(exc))
-    if kv_quantization.enabled and mode == "sparse":
-        p.error("--kv-bits is not supported with the legacy sparse Qwen path on MLX.")
+    if kv_quantization.enabled and mode in {"block_sparse", "compressed_butterfly"}:
+        p.error("--kv-bits is not supported with compressed Butterfly on MLX.")
     if kv_quantization.enabled and mode == "butterfly" and decode_backend != "dense":
         p.error(
             "--kv-bits currently requires --butterfly-decode-backend stock "
@@ -1490,7 +1551,12 @@ def main() -> None:
     baseline_mode = mode == "stock"
     wf_cfg: Optional[QwenButterflyConfig] = None
     if not baseline_mode:
-        qwen_path = "permute" if mode == "butterfly" else "sparse"
+        qwen_path = {
+            "butterfly": "permute",
+            "block_sparse": "block_sparse",
+            "compressed_butterfly": "block_sparse",
+        }[mode]
+        block_compression = "mean" if mode == "compressed_butterfly" else "none"
         wf_cfg = QwenButterflyConfig(
             path=qwen_path,  # type: ignore[arg-type]
             strategy="random",
@@ -1512,6 +1578,14 @@ def main() -> None:
             retro_backfill_causal_only=bool(args.retro_causal_only),
             use_fused_dispatch=not bool(debug_disable_fused_dispatch),
             wayfinder_decode_backend=decode_backend,  # type: ignore[arg-type]
+            # Block-sparse Butterfly parameters (only active when path="block_sparse")
+            block_size=int(args.block_size),
+            block_local_window_blocks=int(args.block_local_window_blocks),
+            block_partner_count=int(args.block_partner_count),
+            block_sink_blocks=int(args.block_sink_blocks),
+            block_partner_rule=str(args.block_partner_rule),  # type: ignore[arg-type]
+            block_compression=block_compression,  # type: ignore[arg-type]
+            compressed_local_window_tokens=int(args.compressed_local_window_tokens),
         )
 
     replaced_layers = 0
@@ -1550,10 +1624,17 @@ def main() -> None:
             if isinstance(layer_attn, QwenButterflyAttention):
                 layer_attn.compute_edge_utilization_proxy = False
                 layer_attn.compute_graph_metrics = False
+        _bs_label = (
+            f" block_size={args.block_size} partner_rule={args.block_partner_rule}"
+            f" compression={wf_cfg.block_compression}"
+            if mode in {"block_sparse", "compressed_butterfly"}
+            else ""
+        )
         _log(
             f"mode={mode}: Butterfly swap active on {replaced_layers} layers "
             f"(scope={active_prefill_scope}, layers={replaced_indices}, "
-            f"decode_backend={'stock' if decode_backend == 'dense' else 'experimental'})"
+            f"decode_backend={'stock' if decode_backend == 'dense' else 'experimental'}"
+            f"{_bs_label})"
         )
     _log(
         "KV quantization: "
@@ -1567,10 +1648,30 @@ def main() -> None:
     butterfly_decode_backend_public = (
         "stock" if baseline_mode or decode_backend == "dense" else "experimental"
     )
+    _block_sparse_meta = (
+        {
+            "block_size": int(args.block_size),
+            "block_local_window_blocks": int(args.block_local_window_blocks),
+            "block_partner_count": int(args.block_partner_count),
+            "block_sink_blocks": int(args.block_sink_blocks),
+            "block_partner_rule": str(args.block_partner_rule),
+            "block_compression": (
+                "mean" if mode == "compressed_butterfly" else "none"
+            ),
+            "compressed_local_window_tokens": (
+                int(args.compressed_local_window_tokens)
+                if mode == "compressed_butterfly"
+                else None
+            ),
+        }
+        if mode in {"block_sparse", "compressed_butterfly"}
+        else {}
+    )
     butterfly_config_payload = (
         None
         if baseline_mode
         else {
+            "path": qwen_path,
             "window": int(args.window),
             "landmark_stride": (
                 None if int(args.landmark_stride) <= 0 else int(args.landmark_stride)
@@ -1584,6 +1685,7 @@ def main() -> None:
             "edge_disjoint": bool(args.edge_disjoint),
             "enforce_hamiltonian": bool(args.enforce_hamiltonian),
             "fused_dispatch": bool(not debug_disable_fused_dispatch),
+            **_block_sparse_meta,
         }
     )
     wayfinder_config_payload = (

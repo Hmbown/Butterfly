@@ -12,6 +12,14 @@ This path is now framed as a direct comparison between:
 
 The public deployment surface should use that language. Legacy names remain compatibility aliases only.
 
+Block-sparse topology note
+
+- MLX also supports `path="block_sparse"` / `--mode block_sparse`.
+- That path uses the same staged block-sparse Butterfly topology as CUDA.
+- Supported block partner rules are `xor`, `bit_reversal`, `benes`, and `causal_shift`.
+- Use `--block-partner-rule causal_shift` for proof-aligned topology experiments.
+- The measured 2026-04-03 smoke results in this note are from the older permute-style Butterfly path, so treat block-sparse `causal_shift` as the next experiment until fresh artifacts exist.
+
 What shipped
 
 - server: `scripts/serve_qwen_butterfly_mlx.py`

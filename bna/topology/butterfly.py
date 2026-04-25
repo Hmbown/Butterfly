@@ -4,11 +4,11 @@ from dataclasses import dataclass
 import math
 from typing import Literal, Sequence, cast
 
-ButterflyPartnerRule = Literal["xor", "bit_reversal", "benes"]
+ButterflyPartnerRule = Literal["xor", "bit_reversal", "benes", "causal_shift"]
 RoleName = Literal["self", "local", "partner", "sink"]
 
 ROLE_ORDER: tuple[RoleName, ...] = ("self", "local", "partner", "sink")
-_VALID_PARTNER_RULES: set[str] = {"xor", "bit_reversal", "benes"}
+_VALID_PARTNER_RULES: set[str] = {"xor", "bit_reversal", "benes", "causal_shift"}
 
 
 @dataclass(frozen=True)
@@ -111,7 +111,9 @@ def butterfly_partner_block(
     effective_width = butterfly_width(num_blocks) if width is None else int(width)
     if int(bit_idx) < 0 or int(bit_idx) >= max(1, int(effective_width)):
         return None
-    if rule in {"xor", "benes"}:
+    if rule == "causal_shift":
+        partner = int(block_idx) - (1 << int(bit_idx))
+    elif rule in {"xor", "benes"}:
         partner = int(block_idx) ^ (1 << int(bit_idx))
     else:
         reversed_idx = bit_reverse(int(block_idx), int(effective_width))

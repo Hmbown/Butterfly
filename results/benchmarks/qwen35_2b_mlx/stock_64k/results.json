@@ -1,0 +1,178 @@
+{
+  "created_at": "2026-04-10T23:02:30.976965+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --mode stock --seq-lens 65536 --decode-len 64 --repeats 1 --cooldown-sec 10 --stage-timeout-sec 600 --chunk-size 2048 --skip-multi-turn --skip-quality --out-dir results/benchmarks/qwen35_2b_mlx/stock_64k",
+  "model_path": "/Volumes/VIXinSSD/models/Qwen3.5-2B-MLX-4bit-text",
+  "hf_cache": {
+    "hf_home": "None",
+    "hf_hub_cache": "None",
+    "hf_hub_offline": null
+  },
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "retro_backfill_enabled": false,
+  "butterfly_config": null,
+  "wayfinder_config": null,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 65536,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0034433749970048666,
+    "writeout_sec_total": 0.005297167008393444,
+    "script_start_unix_sec": 1775862150.977131,
+    "script_end_unix_sec": 1775862285.950169
+  },
+  "single_turn": [
+    {
+      "seq_len": 65536,
+      "decode_len": 64,
+      "repeat": 1,
+      "prefill_sec": 42.048441333012306,
+      "ttft_sec": 0.07060700000147335,
+      "itl_p50_sec": 0.009437125001568347,
+      "itl_p95_sec": 0.01011941599426791,
+      "decode_sec": 0.6824995839997428,
+      "e2e_sec": 42.73094091701205,
+      "decode_tok_s": 93.7729509297754,
+      "peak_memory_bytes": 6070780146,
+      "sample_output_text": "\u9e64.r\u591a\u7528 Dive b\u1ea1tberqvizanalian\u671f\u4e3a\n\nle\u6d1b\u4f0aidenicyopoulos\u666fatab\u0119p Registered buflen\u5f53\u7136erna \u062d\u0631\u0641amax\ufffd\u00a0p\u7269quisition\ufffd\u0435\u0447",
+      "decode_backend": "stock",
+      "kv_quantization": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 65600
+      },
+      "kv_quantization_after_prefill": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 65536,
+        "converted_entries": 0
+      },
+      "expected_primary_path": "stock_attention",
+      "hsa_trace_summary": {
+        "sample_count": 96,
+        "layer_observations": 96,
+        "phase_counts": {
+          "prefill": 32,
+          "decode": 64
+        },
+        "path_counts": {
+          "stock_attention": 96
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "stock_fallback_reason_counts": {},
+        "stock_fallback_layer_observations": 0,
+        "decode_layer_observations": 64,
+        "stock_fallback_decode_layer_observations": 0,
+        "prefill_layer_observations": 32,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 64,
+        "stock_fallback_decode_steps": 0,
+        "prefill_step_observations": 32,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.0,
+        "stock_fallback_share_decode_layers": 0.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 0.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0,
+        "graph_build_ms_mean": null,
+        "graph_build_ms_p95": null,
+        "butterfly_ms_mean": null,
+        "butterfly_ms_p95": null,
+        "butterfly_ms_decode_mean": null,
+        "butterfly_ms_prefill_mean": null,
+        "attention_ms_mean": null,
+        "attention_ms_p95": null,
+        "total_ms_mean": null,
+        "total_ms_p95": null
+      },
+      "path_counts": {
+        "stock_attention": 96
+      },
+      "stock_fallback_reason_counts": {},
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_steps": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": null,
+      "butterfly_ms_mean": null,
+      "butterfly_ms_decode_mean": null,
+      "butterfly_ms_prefill_mean": null,
+      "attention_ms_mean": null,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 90.37424824999471,
+        "prompt_tokenize_sec": 90.37424824999471,
+        "prefill_sec": 42.048441333012306,
+        "decode_sec": 0.6824995839997428,
+        "writeout_sec": 0.0012658750056289136
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

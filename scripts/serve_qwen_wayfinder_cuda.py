@@ -408,7 +408,7 @@ def main() -> None:
     p.add_argument("--block-sink-blocks", type=int, default=1,
                     help="Number of fixed sink blocks exposed to every later block for Butterfly block topology.")
     p.add_argument("--block-partner-rule", type=str, default="xor",
-                    choices=["xor", "bit_reversal", "benes"],
+                    choices=["xor", "bit_reversal", "benes", "causal_shift"],
                     help="Deterministic partner rule used by the Butterfly block topology.")
     p.add_argument("--allow-unsupported-arch", action="store_true",
                     help="Allow `--engine flex` even when the current CUDA capability is not "
@@ -557,7 +557,7 @@ def main() -> None:
     )
     app = create_app(state)
     _log(f"Serving on http://{args.host}:{args.port}/v1 (model_id={model_id})")
-    _log(f"  POST /v1/chat/completions  |  GET /health  |  GET /v1/models")
+    _log("  POST /v1/chat/completions  |  GET /health  |  GET /v1/models")
     uvicorn.run(app, host=args.host, port=args.port, log_level=args.log_level)
 
 

@@ -36,7 +36,9 @@ At a high level, each block attends to:
 
 The exact sparse pattern differs across code paths. Older Wayfinder/HCSA integrations describe this as `window + cycle + landmarks`; the current Butterfly README uses the simpler butterfly-partner framing. In both cases the goal is the same: keep attention neighborhoods explicit, bounded, and cheap enough to help at long context.
 
-For contributor-facing implementation details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The next test target is [Compressed Butterfly Attention](docs/COMPRESSED_BUTTERFLY_ATTENTION.md): exact recent-token attention plus deterministic `causal_shift` over compressed block KV summaries. Use the public variant name `compressed_butterfly`; older `block_sparse` naming remains only as a compatibility alias for existing commands and artifacts.
+
+For the current block-sparse math contract, including the new proof-clean `causal_shift` partner rule, see [docs/BUTTERFLY_THEOREMS.md](docs/BUTTERFLY_THEOREMS.md). For contributor-facing implementation details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Measured evidence
 
@@ -51,14 +53,15 @@ The repo now includes two CPU-only structural experiments that run directly on t
 - primary support proof: [scripts/experiment_butterfly_validity.py](scripts/experiment_butterfly_validity.py)
 - staged-vs-controls support proof (with secondary weighted diagnostics): [scripts/experiment_butterfly_staging_validity.py](scripts/experiment_butterfly_staging_validity.py)
 - artifacts:
-  - [results/proof/butterfly_validity/summary.md](results/proof/butterfly_validity/summary.md)
-  - [results/proof/butterfly_staging_validity/summary.md](results/proof/butterfly_staging_validity/summary.md)
+  - [results/proof/butterfly_validity/summary.json](results/proof/butterfly_validity/summary.json)
+  - [results/proof/butterfly_staging_validity/summary.json](results/proof/butterfly_staging_validity/summary.json)
 
 Durable claim checked by this proof surface:
 
 - per-layer degree stays bounded
-- staged Butterfly reaches full causal-prefix support in logarithmic depth (`L = ceil(log2 N)`)
-- staged Butterfly outperforms local-only and frozen-long-range controls on support expansion
+- staged Butterfly reaches full last-row causal-prefix support in logarithmic depth (`L = ceil(log2 N)`)
+- the `causal_shift` partner rule gives a proof-clean all-row causal-prefix result at exactly `L = ceil(log2 N)`
+- staged Butterfly usually outperforms local-only and frozen-long-range controls on support expansion, with current generated support-AUC evidence at 19/20 cases
 
 Canonical public topology primitives for this proof surface live in `bna.topology.butterfly`.
 
@@ -67,28 +70,30 @@ Secondary (non-durable) diagnostics:
 - weighted surrogate spread/conditioning readouts are reported for context only
 - those diagnostics are not treated as general mixing guarantees
 
-Current result summary for `8..128` blocks and partner rules `xor`, `bit_reversal`, and `benes`:
+Current generated result summary for `16..128` blocks and partner rules `xor`, `bit_reversal`, `benes`, and `causal_shift`:
 
-| Rule | Blocks | Last Block Full Reach | All-Block Prefix Reach | Max Degree | Butterfly Coverage At `log2 N` | Local-Only Coverage At `log2 N` |
-|---|---:|---:|---:|---:|---:|---:|
-| `xor` | `128` | `7` | `13` | `4` | `1.000` | `0.125` |
-| `bit_reversal` | `128` | `6` | `13` | `4` | `1.000` | `0.125` |
-| `benes` | `128` | `7` | `12` | `4` | `1.000` | `0.125` |
+| Evidence | Current result |
+|---|---:|
+| Last-row support by `ceil(log2 N)` | 20/20 |
+| Local-only full last-row support at same horizon | 0/20 |
+| Random predecessor full last-row support at same horizon | 8/20 |
+| Staged support-AUC beats local and best frozen control | 19/20 |
+| `causal_shift` all-row support by `ceil(log2 N)` | proved and tested |
 
 Interpretation:
 
 - the core communication claim holds at the topology level
 - the result is about information-flow capacity, not yet about perplexity or downstream quality
-- this is the right “minimum viable proof” that Butterfly is not just a sparse mask, but a sparse mask with logarithmic-depth communication
+- `xor`, `bit_reversal`, and `benes` remain legacy experimental rules; `causal_shift` is the cleanest rule when the paper claim needs a general causal-prefix theorem
 
 Reproduce:
 
 ```bash
 python scripts/experiment_butterfly_validity.py
 python scripts/experiment_butterfly_staging_validity.py
-pytest -q tests/pytorch/test_wayfinder_topology.py \
-  tests/pytorch/test_wayfinder_staging_validity.py \
-  tests/pytorch/test_wayfinder_operator_mixing.py
+pytest -q tests/pytorch/test_butterfly_topology.py \
+  tests/pytorch/test_butterfly_staging_validity.py \
+  tests/pytorch/test_butterfly_operator_mixing.py
 ```
 
 ### Validated public path: GLM on MLX

@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import copy
 import importlib
-import math
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -34,6 +33,8 @@ from bna.torch.attention_wayfinder_permute import (
     build_block_butterfly_layout,
     build_block_hamiltonian_mask,
     build_flex_block_mask,
+    butterfly_compressed_attention,
+    butterfly_compressed_attention_active,
     recover_cycle_perms,
     wayfinder_block_sparse_attention,
     wayfinder_block_sparse_sdpa_attention,
@@ -67,7 +68,7 @@ ButterflySparsePrecomputedBackend = Literal[
     "streamed_online_softmax",
     "manual_matmul",
 ]
-ButterflyBlockPartnerRule = Literal["xor", "bit_reversal", "benes"]
+ButterflyBlockPartnerRule = Literal["xor", "bit_reversal", "benes", "causal_shift"]
 
 WayfinderPath = ButterflyPath
 WayfinderStrategy = ButterflyStrategy
@@ -105,7 +106,6 @@ def patch_qwen_moe_for_gptq() -> None:
     except ImportError:
         raise ImportError("transformers does not have qwen3_5_moe model support")
 
-    original_cls = qwen_mod.Qwen3_5MoeExperts
     ACT2FN = qwen_mod.ACT2FN
 
     class _Qwen3_5MoeExpertsGPTQ(nn.Module):
@@ -288,6 +288,8 @@ class QwenCUDAButterflyConfig:
     block_sink_blocks: int = 1
     block_partner_rule: ButterflyBlockPartnerRule = "xor"
     block_chunk_size: int = 0  # SDPA block chunk size (0 = all at once)
+    block_compression: Literal["none", "mean"] = "none"
+    compressed_local_window_tokens: int = 128
 
     def __post_init__(self) -> None:
         if self.path not in {"permute", "sparse", "block_sparse"}:
@@ -311,8 +313,12 @@ class QwenCUDAButterflyConfig:
             raise ValueError("block_partner_count must be >= 0")
         if int(self.block_sink_blocks) < 0:
             raise ValueError("block_sink_blocks must be >= 0")
-        if self.block_partner_rule not in {"xor", "bit_reversal", "benes"}:
+        if self.block_partner_rule not in {"xor", "bit_reversal", "benes", "causal_shift"}:
             raise ValueError(f"Unsupported block_partner_rule: {self.block_partner_rule!r}")
+        if self.block_compression not in {"none", "mean"}:
+            raise ValueError(f"Unsupported block_compression: {self.block_compression!r}")
+        if int(self.compressed_local_window_tokens) <= 0:
+            raise ValueError("compressed_local_window_tokens must be > 0")
         if int(self.dense_fallback_q_len) < 0:
             raise ValueError("dense_fallback_q_len must be >= 0")
         if int(self.max_graph_cache_entries) <= 0:
@@ -743,6 +749,8 @@ class QwenCUDAButterflyAttention(nn.Module):
     def _resolve_engine(self) -> str:
         engine = self.cfg.engine
         if self.cfg.path == "block_sparse":
+            if self.cfg.block_compression == "mean":
+                return "sdpa"
             if engine == "triton":
                 return "triton"
             if engine == "sdpa":
@@ -806,6 +814,8 @@ class QwenCUDAButterflyAttention(nn.Module):
             int(self.cfg.block_partner_count),
             int(self.cfg.block_sink_blocks),
             self.cfg.block_partner_rule,
+            self.cfg.block_compression,
+            int(self.cfg.compressed_local_window_tokens),
             wayfinder_stage_idx,
             wayfinder_stage_count,
             seed,
@@ -1377,6 +1387,15 @@ class QwenCUDAButterflyAttention(nn.Module):
                 "block_local_window_blocks": int(self.cfg.block_local_window_blocks),
                 "block_partner_count": int(self.cfg.block_partner_count),
                 "block_partner_rule": self.cfg.block_partner_rule,
+                "butterfly_variant": (
+                    "compressed" if self.cfg.block_compression == "mean" else "block"
+                ),
+                "block_compression": self.cfg.block_compression,
+                "compressed_local_window_tokens": (
+                    int(self.cfg.compressed_local_window_tokens)
+                    if self.cfg.block_compression == "mean"
+                    else None
+                ),
             }
             if cached_block_sparse:
                 if cache.block_layout is None:
@@ -1395,29 +1414,41 @@ class QwenCUDAButterflyAttention(nn.Module):
                     cache_position=cache_position,
                     device=query_states.device,
                 )
-                safe_idx, causal_mask = self._build_wayfinder_block_sparse_indices(
-                    layout=cache.block_layout,
-                    kv_len=k_len_after,
-                    query_positions=query_positions,
-                    device=query_states.device,
-                )
-                block_profile["block_sparse_backend"] = "sparse_gqa_precomputed"
-                block_profile["sparse_compute_dtype"] = _dtype_name(sparse_dtype)
-                wayfinder_out, _ = sparse_row_attention_gqa_precomputed(
-                    query_states,
-                    key_states,
-                    value_states,
-                    safe_idx=safe_idx,
-                    causal_mask=causal_mask,
-                    num_key_value_groups=self.num_key_value_groups,
-                    return_weights=False,
-                    query_chunk_size=int(self.cfg.sparse_query_chunk_size),
-                    kv_head_chunk_size=int(self.cfg.sparse_kv_head_chunk_size),
-                    degree_chunk_size=int(self.cfg.sparse_degree_chunk_size),
-                    chunk_temp_budget_mib=float(self.cfg.sparse_chunk_temp_budget_mib),
-                    contraction_backend_override=self.cfg.sparse_precomputed_backend,
-                    chunk_profile=block_profile,
-                )
+                if self.cfg.block_compression == "mean":
+                    block_profile["block_sparse_backend"] = "compressed_butterfly_active"
+                    block_profile["sparse_compute_dtype"] = _dtype_name(sparse_dtype)
+                    wayfinder_out = butterfly_compressed_attention_active(
+                        query_states,
+                        key_states,
+                        value_states,
+                        layout=cache.block_layout,
+                        query_positions=query_positions,
+                        local_window_tokens=int(self.cfg.compressed_local_window_tokens),
+                    )
+                else:
+                    safe_idx, causal_mask = self._build_wayfinder_block_sparse_indices(
+                        layout=cache.block_layout,
+                        kv_len=k_len_after,
+                        query_positions=query_positions,
+                        device=query_states.device,
+                    )
+                    block_profile["block_sparse_backend"] = "sparse_gqa_precomputed"
+                    block_profile["sparse_compute_dtype"] = _dtype_name(sparse_dtype)
+                    wayfinder_out, _ = sparse_row_attention_gqa_precomputed(
+                        query_states,
+                        key_states,
+                        value_states,
+                        safe_idx=safe_idx,
+                        causal_mask=causal_mask,
+                        num_key_value_groups=self.num_key_value_groups,
+                        return_weights=False,
+                        query_chunk_size=int(self.cfg.sparse_query_chunk_size),
+                        kv_head_chunk_size=int(self.cfg.sparse_kv_head_chunk_size),
+                        degree_chunk_size=int(self.cfg.sparse_degree_chunk_size),
+                        chunk_temp_budget_mib=float(self.cfg.sparse_chunk_temp_budget_mib),
+                        contraction_backend_override=self.cfg.sparse_precomputed_backend,
+                        chunk_profile=block_profile,
+                    )
             elif engine == "sdpa":
                 if cache.block_layout is None:
                     raise RuntimeError("block_sparse sdpa path requires a block layout")
@@ -1427,13 +1458,24 @@ class QwenCUDAButterflyAttention(nn.Module):
                     block_sparse_start_event.record()
                 block_profile["block_sparse_backend"] = "sdpa"
                 block_profile["block_chunk_size"] = int(self.cfg.block_chunk_size)
-                wayfinder_out = wayfinder_block_sparse_sdpa_attention(
-                    query_states,
-                    key_states,
-                    value_states,
-                    layout=cache.block_layout,
-                    block_chunk_size=int(self.cfg.block_chunk_size),
-                )
+                if self.cfg.block_compression == "mean":
+                    block_profile["block_sparse_backend"] = "compressed_butterfly_sdpa"
+                    wayfinder_out = butterfly_compressed_attention(
+                        query_states,
+                        key_states,
+                        value_states,
+                        layout=cache.block_layout,
+                        local_window_tokens=int(self.cfg.compressed_local_window_tokens),
+                        block_chunk_size=int(self.cfg.block_chunk_size),
+                    )
+                else:
+                    wayfinder_out = wayfinder_block_sparse_sdpa_attention(
+                        query_states,
+                        key_states,
+                        value_states,
+                        layout=cache.block_layout,
+                        block_chunk_size=int(self.cfg.block_chunk_size),
+                    )
                 if query_states.is_cuda:
                     block_sparse_end_event.record()
                     block_sparse_cuda_events = (block_sparse_start_event, block_sparse_end_event)
@@ -1655,6 +1697,7 @@ __all__ = [
     "clear_shared_qwen_butterfly_graph_cache",
     "extract_qkv_from_qwen_attention",
     "iter_qwen_butterfly_layers",
+    "load_qwen_4bit_cuda",
     "restore_qwen_dense_attention",
     "swap_qwen_attention_with_butterfly_cuda",
     "QwenCUDAWayfinderConfig",
@@ -1670,3 +1713,82 @@ QwenCUDAWayfinderAttention = QwenCUDAButterflyAttention
 clear_shared_qwen_wayfinder_graph_cache = clear_shared_qwen_butterfly_graph_cache
 iter_qwen_wayfinder_layers = iter_qwen_butterfly_layers
 swap_qwen_attention_with_wayfinder_cuda = swap_qwen_attention_with_butterfly_cuda
+
+
+def load_qwen_4bit_cuda(
+    model_id: str = "Qwen/Qwen3-4B",
+    *,
+    device_map: "str | dict" = "auto",
+    torch_dtype: str = "bfloat16",
+    attn_implementation: str = "eager",
+    swap_butterfly: bool = True,
+    butterfly_config: Optional[Dict[str, Any]] = None,
+    trust_remote_code: bool = True,
+):
+    """Load Qwen in NF4 4-bit via bitsandbytes + swap butterfly attention.
+
+    Inference-only. Backward is not supported through the butterfly overlay
+    on quantized weights; do not call ``.backward()`` on the returned model.
+
+    Memory envelope on a 10 GB RTX 3080:
+        Qwen3-4B NF4 weights ~ 2.5 GB; with KV-cache + activations this
+        fits comfortably up to ~16K context at bfloat16 compute dtype.
+
+    Returns:
+        (model, tokenizer) — ``model`` is an ``AutoModelForCausalLM`` instance
+        with butterfly attention swapped in (if ``swap_butterfly``), placed in
+        eval mode. ``tokenizer`` is a ``bna.tokenizers.HFAutoTokenizer``.
+
+    Raises:
+        ImportError: if bitsandbytes / accelerate / transformers are missing.
+        RuntimeError: if CUDA is unavailable.
+    """
+    try:
+        import bitsandbytes  # noqa: F401
+        import accelerate  # noqa: F401
+        from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+    except ImportError as e:
+        raise ImportError("install with: pip install -e .[cuda4bit]") from e
+
+    if not torch.cuda.is_available():
+        raise RuntimeError(
+            "load_qwen_4bit_cuda requires CUDA; torch.cuda.is_available() is False."
+        )
+
+    compute_dtype = getattr(torch, str(torch_dtype))
+    if not isinstance(compute_dtype, torch.dtype):
+        raise ValueError(f"Invalid torch_dtype: {torch_dtype!r}")
+
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=compute_dtype,
+        bnb_4bit_use_double_quant=True,
+    )
+
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        quantization_config=bnb_config,
+        device_map=device_map,
+        attn_implementation=attn_implementation,
+        trust_remote_code=trust_remote_code,
+    )
+
+    from bna.tokenizers import Qwen3TokenizerAdapter
+    tokenizer = Qwen3TokenizerAdapter(model_id)
+
+    if swap_butterfly:
+        cfg_kwargs = dict(butterfly_config or {})
+        layer_indices = cfg_kwargs.pop("layer_indices", None)
+        try:
+            cfg = QwenCUDAButterflyConfig(**cfg_kwargs) if cfg_kwargs else None
+            swap_qwen_attention_with_butterfly_cuda(
+                model, cfg, layer_indices=layer_indices
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Butterfly swap failed on {model_id}: {e!r}"
+            ) from e
+
+    model.eval()
+    return model, tokenizer

@@ -36,6 +36,43 @@ class GPTConfigTorch:
     edge_bias: bool = False
     compiled_graph_dir: Optional[str] = None
 
+    @classmethod
+    def tiny_150m(cls, vocab_size: int) -> "GPTConfigTorch":
+        """~150M-param GPT preset using the trainable wayfinder-permute path.
+
+        At ``vocab_size=151936`` (Qwen3) the parameter count is approximately:
+          embed   : 2 * 768 * 151936  ~= 233.4M  (token + pos, but pos is only 2048*768 = 1.6M)
+          attn    : 12 * 4 * 768^2     ~= 28.3M
+          mlp     : 12 * 8 * 768^2     ~= 56.6M
+          head    : 768 * 151936       ~= 116.7M
+        With pos embedding tiny (1.6M) and token+lm_head dominating the count
+        scales with vocab; the non-embedding "transformer core" is ~85M which
+        is the standard 150M-class budget.
+
+        Butterfly-specific kwargs (``butterfly_block_size``, ``partner_rule``,
+        ``local_window``, ``sink_count``) are NOT exposed by ``GPTConfigTorch``
+        today — they live inside ``build_block_butterfly_layout`` and are not
+        wired through ``WayfinderAttentionTorch``. We therefore use the
+        wayfinder-permute path with its accepted kwargs only.
+        """
+        return cls(
+            vocab_size=int(vocab_size),
+            seq_len=2048,
+            n_layers=12,
+            n_heads=12,
+            n_embd=768,
+            dropout=0.0,
+            attn="wayfinder_permute",
+            strategy="random",
+            window=128,
+            landmark_stride=128,
+            num_cycles=1,
+            routing_dim=None,
+            seed=0,
+            window_drop=0.0,
+            edge_bias=False,
+        )
+
 
 class MLPTorch(nn.Module):
     def __init__(self, n_embd: int, dropout: float = 0.0):

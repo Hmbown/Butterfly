@@ -26,7 +26,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 
@@ -553,10 +553,11 @@ def main() -> None:
         "--path",
         type=str,
         default="sparse",
-        choices=["permute", "sparse", "block_sparse"],
+        choices=["permute", "sparse", "compressed_butterfly", "block_sparse"],
         help="Butterfly path: `sparse` uses the full HCSA graph; "
         "`permute` uses the cycle-window surrogate; "
-        "`block_sparse` uses flex-attention over a static block layout.",
+        "`compressed_butterfly` uses exact local tokens plus compressed routed block summaries. "
+        "`block_sparse` remains a legacy raw-block alias.",
     )
     p.add_argument(
         "--engine",
@@ -596,7 +597,7 @@ def main() -> None:
         "--block-partner-rule",
         type=str,
         default="xor",
-        choices=["xor", "bit_reversal", "benes"],
+        choices=["xor", "bit_reversal", "benes", "causal_shift"],
         help="Deterministic partner rule used by the Butterfly block topology.",
     )
     p.add_argument(
@@ -605,6 +606,19 @@ def main() -> None:
         default=0,
         help="SDPA block chunk size (0 = all at once). "
         "Reduces peak memory at the cost of more kernel launches.",
+    )
+    p.add_argument(
+        "--compressed-local-window-tokens",
+        type=int,
+        default=128,
+        help="Exact raw-token sliding window used by compressed Butterfly (default: 128).",
+    )
+    p.add_argument(
+        "--block-compression",
+        type=str,
+        default="none",
+        choices=["none", "mean"],
+        help=argparse.SUPPRESS,
     )
     p.add_argument(
         "--seed", type=int, default=0, help="Seed forwarded to the Hamiltonian graph strategy."
@@ -731,6 +745,13 @@ def main() -> None:
         help="Path to save results (ndjson). Default: auto-generated.",
     )
     args = p.parse_args()
+    public_path = str(args.path)
+    butterfly_path = "block_sparse" if public_path == "compressed_butterfly" else public_path
+    block_compression = "mean" if public_path == "compressed_butterfly" else str(args.block_compression)
+    if block_compression != "none" and butterfly_path != "block_sparse":
+        raise SystemExit("--block-compression is only valid for compressed Butterfly/block topology.")
+    if block_compression == "mean":
+        args.engine = "sdpa"
 
     import transformers as transformers_module
     from transformers import AutoConfig, AutoTokenizer
@@ -772,7 +793,7 @@ def main() -> None:
 
     arch_diag = get_cuda_arch_support_diagnostics(0 if torch.cuda.is_available() else None)
     if (
-        args.path == "permute"
+        butterfly_path == "permute"
         and args.engine == "flex"
         and torch.cuda.is_available()
         and not arch_diag["exact_match"]
@@ -781,12 +802,12 @@ def main() -> None:
         if not args.allow_unsupported_arch:
             raise SystemExit(message)
         _log(f"WARNING: {message}")
-    if args.path == "block_sparse" and args.engine not in {"auto", "flex", "sdpa", "triton"}:
+    if butterfly_path == "block_sparse" and args.engine not in {"auto", "flex", "sdpa", "triton"}:
         raise SystemExit(
-            f"`--path {args.path}` supports only `--engine auto`, `--engine flex`, `--engine sdpa`, or `--engine triton`."
+            f"`--path {public_path}` supports only `--engine auto`, `--engine flex`, `--engine sdpa`, or `--engine triton`."
         )
     if (
-        args.path == "block_sparse"
+        butterfly_path == "block_sparse"
         and args.engine in {"auto", "flex"}
         and torch.cuda.is_available()
         and not arch_diag["exact_match"]
@@ -802,7 +823,7 @@ def main() -> None:
         elif args.engine == "auto":
             if args.allow_unsupported_arch:
                 _log(
-                    f"Auto-selecting `--engine triton` for `--path {args.path}` on unsupported arch."
+                    f"Auto-selecting `--engine triton` for `--path {public_path}` on unsupported arch."
                 )
                 args.engine = "triton"
             else:
@@ -814,18 +835,18 @@ def main() -> None:
                     _triton_ok = False
                 if _triton_ok:
                     _log(
-                        f"Auto-selecting `--engine triton` for `--path {args.path}` on unsupported arch."
+                        f"Auto-selecting `--engine triton` for `--path {public_path}` on unsupported arch."
                     )
                     args.engine = "triton"
                 else:
                     _log(
-                        f"Auto-selecting `--engine sdpa` for `--path {args.path}` on unsupported arch (sm_121)."
+                        f"Auto-selecting `--engine sdpa` for `--path {public_path}` on unsupported arch (sm_121)."
                     )
                     args.engine = "sdpa"
-    if args.path == "sparse" and args.engine != "auto":
+    if butterfly_path == "sparse" and args.engine != "auto":
         _log("Note: --engine is ignored for --path sparse.")
     _guard_unsupported_flex_longrun(
-        path=args.path,
+        path=butterfly_path,
         engine=args.engine,
         arch_diag=arch_diag,
         requested_seq_len=max(int(seq_len) for seq_len in args.seq_lens) if args.seq_lens else None,
@@ -878,7 +899,8 @@ def main() -> None:
         "landmark_stride": args.landmark_stride,
         "num_cycles": args.num_cycles,
         "strategy": args.strategy,
-        "path": args.path,
+        "path": public_path,
+        "butterfly_internal_path": butterfly_path,
         "block_size": int(args.block_size),
         "block_sparse_topology": "butterfly",
         "block_local_window_blocks": int(args.block_local_window_blocks),
@@ -886,6 +908,8 @@ def main() -> None:
         "block_sink_blocks": int(args.block_sink_blocks),
         "block_partner_rule": args.block_partner_rule,
         "block_chunk_size": int(args.block_chunk_size),
+        "block_compression": block_compression,
+        "compressed_local_window_tokens": int(args.compressed_local_window_tokens),
         "seed": args.seed,
         "engine": args.engine,
         "compute_graph_metrics": bool(args.compute_graph_metrics),
@@ -960,7 +984,7 @@ def main() -> None:
         model_hf_device_map_head = _hf_device_map_head(model)
 
         wayfinder_cfg = QwenCUDAWayfinderConfig(
-            path=args.path,
+            path=butterfly_path,
             strategy=args.strategy,
             window=args.window,
             landmark_stride=args.landmark_stride if args.landmark_stride > 0 else None,
@@ -984,11 +1008,13 @@ def main() -> None:
             block_sink_blocks=int(args.block_sink_blocks),
             block_partner_rule=args.block_partner_rule,
             block_chunk_size=int(args.block_chunk_size),
+            block_compression=block_compression,
+            compressed_local_window_tokens=int(args.compressed_local_window_tokens),
         )
 
         # ── Phase 1: Butterfly ───────────────────────────────────────────
         if "butterfly" in requested_phases:
-            _log(f"\n═══ Phase 1: Butterfly ({args.path}, {args.strategy}) ═══")
+            _log(f"\n═══ Phase 1: Butterfly ({public_path}, {args.strategy}) ═══")
             replaced = swap_qwen_attention_with_wayfinder_cuda(model, wayfinder_cfg)
             bench_wf = _get_forward_module(model, args.forward_target)
             wf_residency = (
@@ -1040,7 +1066,8 @@ def main() -> None:
                     result["landmark_stride"] = args.landmark_stride
                     result["num_cycles"] = args.num_cycles
                     result["strategy"] = args.strategy
-                    result["path"] = args.path
+                    result["path"] = public_path
+                    result["butterfly_internal_path"] = butterfly_path
                     result["block_size"] = int(args.block_size)
                     result["block_sparse_topology"] = "butterfly"
                     result["block_local_window_blocks"] = int(args.block_local_window_blocks)
@@ -1293,7 +1320,8 @@ def main() -> None:
                         "l2_relative": round(l2_rel, 6),
                         "top1_agreement": round(top1_agree, 4),
                         "strategy": args.strategy,
-                        "path": args.path,
+                        "path": public_path,
+                        "butterfly_internal_path": butterfly_path,
                         "block_size": int(args.block_size),
                         "seed": args.seed,
                         "compute_graph_metrics": bool(args.compute_graph_metrics),
@@ -1317,7 +1345,8 @@ def main() -> None:
                         "seq_len": divergence_t,
                         "error": str(e),
                         "strategy": args.strategy,
-                        "path": args.path,
+                        "path": public_path,
+                        "butterfly_internal_path": butterfly_path,
                         "block_size": int(args.block_size),
                         "seed": args.seed,
                         "compute_graph_metrics": bool(args.compute_graph_metrics),

@@ -17,8 +17,14 @@ from bna.graph.abi import WayfinderGraphABI, graph_metrics, validate_graph_abi
 from bna.graph.analysis import expansion_proxy, spectral_gap
 from bna.mlx.attention import (
     AttentionProfile,
+    BlockSparseButterflyLayout,
+    block_sparse_butterfly_attention,
+    block_sparse_butterfly_attention_active,
+    build_block_butterfly_layout,
     butterfly_permute_window_attention_active_batched,
     butterfly_permute_window_attention_batched,
+    compressed_butterfly_attention,
+    compressed_butterfly_attention_active,
     sparse_gather_attention_active,
     sparse_gather_attention,
     stable_masked_softmax,
@@ -29,6 +35,7 @@ from bna.mlx.graph_abi import (
     safe_neighbor_idx,
     to_mlx_graph_abi,
 )
+from bna.topology.butterfly import butterfly_stage_meta
 from bna.topology import Topology
 
 
@@ -40,7 +47,7 @@ EXPECTED_QWEN35_FULL_ATTENTION_LAYERS: tuple[int, ...] = (3, 7, 11, 15, 19, 23, 
 
 @dataclass
 class QwenButterflyConfig:
-    path: Literal["sparse", "permute"] = "permute"
+    path: Literal["sparse", "permute", "block_sparse"] = "permute"
     strategy: Literal["random", "greedy", "online_insertion", "regular_partition"] = "random"
     window: int = 64
     landmark_stride: Optional[int] = 64
@@ -52,6 +59,13 @@ class QwenButterflyConfig:
     edge_bias: bool = True
     window_drop: float = 0.0
     compiled_graph_dir: Optional[str] = None
+    block_size: int = 128
+    block_local_window_blocks: int = 1
+    block_partner_count: int = 1
+    block_sink_blocks: int = 1
+    block_partner_rule: Literal["xor", "bit_reversal", "benes", "causal_shift"] = "xor"
+    block_compression: Literal["none", "mean"] = "none"
+    compressed_local_window_tokens: int = 128
     permute_head_chunk_size: int = 8
     query_chunk_size: int = 256
     permute_stream_o_proj: bool = False
@@ -78,11 +92,41 @@ class QwenButterflyConfig:
     def butterfly_decode_backend(self, value: Literal["active_permute", "dense"]) -> None:
         self.wayfinder_decode_backend = value
 
+    def __post_init__(self) -> None:
+        if self.path not in {"sparse", "permute", "block_sparse"}:
+            raise ValueError(f"Unsupported Butterfly path: {self.path!r}")
+        if self.strategy not in {"random", "greedy", "online_insertion", "regular_partition"}:
+            raise ValueError(f"Unsupported Butterfly strategy: {self.strategy!r}")
+        if int(self.window) < 0:
+            raise ValueError("window must be >= 0")
+        if self.num_cycles != "auto" and int(self.num_cycles) <= 0:
+            raise ValueError("num_cycles must be > 0 or 'auto'")
+        if int(self.block_size) <= 0:
+            raise ValueError("block_size must be > 0")
+        if int(self.block_local_window_blocks) < 0:
+            raise ValueError("block_local_window_blocks must be >= 0")
+        if int(self.block_partner_count) < 0:
+            raise ValueError("block_partner_count must be >= 0")
+        if int(self.block_sink_blocks) < 0:
+            raise ValueError("block_sink_blocks must be >= 0")
+        if self.block_partner_rule not in {"xor", "bit_reversal", "benes", "causal_shift"}:
+            raise ValueError(f"Unsupported block_partner_rule: {self.block_partner_rule!r}")
+        if self.block_compression not in {"none", "mean"}:
+            raise ValueError(f"Unsupported block_compression: {self.block_compression!r}")
+        if int(self.compressed_local_window_tokens) <= 0:
+            raise ValueError("compressed_local_window_tokens must be > 0")
+        if self.path == "block_sparse" and self.strategy in {"greedy", "online_insertion"}:
+            raise ValueError(
+                "block_sparse supports only static strategies "
+                "('random', 'regular_partition')"
+            )
+
 
 @dataclass(frozen=True)
 class _QwenGraphCache:
     mlx_graph: MLXGraphABI
     numpy_abi: Optional[WayfinderGraphABI]
+    block_layout: Optional[BlockSparseButterflyLayout]
     safe_idx: mx.array
     causal_mask: mx.array
     perm_mx: List[mx.array]
@@ -294,6 +338,7 @@ class _QwenGraphRuntime:
         self,
         *,
         n_heads: int,
+        n_kv_heads: int,
         window: int,
         landmark_stride: Optional[int],
         strategy: str,
@@ -308,8 +353,17 @@ class _QwenGraphRuntime:
         store_numpy_abi: bool,
         store_graph_tensors: bool,
         enforce_hamiltonian: bool = True,
+        layer_idx: int = 0,
+        block_size: int = 128,
+        block_local_window_blocks: int = 1,
+        block_partner_count: int = 1,
+        block_sink_blocks: int = 1,
+        block_partner_rule: str = "xor",
+        block_compression: str = "none",
+        compressed_local_window_tokens: int = 128,
     ):
         self.n_heads = int(n_heads)
+        self.n_kv_heads = int(n_kv_heads)
         self.window = int(window)
         self.landmark_stride = landmark_stride
         self.strategy = strategy
@@ -325,6 +379,14 @@ class _QwenGraphRuntime:
         self.store_numpy_abi = bool(store_numpy_abi)
         self.store_graph_tensors = bool(store_graph_tensors)
         self.enforce_hamiltonian = bool(enforce_hamiltonian)
+        self.layer_idx = int(layer_idx)
+        self.block_size = int(block_size)
+        self.block_local_window_blocks = int(block_local_window_blocks)
+        self.block_partner_count = int(block_partner_count)
+        self.block_sink_blocks = int(block_sink_blocks)
+        self.block_partner_rule = str(block_partner_rule)
+        self.block_compression = str(block_compression)
+        self.compressed_local_window_tokens = int(compressed_local_window_tokens)
         self.topology = Topology(
             n_heads=self.n_heads,
             strategy=self.strategy,
@@ -339,6 +401,8 @@ class _QwenGraphRuntime:
 
     @property
     def cache_mode(self) -> str:
+        if self.path == "block_sparse":
+            return "static"
         return self.topology.cache_mode
 
     def _resolve_and_sync_num_cycles(self, T: int) -> None:
@@ -363,6 +427,29 @@ class _QwenGraphRuntime:
             )
 
     def cache_key(self, T: int) -> tuple:
+        if self.path == "block_sparse":
+            num_blocks = (int(T) + int(self.block_size) - 1) // int(self.block_size)
+            stage_idx, stage_count = butterfly_stage_meta(
+                num_blocks=int(num_blocks),
+                layer_idx=int(self.layer_idx),
+                partner_rule=self.block_partner_rule,
+            )
+            return (
+                int(self.n_heads),
+                int(self.n_kv_heads),
+                int(T),
+                self.path,
+                int(self.block_size),
+                int(self.block_local_window_blocks),
+                int(self.block_partner_count),
+                int(self.block_sink_blocks),
+                self.block_partner_rule,
+                self.block_compression,
+                int(self.compressed_local_window_tokens),
+                int(self.layer_idx),
+                int(stage_idx),
+                int(stage_count),
+            )
         return (
             int(self.n_heads),
             int(T),
@@ -378,7 +465,44 @@ class _QwenGraphRuntime:
             str(Path(self.compiled_graph_dir).resolve()) if self.compiled_graph_dir else None,
         )
 
-    def _build_graph_abi(self, T: int) -> Tuple[MLXGraphABI, WayfinderGraphABI]:
+    def _build_graph_abi(
+        self,
+        T: int,
+    ) -> Tuple[MLXGraphABI, Optional[WayfinderGraphABI], Optional[BlockSparseButterflyLayout]]:
+        if self.path == "block_sparse":
+            layout = build_block_butterfly_layout(
+                seq_len=int(T),
+                block_size=int(self.block_size),
+                num_key_value_heads=int(self.n_kv_heads),
+                num_key_value_groups=int(self.n_heads // max(1, self.n_kv_heads)),
+                layer_idx=int(self.layer_idx),
+                local_window_blocks=int(self.block_local_window_blocks),
+                sink_count=int(self.block_sink_blocks),
+                partner_count=int(self.block_partner_count),
+                partner_rule=self.block_partner_rule,
+            )
+            meta = {
+                "seq_len": int(T),
+                "block_size": int(layout.block_size),
+                "num_blocks": int(layout.num_blocks),
+                "block_sparse_topology": str(layout.topology_name),
+                "block_neighbor_blocks": int(layout.block_neighbors.shape[-1]),
+                "block_stage": int(layout.stage_idx),
+                "block_stage_count": int(layout.stage_count),
+                "block_local_window_blocks": int(layout.local_window_blocks),
+                "block_partner_count": int(layout.partner_count),
+                "block_partner_rule": str(layout.partner_rule),
+                "block_sink_blocks": [int(block_idx) for block_idx in layout.sink_blocks],
+                "block_compression": str(self.block_compression),
+                "compressed_local_window_tokens": int(self.compressed_local_window_tokens),
+            }
+            empty_graph = MLXGraphABI(
+                neigh_idx=mx.zeros((self.n_heads, int(T), 0), dtype=mx.int32),
+                edge_type=mx.zeros((self.n_heads, int(T), 0), dtype=mx.uint8),
+                meta=meta,
+            )
+            return empty_graph, None, layout
+
         self._resolve_and_sync_num_cycles(int(T))
         if self.strategy not in {"random", "regular_partition"}:
             raise ValueError(
@@ -397,7 +521,7 @@ class _QwenGraphRuntime:
             graph = self.topology.construct_perms_only(int(T))
             abi = graph.abi
             mlx_graph = to_mlx_graph_abi(abi, heads=self.n_heads, validate=False)
-            return mlx_graph, abi
+            return mlx_graph, abi, None
 
         abi = self.topology.construct({"T": int(T), "include_self": True}).abi
         if self.verify_spectral_gap:
@@ -441,21 +565,25 @@ class _QwenGraphRuntime:
                         stacklevel=2,
                     )
         mlx_graph = to_mlx_graph_abi(abi, heads=self.n_heads, validate=False)
-        return mlx_graph, abi
+        return mlx_graph, abi, None
 
     def _build_cache(
         self,
         mlx_graph: MLXGraphABI,
-        numpy_abi: WayfinderGraphABI,
+        numpy_abi: Optional[WayfinderGraphABI],
         T: int,
         *,
         cache_key: tuple,
         source: str = "runtime",
         artifact_dir: str | None = None,
+        block_layout: Optional[BlockSparseButterflyLayout] = None,
     ) -> _QwenGraphCache:
         if self.path == "sparse":
             s_idx = safe_neighbor_idx(mlx_graph.neigh_idx, T)
             c_mask = causal_neighbor_mask(mlx_graph.neigh_idx, T)
+        elif self.path == "block_sparse":
+            s_idx = mx.zeros((self.n_heads, T, 0), dtype=mx.int32)
+            c_mask = mx.zeros((self.n_heads, T, 0), dtype=mx.bool_)
         elif self.store_graph_tensors:
             # Permute path with diagnostics: precompute causal mask once
             # so _edge_utilization_proxy doesn't recompute every forward.
@@ -538,10 +666,16 @@ class _QwenGraphRuntime:
         persistent_bytes = _mx_nbytes(cache_graph.neigh_idx) + _mx_nbytes(cache_graph.edge_type)
         persistent_bytes += _mx_nbytes(s_idx) + _mx_nbytes(c_mask)
         persistent_bytes += _mx_nbytes(perm_stacked) + _mx_nbytes(inv_stacked)
+        if block_layout is not None:
+            persistent_bytes += _mx_nbytes(block_layout.block_neighbors)
+            persistent_bytes += _mx_nbytes(block_layout.block_mask)
+            persistent_bytes += _mx_nbytes(block_layout.block_token_idx)
+            persistent_bytes += _mx_nbytes(block_layout.block_causal_mask)
 
         return _QwenGraphCache(
             mlx_graph=cache_graph,
-            numpy_abi=numpy_abi if self.store_numpy_abi else None,
+            numpy_abi=numpy_abi if (self.store_numpy_abi and numpy_abi is not None) else None,
+            block_layout=block_layout,
             safe_idx=s_idx,
             causal_mask=c_mask,
             perm_mx=perm_mx_list,
@@ -555,6 +689,8 @@ class _QwenGraphRuntime:
         )
 
     def _load_compiled_cache(self, T: int, cache_key: tuple) -> _QwenGraphCache | None:
+        if self.path == "block_sparse":
+            return None
         if not self.compiled_graph_dir:
             return None
         art_dir = Path(self.compiled_graph_dir)
@@ -604,6 +740,7 @@ class _QwenGraphRuntime:
             cache_key=cache_key,
             source="compiled",
             artifact_dir=str(art_dir),
+            block_layout=None,
         )
 
     def get_or_build_cache(self, owner_id: int, T: int) -> tuple[_QwenGraphCache, bool]:
@@ -624,8 +761,15 @@ class _QwenGraphRuntime:
                 _QWEN_GRAPH_CACHE_BY_KEY[key] = compiled
             return compiled, False
 
-        mlx_graph, numpy_abi = self._build_graph_abi(T)
-        built = self._build_cache(mlx_graph, numpy_abi, T, cache_key=key, source="runtime")
+        mlx_graph, numpy_abi, block_layout = self._build_graph_abi(T)
+        built = self._build_cache(
+            mlx_graph,
+            numpy_abi,
+            T,
+            cache_key=key,
+            source="runtime",
+            block_layout=block_layout,
+        )
         if self.cache_mode == "static":
             _QWEN_GRAPH_CACHE_STORE[owner_id] = built
             _QWEN_GRAPH_CACHE_BY_KEY[key] = built
@@ -671,13 +815,24 @@ def _edge_utilization_proxy(
 class QwenButterflyAttention(nn.Module):
     """Qwen attention module with Butterfly sparse/permute backends."""
 
-    def __init__(self, base_attn: nn.Module, cfg: QwenButterflyConfig):
+    def __init__(
+        self,
+        base_attn: nn.Module,
+        cfg: QwenButterflyConfig,
+        *,
+        layer_idx: Optional[int] = None,
+    ):
         super().__init__()
 
         self.n_heads = _attn_num_heads(base_attn)
         self.n_kv_heads = _attn_num_kv_heads(base_attn)
         self.scale = _attn_scale(base_attn)
         self.head_dim = _attn_head_dim(base_attn, scale=self.scale)
+        self.layer_idx = (
+            int(layer_idx)
+            if layer_idx is not None
+            else int(getattr(base_attn, "layer_idx", 0) or 0)
+        )
 
         if hasattr(base_attn, "q_proj"):
             self.q_proj = base_attn.q_proj
@@ -716,6 +871,7 @@ class QwenButterflyAttention(nn.Module):
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
             n_heads=self.n_heads,
+            n_kv_heads=self.n_kv_heads,
             window=cfg.window,
             landmark_stride=cfg.landmark_stride,
             strategy=cfg.strategy,
@@ -733,7 +889,15 @@ class QwenButterflyAttention(nn.Module):
                 cfg.path == "sparse"
                 or cfg.compute_edge_utilization_proxy
                 or cfg.compute_graph_metrics
-            ),
+            ) and cfg.path != "block_sparse",
+            layer_idx=self.layer_idx,
+            block_size=cfg.block_size,
+            block_local_window_blocks=cfg.block_local_window_blocks,
+            block_partner_count=cfg.block_partner_count,
+            block_sink_blocks=cfg.block_sink_blocks,
+            block_partner_rule=cfg.block_partner_rule,
+            block_compression=cfg.block_compression,
+            compressed_local_window_tokens=cfg.compressed_local_window_tokens,
         )
 
         self._runtime_window_drop_override: Optional[float] = None
@@ -1000,9 +1164,14 @@ class QwenButterflyAttention(nn.Module):
         q_len = int(queries.shape[2])
         k_len = _cache_tensor_seq_len(keys, cache)
         quantized_kv_cache = not isinstance(keys, mx.array)
-        sparse_active_mode = (
-            self.path == "sparse" and cache is not None and q_len < k_len and not quantized_kv_cache
+        sparse_like_active_mode = (
+            self.path in {"sparse", "block_sparse"}
+            and cache is not None
+            and q_len < k_len
+            and not quantized_kv_cache
         )
+        sparse_active_mode = self.path == "sparse" and sparse_like_active_mode
+        block_sparse_active_mode = self.path == "block_sparse" and sparse_like_active_mode
         active_mode = (
             self.path == "permute" and cache is not None and q_len < k_len and not quantized_kv_cache
         )
@@ -1017,9 +1186,10 @@ class QwenButterflyAttention(nn.Module):
             quantized_kv_cache and cache is not None and q_len < k_len
         )
         force_dense_butterfly_decode = (
-            active_mode
+            cache is not None
+            and q_len < k_len
             and q_len <= 2
-            and self.path == "permute"
+            and self.path in {"permute", "block_sparse"}
             and self.butterfly_decode_backend == "dense"
         )
         use_active_permute = active_mode and not (force_dense_active or force_dense_large_active)
@@ -1029,7 +1199,7 @@ class QwenButterflyAttention(nn.Module):
         # During incremental decode, Q length != K length. Keep dense path for correctness.
         if force_dense_quantized_kv or force_dense_active or force_dense_large_active or (
             force_dense_butterfly_decode
-            or (q_len != k_len and not (use_active_permute or sparse_active_mode))
+            or (q_len != k_len and not (use_active_permute or sparse_like_active_mode))
         ):
             fallback_reason = (
                 "quantized_kv_cache"
@@ -1068,7 +1238,7 @@ class QwenButterflyAttention(nn.Module):
                     "cache_hit": True,
                     "cache_source": "dense_fallback",
                     "q_len": int(q_len),
-                    "active_query_mode": bool(active_mode or sparse_active_mode),
+                    "active_query_mode": bool(active_mode or sparse_like_active_mode),
                     "dense_fallback_reason": str(fallback_reason),
                     "active_dense_threshold": self.active_dense_threshold,
                     "active_dense_triggered": bool(force_dense_active),
@@ -1080,6 +1250,7 @@ class QwenButterflyAttention(nn.Module):
                     "wayfinder_decode_backend": self.butterfly_decode_backend,
                     "adaptive_graph_reuse": bool(int(fallback_graph_seq_len) != int(k_len)),
                     "sparse_active_mode": bool(sparse_active_mode),
+                    "block_sparse_active_mode": bool(block_sparse_active_mode),
                 },
             )
             return out
@@ -1109,6 +1280,10 @@ class QwenButterflyAttention(nn.Module):
             self.last_graph_abi = graph_cache.numpy_abi
             if self.compute_graph_metrics:
                 self.last_graph_metrics = graph_metrics(graph_cache.numpy_abi)
+        elif graph_cache.numpy_abi is None and self.path == "block_sparse":
+            self.last_graph_abi = None
+            if self.compute_graph_metrics:
+                self.last_graph_metrics = {}
 
         is_training = bool(self.training)
         effective_window_drop = (
@@ -1145,6 +1320,7 @@ class QwenButterflyAttention(nn.Module):
         t_attn0 = _now_ms()
         permute_ms = 0.0
         out_stream: Optional[mx.array] = None
+        keep_mask = mx.zeros((self.n_heads, T, 0), dtype=mx.bool_)
         if self.path == "sparse":
             keys_q = _repeat_kv_to_q_heads(keys, self.n_heads)
             values_q = _repeat_kv_to_q_heads(values, self.n_heads)
@@ -1187,6 +1363,54 @@ class QwenButterflyAttention(nn.Module):
                     if wd_mask is None
                     else (graph_cache.causal_mask & wd_mask)
                 )
+        elif self.path == "block_sparse":
+            if graph_cache.block_layout is None:
+                raise RuntimeError("block_sparse path requires a cached block layout")
+            keys_q = _repeat_kv_to_q_heads(keys, self.n_heads)
+            values_q = _repeat_kv_to_q_heads(values, self.n_heads)
+            if block_sparse_active_mode:
+                sparse_active_positions = mx.arange(T - q_len, T, dtype=mx.int32)
+                if self.graph_runtime.block_compression == "mean":
+                    y_h, _w = compressed_butterfly_attention_active(
+                        queries,
+                        keys_q,
+                        values_q,
+                        layout=graph_cache.block_layout,
+                        query_positions=sparse_active_positions,
+                        local_window_tokens=int(self.graph_runtime.compressed_local_window_tokens),
+                        return_weights=False,
+                        scale=self.scale,
+                    )
+                else:
+                    y_h, _w = block_sparse_butterfly_attention_active(
+                        queries,
+                        keys_q,
+                        values_q,
+                        layout=graph_cache.block_layout,
+                        query_positions=sparse_active_positions,
+                        return_weights=False,
+                        scale=self.scale,
+                    )
+            else:
+                if self.graph_runtime.block_compression == "mean":
+                    y_h, _w = compressed_butterfly_attention(
+                        queries,
+                        keys_q,
+                        values_q,
+                        layout=graph_cache.block_layout,
+                        local_window_tokens=int(self.graph_runtime.compressed_local_window_tokens),
+                        return_weights=False,
+                        scale=self.scale,
+                    )
+                else:
+                    y_h, _w = block_sparse_butterfly_attention(
+                        queries,
+                        keys_q,
+                        values_q,
+                        layout=graph_cache.block_layout,
+                        return_weights=False,
+                        scale=self.scale,
+                    )
         elif self.path == "permute":
             h_chunk_eff, q_chunk_eff = self._effective_permute_chunking(T)
             streamable = self.permute_stream_o_proj and h_chunk_eff == 1 and not use_active_permute
@@ -1288,7 +1512,7 @@ class QwenButterflyAttention(nn.Module):
             raise ValueError(f"Unknown path: {self.path}")
         attn_ms = _now_ms() - t_attn0
 
-        if self.compute_edge_utilization_proxy:
+        if self.compute_edge_utilization_proxy and self.path != "block_sparse":
             edge_type = graph_cache.mlx_graph.edge_type
             if sparse_active_positions is not None:
                 edge_type = mx.take(edge_type, sparse_active_positions, axis=1)
@@ -1298,6 +1522,13 @@ class QwenButterflyAttention(nn.Module):
                 edge_type,
                 keep_mask,
             )
+        elif self.path == "block_sparse":
+            self.last_edge_utilization_proxy = {
+                "cycle": 0.0,
+                "window": 0.0,
+                "landmark": 0.0,
+                "rewire": 0.0,
+            }
 
         if out_stream is not None:
             out = out_stream
@@ -1316,7 +1547,11 @@ class QwenButterflyAttention(nn.Module):
             notes={
                 "seq_len": int(T),
                 "graph_seq_len": int(graph_T),
-                "max_degree": int(graph_cache.mlx_graph.neigh_idx.shape[-1]),
+                "max_degree": (
+                    int(graph_cache.block_layout.block_neighbors.shape[-1] * graph_cache.block_layout.block_size)
+                    if graph_cache.block_layout is not None
+                    else int(graph_cache.mlx_graph.neigh_idx.shape[-1])
+                ),
                 "cache_hit": bool(cache_hit),
                 "cache_mode": self.graph_runtime.cache_mode,
                 "cache_source": graph_cache.source,
@@ -1325,7 +1560,7 @@ class QwenButterflyAttention(nn.Module):
                 "permute_head_chunk_effective": int(h_chunk_eff) if self.path == "permute" else None,
                 "permute_query_chunk_effective": int(q_chunk_eff) if self.path == "permute" else None,
                 "q_len": int(q_len),
-                "active_query_mode": bool(use_active_permute or sparse_active_mode),
+                "active_query_mode": bool(use_active_permute or sparse_like_active_mode),
                 "dense_fallback_reason": None,
                 "active_dense_triggered": False,
                 "active_large_q_dense_triggered": bool(force_dense_large_active),
@@ -1336,6 +1571,43 @@ class QwenButterflyAttention(nn.Module):
                 "wayfinder_decode_backend": self.butterfly_decode_backend,
                 "adaptive_graph_reuse": bool(use_active_permute and graph_T != T),
                 "sparse_active_mode": bool(sparse_active_mode),
+                "block_sparse_active_mode": bool(block_sparse_active_mode),
+                "block_sparse_topology": (
+                    None if graph_cache.block_layout is None else str(graph_cache.block_layout.topology_name)
+                ),
+                "block_sparse_block_size": (
+                    None if graph_cache.block_layout is None else int(graph_cache.block_layout.block_size)
+                ),
+                "block_sparse_num_blocks": (
+                    None if graph_cache.block_layout is None else int(graph_cache.block_layout.num_blocks)
+                ),
+                "block_sparse_neighbor_blocks": (
+                    None
+                    if graph_cache.block_layout is None
+                    else int(graph_cache.block_layout.block_neighbors.shape[-1])
+                ),
+                "block_sparse_stage": (
+                    None if graph_cache.block_layout is None else int(graph_cache.block_layout.stage_idx)
+                ),
+                "block_sparse_stage_count": (
+                    None if graph_cache.block_layout is None else int(graph_cache.block_layout.stage_count)
+                ),
+                "block_partner_rule": (
+                    None if graph_cache.block_layout is None else str(graph_cache.block_layout.partner_rule)
+                ),
+                "butterfly_variant": (
+                    "compressed"
+                    if self.path == "block_sparse" and self.graph_runtime.block_compression == "mean"
+                    else self.path
+                ),
+                "block_compression": (
+                    None if self.path != "block_sparse" else str(self.graph_runtime.block_compression)
+                ),
+                "compressed_local_window_tokens": (
+                    None
+                    if self.path != "block_sparse" or self.graph_runtime.block_compression == "none"
+                    else int(self.graph_runtime.compressed_local_window_tokens)
+                ),
             },
         )
         return out
@@ -1363,7 +1635,7 @@ def swap_qwen_attention_with_butterfly(
         base_attn = getattr(layer, "self_attn", None)
         if base_attn is None:
             continue
-        layer.self_attn = QwenButterflyAttention(base_attn, cfg)
+        layer.self_attn = QwenButterflyAttention(base_attn, cfg, layer_idx=i)
         replaced.append(i)
     return replaced
 

@@ -5,7 +5,7 @@ Tests the core graph-theoretic properties that make the mechanism interesting:
 - self-inclusion and sink-inclusion
 - bounded degree
 - global reachability across layers via the staged partner schedule
-- correctness of all three partner rules (xor, bit_reversal, benes)
+- correctness of partner rules (xor, bit_reversal, benes, causal_shift)
 - edge cases with non-power-of-2 block counts
 
 All tests are CPU-only and instant.
@@ -33,6 +33,8 @@ from bna.torch.attention_wayfinder_permute import (
     build_block_butterfly_layout,
     build_block_wayfinder_layout as legacy_build_block_layout,
 )
+
+PARTNER_RULES = ["xor", "bit_reversal", "benes", "causal_shift"]
 
 
 # ---------------------------------------------------------------------------
@@ -72,7 +74,7 @@ def _build(
 # 1. Causality
 # ===================================================================
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 @pytest.mark.parametrize("num_blocks", [8, 16, 32, 17, 33])
 def test_all_neighbors_are_causal(partner_rule: str, num_blocks: int) -> None:
     """Every block must only attend to blocks at or before itself."""
@@ -91,7 +93,7 @@ def test_all_neighbors_are_causal(partner_rule: str, num_blocks: int) -> None:
 # 2. Self-inclusion and sink-inclusion
 # ===================================================================
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_self_always_in_support(partner_rule: str) -> None:
     """Every block must attend to itself."""
     layout = _build(16, partner_rule=partner_rule)
@@ -100,7 +102,7 @@ def test_self_always_in_support(partner_rule: str) -> None:
         assert block_idx in neighbors, f"Block {block_idx} missing self-attention"
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_sink_blocks_in_support(partner_rule: str) -> None:
     """Sink blocks must appear in every non-zero block's support."""
     layout = _build(16, sink_count=2, partner_rule=partner_rule)
@@ -115,7 +117,7 @@ def test_sink_blocks_in_support(partner_rule: str) -> None:
 # 3. Degree regularity
 # ===================================================================
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_degree_bounded(partner_rule: str) -> None:
     """Per-block degree should be bounded: self + local + partners + sinks."""
     local_w = 2
@@ -190,7 +192,7 @@ def _reachability_after_layers(
     return reachable
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_global_reachability_in_log_n_layers(partner_rule: str) -> None:
     """After O(log n) layers, every block should be able to reach all causally-prior blocks.
 
@@ -214,7 +216,7 @@ def test_global_reachability_in_log_n_layers(partner_rule: str) -> None:
     )
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 @pytest.mark.parametrize("num_blocks", [16, 32, 33, 64])
 def test_all_blocks_reach_full_prefix_in_two_log_layers(
     partner_rule: str,
@@ -246,7 +248,7 @@ def test_all_blocks_reach_full_prefix_in_two_log_layers(
         )
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_reachability_diameter_bounded(partner_rule: str) -> None:
     """Measure the actual diameter: fewest layers needed for full causal reachability."""
     num_blocks = 16
@@ -267,7 +269,7 @@ def test_reachability_diameter_bounded(partner_rule: str) -> None:
     pytest.fail(f"Block {num_blocks - 1} never reached full reachability with {partner_rule}")
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_reachability_with_two_partners(partner_rule: str) -> None:
     """Two partners per block should achieve full reachability faster."""
     num_blocks = 32
@@ -291,11 +293,10 @@ def test_reachability_with_two_partners(partner_rule: str) -> None:
 # 5. Stage schedule correctness
 # ===================================================================
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_stage_covers_all_bits(partner_rule: str) -> None:
     """Cycling through all layers should touch every stage exactly once per period."""
     num_blocks = 16
-    width = butterfly_width(num_blocks)
     _stage_idx_0, stage_count = butterfly_stage_meta(
         num_blocks=num_blocks, layer_idx=0, partner_rule=partner_rule,
     )
@@ -317,6 +318,7 @@ def test_stage_count_xor() -> None:
     assert butterfly_stage_meta(num_blocks=16, layer_idx=0, partner_rule="xor") == (0, 4)
     assert butterfly_stage_meta(num_blocks=8, layer_idx=0, partner_rule="xor") == (0, 3)
     assert butterfly_stage_meta(num_blocks=32, layer_idx=0, partner_rule="xor") == (0, 5)
+    assert butterfly_stage_meta(num_blocks=32, layer_idx=0, partner_rule="causal_shift") == (0, 5)
 
 
 def test_stage_count_benes() -> None:
@@ -326,7 +328,7 @@ def test_stage_count_benes() -> None:
     assert count == 2 * width - 2  # 6
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 def test_legacy_wayfinder_aliases_match_public_butterfly_api(partner_rule: str) -> None:
     """Legacy _wayfinder_* / _ceil_log2 / _bit_reverse aliases must stay in sync."""
     num_blocks = 33
@@ -449,6 +451,25 @@ def test_benes_partner_matches_xor_for_forward_half() -> None:
         )
 
 
+def test_causal_shift_partner_is_power_of_two_predecessor() -> None:
+    """The causal_shift rule never drops a stage edge unless the predecessor is negative."""
+    width = butterfly_width(33)
+    for block_idx in range(33):
+        for bit_idx in range(width):
+            partner = butterfly_partner_block(
+                block_idx=block_idx,
+                bit_idx=bit_idx,
+                num_blocks=33,
+                partner_rule="causal_shift",
+                width=width,
+            )
+            expected = block_idx - (1 << bit_idx)
+            if expected < 0:
+                assert partner is None
+            else:
+                assert partner == expected
+
+
 # ===================================================================
 # 7. Non-power-of-2 edge cases
 # ===================================================================
@@ -503,13 +524,14 @@ def test_gqa_heads_share_kv_pattern() -> None:
 # 9. Wider-N support coverage (including non-powers-of-2)
 # ===================================================================
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 @pytest.mark.parametrize("num_blocks", [33, 65, 100, 129, 200, 255, 257])
-def test_wider_n_support_coverage_at_log_depth(partner_rule: str, num_blocks: int) -> None:
-    """Verify full support coverage at depth ceil(log2(N)) for wider range including non-powers-of-2.
+def test_wider_n_support_coverage_at_two_log_depth(partner_rule: str, num_blocks: int) -> None:
+    """Verify full support within O(log N) for wider non-power-of-two cases.
 
-    This extends the empirical basis beyond the original powers-of-2 matrix (32, 64, 128, 256)
-    toward a more general claim. Note: this is still empirical, not a formal proof.
+    This extends the empirical basis beyond the original powers-of-two matrix.
+    The legacy causal-filtered rules use a 2 * ceil(log2 N) horizon here; the
+    exact ceil(log2 N) all-row theorem is tested separately for causal_shift.
     """
     width = butterfly_width(num_blocks)
     # Give it 2x the theoretical minimum to account for causality filtering
@@ -530,6 +552,28 @@ def test_wider_n_support_coverage_at_log_depth(partner_rule: str, num_blocks: in
         assert reachable[block_idx] >= expected_prefix, (
             f"Block {block_idx} misses causal-prefix coverage after {num_layers} "
             f"layers with {partner_rule} and N={num_blocks}. Missing: "
+            f"{expected_prefix - reachable[block_idx]}"
+        )
+
+
+@pytest.mark.parametrize("num_blocks", [16, 32, 33, 64, 65, 100, 129, 200, 255, 257])
+def test_causal_shift_all_blocks_reach_full_prefix_at_log_depth(num_blocks: int) -> None:
+    """causal_shift gives the clean prefix-scan contract at exactly ceil(log2 N) layers."""
+    width = butterfly_width(num_blocks)
+    reachable = _reachability_after_layers(
+        num_blocks,
+        width,
+        partner_rule="causal_shift",
+        partner_count=1,
+        local_window_blocks=1,
+        sink_count=1,
+    )
+
+    for block_idx in range(num_blocks):
+        expected_prefix = set(range(block_idx + 1))
+        assert reachable[block_idx] >= expected_prefix, (
+            f"Block {block_idx} misses causal-prefix coverage after {width} "
+            f"layers with causal_shift and N={num_blocks}. Missing: "
             f"{expected_prefix - reachable[block_idx]}"
         )
 

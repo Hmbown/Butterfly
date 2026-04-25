@@ -1,0 +1,128 @@
+{
+  "created_at": "2026-04-10T22:25:49.160295+00:00",
+  "mode": "butterfly",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "butterfly_config": {
+    "path": "permute",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true
+  },
+  "wayfinder_config": {
+    "path": "permute",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "wayfinder_decode_backend": "stock"
+  },
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_count": 8,
+    "debug_override_layer_indices": null,
+    "config": {
+      "path": "permute",
+      "window": 64,
+      "landmark_stride": null,
+      "num_cycles": 1,
+      "prefill_chunk_size": 384,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "butterfly_decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true
+    }
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 2.107462750005652,
+      "ttft_sec": 0.012107624992495403,
+      "decode_tok_s": 89.75432200178659,
+      "e2e_sec": 2.820520334003959,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 48,
+        "butterfly_stock_fallback": 512
+      },
+      "stock_fallback_share_run": 0.9142857142857143,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 8.779806999998982,
+      "ttft_sec": 0.012992415999178775,
+      "decode_tok_s": 80.91560221538857,
+      "e2e_sec": 9.570754583008238,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 176,
+        "butterfly_stock_fallback": 512
+      },
+      "stock_fallback_share_run": 0.7441860465116279,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    }
+  ]
+}

@@ -1,0 +1,238 @@
+{
+  "created_at": "2026-04-10T22:55:18.163437+00:00",
+  "mode": "butterfly",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "butterfly_config": {
+    "path": "permute",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true
+  },
+  "wayfinder_config": {
+    "path": "permute",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "wayfinder_decode_backend": "stock"
+  },
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_count": 6,
+    "debug_override_layer_indices": null,
+    "config": {
+      "path": "permute",
+      "window": 64,
+      "landmark_stride": null,
+      "num_cycles": 1,
+      "prefill_chunk_size": 384,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "butterfly_decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true
+    }
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 0.9422691250074422,
+      "ttft_sec": 0.006986667009186931,
+      "decode_tok_s": 159.54619080385953,
+      "e2e_sec": 1.3434068750066217,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 36,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.9142857142857143,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 1.1529666669957805,
+      "ttft_sec": 0.007493083001463674,
+      "decode_tok_s": 161.41620891364624,
+      "e2e_sec": 1.5494572080060607,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 36,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.9142857142857143,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 3.9147319159965264,
+      "ttft_sec": 0.007671125000342727,
+      "decode_tok_s": 149.33950822348436,
+      "e2e_sec": 4.343285623996053,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 132,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.7441860465116279,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 3.9413205000018934,
+      "ttft_sec": 0.007744000002276152,
+      "decode_tok_s": 150.79973920712428,
+      "e2e_sec": 4.365724416988087,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 132,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.7441860465116279,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 32768,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 16.208859542006394,
+      "ttft_sec": 0.011507375005749054,
+      "decode_tok_s": 128.24585808383245,
+      "e2e_sec": 16.707901000001584,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 516,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.4266666666666667,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 32768,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 16.088850707994425,
+      "ttft_sec": 0.00870670800213702,
+      "decode_tok_s": 122.75462325788932,
+      "e2e_sec": 16.610216000000946,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 516,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.4266666666666667,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 65536,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 33.44530054098868,
+      "ttft_sec": 0.016430749994469807,
+      "decode_tok_s": 100.82828196580421,
+      "e2e_sec": 34.08004308298405,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 1026,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.2723404255319149,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    },
+    {
+      "prompt_tokens": 65536,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 33.09817783300241,
+      "ttft_sec": 0.015382834011688828,
+      "decode_tok_s": 104.11552550493711,
+      "e2e_sec": 33.71287962401402,
+      "decode_backend": "stock",
+      "path_counts": {
+        "butterfly_attention": 1026,
+        "butterfly_stock_fallback": 384
+      },
+      "stock_fallback_share_run": 0.2723404255319149,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 1.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 1.0
+    }
+  ]
+}

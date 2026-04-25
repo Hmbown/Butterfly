@@ -1,0 +1,147 @@
+{
+  "created_at": "2026-04-10T22:49:28.365704+00:00",
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "butterfly_config": null,
+  "wayfinder_config": null,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 0.8740947500045877,
+      "ttft_sec": 0.008069625007919967,
+      "decode_tok_s": 168.64611753277,
+      "e2e_sec": 1.253587625004002,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 65
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 0.9340130409982521,
+      "ttft_sec": 0.007385832999716513,
+      "decode_tok_s": 160.08295979008813,
+      "e2e_sec": 1.333805749003659,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 65
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 3.8600312909984495,
+      "ttft_sec": 0.03297937499883119,
+      "decode_tok_s": 147.28773378184303,
+      "e2e_sec": 4.294554915992194,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 66
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 3.8446122919995105,
+      "ttft_sec": 0.025068833012483083,
+      "decode_tok_s": 151.05845680948704,
+      "e2e_sec": 4.268289333005669,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 66
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 32768,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 18.20601737499237,
+      "ttft_sec": 0.10228970799653325,
+      "decode_tok_s": 108.60378108587024,
+      "e2e_sec": 18.79531545798818,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 72
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 32768,
+      "decode_tokens": 64,
+      "repeat": 2,
+      "prefill_sec": 18.039042832999257,
+      "ttft_sec": 0.05224229099985678,
+      "decode_tok_s": 118.27458638144589,
+      "e2e_sec": 18.580156541007455,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 72
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    }
+  ]
+}

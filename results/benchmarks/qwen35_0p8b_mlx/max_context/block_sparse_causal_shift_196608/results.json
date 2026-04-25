@@ -1,0 +1,137 @@
+{
+  "created_at": "2026-04-23T22:52:37.130594+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode block_sparse --block-partner-rule causal_shift --butterfly-decode-backend stock --seq-lens 196608 --decode-len 8 --repeats 1 --chunk-size 384 --kv-step 384 --query-chunk-size 384 --block-size 128 --cooldown-sec 10 --stage-timeout-sec 900 --heartbeat-sec 30 --skip-multi-turn --skip-quality --out-dir results/benchmarks/qwen35_0p8b_mlx/max_context/block_sparse_causal_shift_196608",
+  "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "block_sparse",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "retro_backfill_enabled": false,
+  "butterfly_config": {
+    "path": "block_sparse",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "block_size": 128,
+    "block_local_window_blocks": 1,
+    "block_partner_count": 1,
+    "block_sink_blocks": 1,
+    "block_partner_rule": "causal_shift"
+  },
+  "wayfinder_config": {
+    "path": "block_sparse",
+    "window": 64,
+    "landmark_stride": null,
+    "num_cycles": 1,
+    "prefill_chunk_size": 384,
+    "head_chunk_size": 2,
+    "query_chunk_size": 384,
+    "decode_backend": "stock",
+    "butterfly_decode_backend": "stock",
+    "edge_disjoint": true,
+    "enforce_hamiltonian": true,
+    "fused_dispatch": true,
+    "block_size": 128,
+    "block_local_window_blocks": 1,
+    "block_partner_count": 1,
+    "block_sink_blocks": 1,
+    "block_partner_rule": "causal_shift",
+    "wayfinder_decode_backend": "stock"
+  },
+  "butterfly": {
+    "enabled": true,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_count": 6,
+    "debug_override_layer_indices": null,
+    "config": {
+      "path": "block_sparse",
+      "window": 64,
+      "landmark_stride": null,
+      "num_cycles": 1,
+      "prefill_chunk_size": 384,
+      "head_chunk_size": 2,
+      "query_chunk_size": 384,
+      "decode_backend": "stock",
+      "butterfly_decode_backend": "stock",
+      "edge_disjoint": true,
+      "enforce_hamiltonian": true,
+      "fused_dispatch": true,
+      "block_size": 128,
+      "block_local_window_blocks": 1,
+      "block_partner_count": 1,
+      "block_sink_blocks": 1,
+      "block_partner_rule": "causal_shift"
+    }
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ]
+  },
+  "status": "interrupted",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 0,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": null,
+    "last_seq_len": null,
+    "last_repeat": null
+  },
+  "timing": {
+    "writeout_sec_last": 0.0,
+    "writeout_sec_total": 0.0,
+    "script_start_unix_sec": 1776984757.13077
+  },
+  "single_turn": null,
+  "multi_turn": null,
+  "quality": null
+}

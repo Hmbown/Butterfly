@@ -1,0 +1,77 @@
+{
+  "created_at": "2026-04-10T22:25:07.265061+00:00",
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "butterfly_config": null,
+  "wayfinder_config": null,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "qwen35_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "status": "completed",
+  "status_reason": null,
+  "single_turn": [
+    {
+      "prompt_tokens": 2048,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 2.0426191669976106,
+      "ttft_sec": 0.04989704200124834,
+      "decode_tok_s": 82.59959425457119,
+      "e2e_sec": 2.8174413749948144,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 65
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    },
+    {
+      "prompt_tokens": 8192,
+      "decode_tokens": 64,
+      "repeat": 1,
+      "prefill_sec": 8.943227292009396,
+      "ttft_sec": 0.1631784589990275,
+      "decode_tok_s": 70.15846947857776,
+      "e2e_sec": 9.8554478760052,
+      "decode_backend": "stock",
+      "path_counts": {
+        "stock_attention": 66
+      },
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "stock_fallback_share_decode_steps": 0.0
+    }
+  ]
+}

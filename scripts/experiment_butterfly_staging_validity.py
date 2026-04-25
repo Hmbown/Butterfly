@@ -34,8 +34,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from bna.topology.butterfly import butterfly_width
-from bna.topology.validation import (
+from bna.topology.butterfly import butterfly_width  # noqa: E402
+from bna.topology.validation import (  # noqa: E402
     NeighborSpec,
     OperatorMetrics,
     WeightingModel,
@@ -47,7 +47,7 @@ from bna.topology.validation import (
     butterfly_stage_count,
     measure_operator,
     observed_butterfly_degree_budget,
-)
+)  # noqa: E402
 
 
 WEIGHT_MODELS: tuple[WeightingModel, ...] = (
@@ -764,8 +764,8 @@ def parse_args() -> argparse.Namespace:
         "--partner-rules",
         type=str,
         nargs="+",
-        default=["xor", "bit_reversal", "benes"],
-        choices=["xor", "bit_reversal", "benes"],
+        default=["xor", "bit_reversal", "benes", "causal_shift"],
+        choices=["xor", "bit_reversal", "benes", "causal_shift"],
         help="Butterfly partner schedules to evaluate.",
     )
     parser.add_argument("--block-size", type=int, default=64)

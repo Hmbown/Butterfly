@@ -13,8 +13,10 @@ from bna.topology.validation import (
     observed_butterfly_degree_budget,
 )
 
+PARTNER_RULES = ["xor", "bit_reversal", "benes", "causal_shift"]
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 @pytest.mark.parametrize("num_blocks", [32, 64])
 def test_log_depth_operator_spreads_more_evenly_than_local_only(
     partner_rule: str,

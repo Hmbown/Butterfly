@@ -1,0 +1,178 @@
+{
+  "created_at": "2026-04-23T22:06:26.808231+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode stock --seq-lens 4096 --decode-len 8 --repeats 1 --chunk-size 384 --kv-step 384 --cooldown-sec 10 --stage-timeout-sec 900 --heartbeat-sec 30 --skip-multi-turn --skip-quality --out-dir results/benchmarks/qwen35_0p8b_mlx/max_context/stock_4096",
+  "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "retro_backfill_enabled": false,
+  "butterfly_config": null,
+  "wayfinder_config": null,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 4096,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.0014751669950783253,
+    "writeout_sec_total": 0.002435208996757865,
+    "script_start_unix_sec": 1776981986.8084009,
+    "script_end_unix_sec": 1776981988.548021
+  },
+  "single_turn": [
+    {
+      "seq_len": 4096,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 0.8477623329963535,
+      "ttft_sec": 0.005160000000614673,
+      "itl_p50_sec": 0.003942915995139629,
+      "itl_p95_sec": 0.004228832985972986,
+      "decode_sec": 0.033412500022677705,
+      "e2e_sec": 0.8811748330190312,
+      "decode_tok_s": 239.431350379955,
+      "peak_memory_bytes": 1466718630,
+      "sample_output_text": "\u062d\u0646bangpes\u6389creensulareemprecased",
+      "decode_backend": "stock",
+      "kv_quantization": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 4104
+      },
+      "kv_quantization_after_prefill": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 4096,
+        "converted_entries": 0
+      },
+      "expected_primary_path": "stock_attention",
+      "hsa_trace_summary": {
+        "sample_count": 19,
+        "layer_observations": 19,
+        "phase_counts": {
+          "prefill": 11,
+          "decode": 8
+        },
+        "path_counts": {
+          "stock_attention": 19
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "stock_fallback_reason_counts": {},
+        "stock_fallback_layer_observations": 0,
+        "decode_layer_observations": 8,
+        "stock_fallback_decode_layer_observations": 0,
+        "prefill_layer_observations": 11,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 0,
+        "prefill_step_observations": 11,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.0,
+        "stock_fallback_share_decode_layers": 0.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 0.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0,
+        "graph_build_ms_mean": null,
+        "graph_build_ms_p95": null,
+        "butterfly_ms_mean": null,
+        "butterfly_ms_p95": null,
+        "butterfly_ms_decode_mean": null,
+        "butterfly_ms_prefill_mean": null,
+        "attention_ms_mean": null,
+        "attention_ms_p95": null,
+        "total_ms_mean": null,
+        "total_ms_p95": null
+      },
+      "path_counts": {
+        "stock_attention": 19
+      },
+      "stock_fallback_reason_counts": {},
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_steps": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": null,
+      "butterfly_ms_mean": null,
+      "butterfly_ms_decode_mean": null,
+      "butterfly_ms_prefill_mean": null,
+      "attention_ms_mean": null,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 0.31217116600601,
+        "prompt_tokenize_sec": 0.31217116600601,
+        "prefill_sec": 0.8477623329963535,
+        "decode_sec": 0.033412500022677705,
+        "writeout_sec": 0.0004124999977648258
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}

@@ -118,6 +118,7 @@ class GPT2ButterflyAttention(nn.Module):
         self.edge_type_bias = mx.zeros((4,)) if cfg.edge_bias else None
         self.graph_runtime = _QwenGraphRuntime(
             n_heads=self.n_heads,
+            n_kv_heads=self.n_heads,
             window=cfg.window,
             landmark_stride=cfg.landmark_stride,
             strategy=cfg.strategy,

@@ -34,8 +34,11 @@ The current implementation supports partner rules:
 - `xor`
 - `bit_reversal`
 - `benes`
+- `causal_shift`
 
-All support is filtered causally at token level.
+All support is filtered causally at token level. For the math contract behind
+these rules, including the proof-clean `causal_shift` prefix-scan rule, see
+`docs/BUTTERFLY_THEOREMS.md`.
 
 ## Execution Paths
 
@@ -58,7 +61,7 @@ This is what removes the old “prefill-only” limitation for the new Wayfinder
 - `block_local_window_blocks`
 - `block_partner_count`
 - `block_sink_blocks`
-- `block_partner_rule="xor" | "bit_reversal" | "benes"`
+- `block_partner_rule="xor" | "bit_reversal" | "benes" | "causal_shift"`
 
 The block_sparse path always uses the Butterfly staged topology. The older Hamiltonian random-graph mechanism has been archived.
 

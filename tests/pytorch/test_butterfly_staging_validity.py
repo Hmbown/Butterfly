@@ -17,6 +17,9 @@ from bna.topology.validation import (
 )
 
 
+PARTNER_RULES = ["xor", "bit_reversal", "benes", "causal_shift"]
+
+
 def _last_row_support_curve(
     row_sequence: list[list[list[NeighborSpec]]],
     *,
@@ -31,7 +34,7 @@ def _last_row_support_curve(
     return curve
 
 
-@pytest.mark.parametrize("partner_rule", ["xor", "bit_reversal", "benes"])
+@pytest.mark.parametrize("partner_rule", PARTNER_RULES)
 @pytest.mark.parametrize("num_blocks", [32, 64])
 def test_staged_schedule_beats_local_and_best_frozen_on_support_auc(
     partner_rule: str,
