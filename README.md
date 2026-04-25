@@ -1,273 +1,155 @@
-# Butterfly
+# Butterfly Compressed Attention
 
-Butterfly Network Attention (`bna`) is a training-free sparse-attention runtime for long-context inference. It is aimed at engineers who want measurable speed or memory wins without retraining the model.
+A retrofit-ready, no-train, deterministic-routing variant of DeepSeek-V4-style
+compressed attention for long-context inference on **frozen** pretrained
+checkpoints. Validated on Apple Silicon (MLX) for the Qwen 3.5 hybrid family.
 
-![Dense causal vs BNA block topology](docs/assets/bna_block_topology.png)
+> **What stands today.** On Qwen 3.5 0.8B 4-bit MLX at 256 k context, Butterfly
+> is **21 % faster end-to-end**, uses **27 % of stock peak memory**, and
+> retains an **81 × smaller KV cache** than stock attention — on a frozen
+> pretrained checkpoint, with no training, no learned indexer, and no custom
+> Metal kernel. The win **grows monotonically with context**. The same
+> architecture replicates on Qwen 3.5 4B 4-bit MLX (32 layers, 8 dense
+> full-attention) with the same trend; on the 4B checkpoint at 1 k context,
+> compressed-Butterfly's greedy decode is **bit-for-bit identical** to
+> stock's for 32 tokens.
 
-## What this repo contains
+The full positioning, V4 vs Butterfly framing, replication recipe, claim
+boundary, and code map live in
+**[docs/BUTTERFLY_POSITIONING.md](docs/BUTTERFLY_POSITIONING.md)**.
 
-- A PyTorch package, `bna`, for sparse-attention research and integration work
-- CUDA and MLX benchmark scripts for Qwen, GLM, GPT-2, and related paths
-- Measured benchmark artifacts under `benchmarks/`, `results/`, and `notes/`
-- Older docs and scripts that still use the legacy names `Wayfinder` and `HCSA`
+## Headline scoreboard
 
-Public naming note: `Butterfly` / `BNA` is the current public project name. `Wayfinder` / `HCSA` are legacy names still present in deeper docs, scripts, benchmark artifact paths, and archived research material.
+![Ladder: e2e × peak × KV vs context for Qwen 3.5 0.8B and 4B 4-bit MLX](docs/assets/butterfly_ladder.png)
 
-## Status
+Lower is better in all panels. The crossover where compressed Butterfly
+beats stock attention on **every** metric — speed, peak memory, retained KV —
+sits between 64 k and 128 k of context. By 256 k on the 0.8B checkpoint
+the gap is decisive (0.79× e2e, 0.27× peak, 81× smaller KV). The 256 k row
+on 4B is harness-blocked by the bench's O(T²) synthetic-prompt builder, not
+by anything attention is doing.
 
-| Tier | What to trust | Evidence |
-|---|---|---|
-| Validated | GLM-4.7-Flash-4bit on MLX at the public stable profile | [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md) |
-| Experimental | Qwen 3.5 CUDA block-sparse path and long-context scaling work | `scripts/bench_qwen35_cuda_wayfinder.py`, `benchmarks/cuda/qwen35_wayfinder/` |
-| Experimental | Qwen 3.5 MLX / Apple Silicon path | `scripts/bench_qwen_consumer_mlx.py`, [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md), `results/benchmarks/` |
-| Research / archive | Older Wayfinder/HCSA docs, prompts, and exploratory runs | `docs/`, `notes/`, `archive/` |
+## What changes when Butterfly replaces V4's selector
 
-If you are new to the project, start from the validated GLM path first. The Qwen work is promising, but it should still be read as active engineering rather than a locked public release.
+![V4 Lightning Indexer vs Butterfly causal_shift adjacency](docs/assets/butterfly_vs_v4.png)
 
-## How it works
+DeepSeek V4 picks compressed-block partners with a *learned* Lightning
+Indexer — three trainable projections plus a ReLU-scored top-k selector
+(paper §2.3.1). Butterfly substitutes a *deterministic* `causal_shift`
+adjacency — one block partner per query block per layer, set by
+`partner = block − 2^stage` — with **zero learned parameters**. That single
+substitution is what makes the architecture drop in on a frozen pretrained
+checkpoint. Everything else (two-pool fixed-buffer cache, multi-stream
+SWA + compressed-block attention, online-softmax merge) is V4-shape,
+deliberately.
 
-Dense causal attention does `O(T^2)` work per layer. Butterfly replaces that with a bounded sparse pattern over fixed-size token blocks.
+## Topology
 
-At a high level, each block attends to:
+![Butterfly causal_shift adjacency across 5 stages of 32 blocks](docs/assets/butterfly_topology.png)
 
-- its local neighborhood
-- a small number of deterministic long-range partners
-- optional global or anchor-style connections, depending on the backend
+Each layer ℓ uses one stage; `stage = ℓ mod ⌈log₂ N⌉`. Across the stages,
+the union covers every causal predecessor at depth ⌈log₂ N⌉. This is the
+classical butterfly-graph mixing property, adapted for a causal language
+model.
 
-The exact sparse pattern differs across code paths. Older Wayfinder/HCSA integrations describe this as `window + cycle + landmarks`; the current Butterfly README uses the simpler butterfly-partner framing. In both cases the goal is the same: keep attention neighborhoods explicit, bounded, and cheap enough to help at long context.
+## Quality smoke
 
-The next test target is [Compressed Butterfly Attention](docs/COMPRESSED_BUTTERFLY_ATTENTION.md): exact recent-token attention plus deterministic `causal_shift` over compressed block KV summaries. Use the public variant name `compressed_butterfly`; older `block_sparse` naming remains only as a compatibility alias for existing commands and artifacts.
+![Quality smoke: top-50 overlap and 32-token greedy parity, 0.8B vs 4B](docs/assets/butterfly_quality_card.png)
 
-For the current block-sparse math contract, including the new proof-clean `causal_shift` partner rule, see [docs/BUTTERFLY_THEOREMS.md](docs/BUTTERFLY_THEOREMS.md). For contributor-facing implementation details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+The 4B-1k bar is the single most important sanity gate in this work: at
+1 k context on a real-size checkpoint, compressed Butterfly produces
+**identically the same 32-token greedy continuation** as stock attention,
+and the top-1 candidate at end-of-prefill agrees. At 4 k and 16 k the
+candidate distributions overlap meaningfully (top-50 32 / 50, 23 / 50)
+and KL is bounded, but greedy decode amplifies any single-token
+disagreement into a fully different sequence; that is expected for
+sparse routing without indexer retraining, not breakage. A real
+quality benchmark (perplexity, retrieval) is the next evidence step
+([§H Future work](docs/BUTTERFLY_POSITIONING.md#h-future-work)).
 
-## Measured evidence
+## Quick replication
 
-### Mathematical validity experiment: staged communication
-
-Before asking whether Butterfly preserves model quality, the minimal topology question is:
-
-- does a bounded-degree staged Butterfly schedule actually move information across the causal prefix fast enough to matter?
-
-The repo now includes two CPU-only structural experiments that run directly on the real staged block layout used by the CUDA block-sparse path:
-
-- primary support proof: [scripts/experiment_butterfly_validity.py](scripts/experiment_butterfly_validity.py)
-- staged-vs-controls support proof (with secondary weighted diagnostics): [scripts/experiment_butterfly_staging_validity.py](scripts/experiment_butterfly_staging_validity.py)
-- artifacts:
-  - [results/proof/butterfly_validity/summary.json](results/proof/butterfly_validity/summary.json)
-  - [results/proof/butterfly_staging_validity/summary.json](results/proof/butterfly_staging_validity/summary.json)
-
-Durable claim checked by this proof surface:
-
-- per-layer degree stays bounded
-- staged Butterfly reaches full last-row causal-prefix support in logarithmic depth (`L = ceil(log2 N)`)
-- the `causal_shift` partner rule gives a proof-clean all-row causal-prefix result at exactly `L = ceil(log2 N)`
-- staged Butterfly usually outperforms local-only and frozen-long-range controls on support expansion, with current generated support-AUC evidence at 19/20 cases
-
-Canonical public topology primitives for this proof surface live in `bna.topology.butterfly`.
-
-Secondary (non-durable) diagnostics:
-
-- weighted surrogate spread/conditioning readouts are reported for context only
-- those diagnostics are not treated as general mixing guarantees
-
-Current generated result summary for `16..128` blocks and partner rules `xor`, `bit_reversal`, `benes`, and `causal_shift`:
-
-| Evidence | Current result |
-|---|---:|
-| Last-row support by `ceil(log2 N)` | 20/20 |
-| Local-only full last-row support at same horizon | 0/20 |
-| Random predecessor full last-row support at same horizon | 8/20 |
-| Staged support-AUC beats local and best frozen control | 19/20 |
-| `causal_shift` all-row support by `ceil(log2 N)` | proved and tested |
-
-Interpretation:
-
-- the core communication claim holds at the topology level
-- the result is about information-flow capacity, not yet about perplexity or downstream quality
-- `xor`, `bit_reversal`, and `benes` remain legacy experimental rules; `causal_shift` is the cleanest rule when the paper claim needs a general causal-prefix theorem
-
-Reproduce:
+Apple Silicon, MLX. Single Mac. Models are uniform 4-bit MLX checkpoints
+from `mlx-community`.
 
 ```bash
-python scripts/experiment_butterfly_validity.py
-python scripts/experiment_butterfly_staging_validity.py
-pytest -q tests/pytorch/test_butterfly_topology.py \
-  tests/pytorch/test_butterfly_staging_validity.py \
-  tests/pytorch/test_butterfly_operator_mixing.py
+VENV=/Volumes/VIXinSSD/butterfly/.venv-macos-metal/bin/python   # adjust
+HF_CACHE=/Volumes/VIXinSSD/hf_cache                             # adjust
+
+QWEN08B=$HF_CACHE/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/<HASH>
+QWEN4B=$HF_CACHE/hub/models--mlx-community--Qwen3.5-4B-MLX-4bit/snapshots/<HASH>
+
+# Stock vs Butterfly compressed at 64 k on the 0.8B checkpoint
+$VENV scripts/bench_qwen_consumer_mlx.py --model-path "$QWEN08B" \
+  --hf-home "$HF_CACHE" --hf-hub-cache "$HF_CACHE/hub" --hf-offline \
+  --mode stock --seq-lens 65536 --decode-len 8 --repeats 1 \
+  --chunk-size 384 --kv-step 384 \
+  --skip-multi-turn --skip-quality --stage-timeout-sec 1200 \
+  --out-dir results/qwen08b/stock_64k
+
+$VENV scripts/bench_qwen_consumer_mlx.py --model-path "$QWEN08B" \
+  --hf-home "$HF_CACHE" --hf-hub-cache "$HF_CACHE/hub" --hf-offline \
+  --mode compressed_butterfly --block-partner-rule causal_shift \
+  --compressed-local-window-tokens 64 --query-chunk-size 64 --block-size 128 \
+  --butterfly-decode-backend stock \
+  --seq-lens 65536 --decode-len 8 --repeats 1 \
+  --chunk-size 384 --kv-step 384 \
+  --skip-multi-turn --skip-quality --stage-timeout-sec 1200 \
+  --out-dir results/qwen08b/comp_64k
 ```
 
-### Validated public path: GLM on MLX
+Read the resulting `results.json`:
 
-The clearest in-repo release evidence today is the GLM-4.7-Flash-4bit stable profile documented in [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md).
-
-At `seq_len=8192` and `decode_len=32` on the validated MLX path:
-
-| Mode | E2E | Prefill | Decode tok/s | Peak memory |
-|---|---:|---:|---:|---:|
-| Dense | 17.15s | 16.36s | 40.58 | 20.66 GB |
-| Butterfly | 10.56s | 9.75s | 39.85 | 20.07 GB |
-| Delta vs dense | -38.44% | -40.38% | -1.79% | -2.85% |
-
-That is the safest benchmark slice to cite publicly from this tree today.
-
-### Experimental CUDA path: Qwen 3.5 9B
-
-The repo also contains experimental CUDA benchmark results for a Triton block-sparse path on Qwen 3.5 9B, where 8 of 32 layers are replaced and the remaining DeltaNet layers stay untouched.
-
-| Context | Dense tok/s | Butterfly tok/s | Top-1 agreement |
-|--------:|------------:|----------------:|----------------:|
-| 4,096   | —           | —               | 99.88%          |
-| 8,192   | 1,651       | 1,698           | —               |
-| 16,384  | —           | —               | 94.44%          |
-| 32,768  | 1,585       | 1,688           | —               |
-| 65,536  | 1,475       | 1,724           | —               |
-| 98,304  | 1,413       | 1,660           | —               |
-| 131,072 | 1,365       | 1,667           | —               |
-| 262,144 | 1,257       | 1,712           | —               |
-
-These numbers suggest flatter throughput than dense attention at long context, but this path should still be treated as experimental until the quality and support boundaries are documented as tightly as the GLM release path.
-
-### Experimental CUDA path: Qwen 3.5 35B A3B FP8
-
-| Context | Dense tok/s | Butterfly tok/s |
-|--------:|------------:|----------------:|
-| 8,192   | 931         | 954             |
-| 32,768  | 1,280       | 1,301           |
-| 65,536  | 1,241       | 1,326           |
-| 131,072 | 1,131       | 1,331           |
-| 163,840 | —           | 1,306           |
-| 196,608 | —           | 1,364           |
-| 229,376 | —           | 1,233           |
-
-### Experimental Apple Silicon path: Qwen 3.5 9B on M4 Max
-
-MLX permute-window path with K6 fused Metal kernel, `window=64`. 8 of 32 attention layers are replaced. Model: `mlx-community/Qwen3.5-9B-MLX-4bit`.
-
-| Context | Dense TTFT | Butterfly TTFT | Dense tok/s | Butterfly tok/s | Peak memory |
-|--------:|-----------:|---------------:|------------:|----------------:|------------:|
-| 2,048   | 71 ms      | 49 ms          | 62.2        | 62.0            | 7.1 GB      |
-| 8,192   | 116 ms     | 86 ms          | 57.2        | 58.8            | 9.9 GB      |
-| 32,768  | 100 ms     | 99 ms          | 49.6        | 47.1            | 13.7 GB     |
-| 65,536  | 160 ms     | 202 ms         | 41.5        | 39.8            | 18.9 GB     |
-| 98,304  | 2.0 s      | 1.2 s          | 17.2        | 22.4            | 24.0 GB     |
-| 131,072 | 6.9 s      | 7.5 s          | 7.3         | 6.8             | 29.1 GB     |
-| 163,840 | 26.8 s     | 21.5 s         | 2.2         | 2.7             | 34.2 GB     |
-
-This MLX path uses chunked-gather plus native SDPA for prefill and a fused Metal kernel for decode. It shows wins at short context and again near the memory wall, but it is still an experimental path rather than a validated public release.
-
-Top-1 agreement in the Qwen 9B experiments is `99.88%` at 4K and `94.44%` at 16K. Perplexity and downstream evaluation are still in progress, so avoid treating these tables as universal quality-parity claims.
-
-## Quick start
-
-### CUDA (NVIDIA GPU)
-
-```bash
-git clone https://github.com/Hmbown/Butterfly.git
-cd Butterfly
-pip install -e ".[dev,kernels]"
+```python
+import json
+d = json.load(open("results/qwen08b/comp_64k/results.json"))["single_turn"][0]
+print(d["e2e_sec"],
+      d["peak_memory_bytes"] / (1024**3),                 # GB
+      d["cache_storage_after_prefill"]["total_bytes"]/1e6) # MB retained KV
 ```
 
-Validated public path:
-
-```bash
-./scripts/run_public_stable_profile_glm.sh
-```
-
-Experimental Qwen CUDA benchmark:
-
-```bash
-python scripts/bench_qwen35_cuda_wayfinder.py \
-    --model-path <path-to-Qwen3.5-9B> \
-    --path block_sparse \
-    --engine triton \
-    --block-size 128 \
-    --seq-lens 4096 8192 16384 32768
-```
-
-### MLX (Apple Silicon)
-
-```bash
-git clone https://github.com/Hmbown/Butterfly.git
-cd Butterfly
-pip install -e ".[mlx]"
-pip install mlx-lm zmlx
-```
-
-Environment check:
-
-```bash
-python scripts/env_check_mlx.py
-```
-
-Experimental Qwen MLX benchmark:
-
-```bash
-python scripts/bench_qwen_consumer_mlx.py \
-    --model-path mlx-community/Qwen3.5-9B-MLX-4bit \
-    --mode wayfinder \
-    --seq-lens 2048 8192 32768 \
-    --decode-len 256 \
-    --repeats 3 \
-    --out-dir results/benchmarks/my_run
-```
-
-The `--mode dense` flag runs the stock attention baseline for comparison. Add `--skip-quality` to benchmark only throughput.
-
-Optional MLX-native KV-cache trial for decode-path evaluation:
-
-```bash
-python scripts/bench_qwen_consumer_mlx.py \
-    --model-path /Volumes/VIXinSSD/models/Qwen3.5-4B-MLX-4bit \
-    --mode butterfly \
-    --butterfly-decode-backend stock \
-    --seq-lens 2048 8192 \
-    --decode-len 8 \
-    --repeats 1 \
-    --chunk-size 384 \
-    --query-chunk-size 384 \
-    --kv-bits 4 \
-    --kv-group-size 64 \
-    --quantized-kv-start 0 \
-    --skip-multi-turn \
-    --skip-quality \
-    --hf-offline \
-    --out-dir results/benchmarks/qwen35_4b_mlx/kv4_trial
-```
-
-Notes:
-
-- In `--mode butterfly`, keep `--chunk-size <= --query-chunk-size`. The benchmark now rejects invalid settings because later prefill chunks would otherwise fall back to stock attention.
-- The MLX KV quantization prototype reuses MLX-LM cache quantization on the full-attention layers only. Butterfly prefill remains dense; the working KV cache is quantized after prefill and before stock decode.
-- Current Qwen 3.5 4B MLX interpretation and reporting package: [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md)
-
-### Basic checks
-
-```bash
-pytest
-ruff check bna tests
-```
+The full ladder script and quality-smoke commands are in
+[BUTTERFLY_POSITIONING §G](docs/BUTTERFLY_POSITIONING.md#g-replicating-these-numbers).
 
 ## Repo map
 
 | Path | What it is |
 |---|---|
-| `bna/` | Core package and backend integrations |
-| `scripts/` | Benchmarks, diagnostics, serving helpers, and figure generation |
-| `docs/` | Contributor-facing architecture, release evidence, and research notes |
-| `benchmarks/`, `results/` | Raw benchmark outputs and summaries |
-| `notes/` | Lab notebook, experiment log, handoff prompts, and planning material |
-| `archive/` | Older exploratory code and preserved artifacts |
+| `bna/topology/butterfly.py` | `causal_shift` partner rule and stage metadata. |
+| `bna/mlx/attention.py` | Multi-stream SWA + compressed-block attention, online-softmax merge. |
+| `bna/mlx/compressed_cache.py` | Two-pool fixed-buffer KV cache (V4 Fig 6 layout). |
+| `bna/integrations/qwen_mlx.py` | Layer swap + dispatch + graph-cache eviction fix. |
+| `scripts/bench_qwen_consumer_mlx.py` | Bench harness used for every number in the doc. |
+| `scripts/quality_smoke.py` | Top-50 / KL / greedy parity. |
+| `scripts/render_butterfly_assets.py` | Re-renders the four PNGs from raw JSON. |
+| `docs/BUTTERFLY_POSITIONING.md` | Public-facing positioning doc — start here. |
+| `docs/COMPRESSED_BUTTERFLY_ATTENTION.md` | Variant claim-boundary + same numbers. |
+| `docs/ARCHITECTURE.md` | Contributor-facing implementation map. |
+| `docs/APPLE_SILICON_SETUP.md` | Apple Silicon bootstrap, MLX venv, model catalog. |
+| `docs/BUTTERFLY_THEOREMS.md` | Topology proof status (paper-side claims). |
+| `results/benchmarks/qwen35_0p8b_mlx/` | Raw JSON + `OVERNIGHT_LOG.md` chronology. |
+| `results/benchmarks/qwen35_4b_mlx/` | 4B replication artifacts. |
+| `results/quality/qwen35_4b/` | 4B quality-smoke JSON. |
 
-## Where to read next
+## Next-up tests
 
-- [docs/FIRST_RELEASE.md](docs/FIRST_RELEASE.md): validated benchmark slice and reproduction commands
-- [docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md](docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md): Butterfly-first Qwen 3.5 4B MLX benchmark report and long-context interpretation
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): contributor-facing implementation map
-- [docs/APPLE_SILICON_SETUP.md](docs/APPLE_SILICON_SETUP.md): Apple Silicon bootstrap, llama.cpp Metal baseline, model catalog
-- [CONTRIBUTING.md](CONTRIBUTING.md): expectations for docs, claims, and performance changes
+The natural extensions, in priority order — see
+[§H Future work](docs/BUTTERFLY_POSITIONING.md#h-future-work) for
+context:
+
+1. **RULER / NIAH at 32 k–128 k** to turn "smoke" into "evidence".
+2. **Qwen 3.6 27B 4-bit on a 36 GB-RAM Mac** — the 27 B regime is exactly
+   where the 63 ×–81 × KV reduction starts to matter for whether the model
+   fits at all.
+3. **Streamed prompt-build** in the bench harness to unblock 4B-256 k and
+   either model at 512 k+.
+4. **Learned compressor** to replace mean-pool — closes the §E quality gap.
+5. **Counter-RoPE** on the compressed-stream output (V4 §2.3.3).
+6. **Decode-mode kernel** to extend the wins past prefill.
 
 ## Related work
 
+- DeepSeek V4 — [hf.co/deepseek-ai/DeepSeek-V4-Pro](https://huggingface.co/deepseek-ai/DeepSeek-V4-Pro)
 - [BigBird](https://arxiv.org/abs/2007.14062)
 - [Longformer](https://arxiv.org/abs/2004.05150)
 - [Monarch](https://arxiv.org/abs/2204.00595)

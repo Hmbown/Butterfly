@@ -51,16 +51,11 @@ runs/mlx/qwen_env_check_full.json
 # Markdown (only tracked docs are whitelisted)
 *.md
 !/README.md
-!docs/FIRST_RELEASE.md
 !docs/ARCHITECTURE.md
 !docs/RESEARCH.md
-!docs/WAYFINDER_BLOCK_SPARSE.md
 !docs/GLOSSARY.md
-!docs/PUBLIC_POSITIONING.md
-!docs/RELEASE_GATE.md
 !docs/VISUAL_STORYBOARD.md
 !docs/APPLE_SILICON_SETUP.md
-!docs/QWEN35_4B_MLX_BENCHMARK_REPORT.md
 !docs/BUTTERFLY_THEOREMS.md
 !docs/BUTTERFLY_GAPS.md
 !docs/BUTTERFLY_PAPER_OUTLINE.md
