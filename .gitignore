@@ -14,6 +14,9 @@ __pycache__/
 _tmp_runs/
 .DS_Store
 
+# Git worktrees (isolated workspaces under .worktrees/)
+.worktrees/
+
 # Heavy training checkpoints (keep summaries/metrics)
 runs/mlx/*/checkpoints/
 
@@ -63,6 +66,9 @@ runs/mlx/qwen_env_check_full.json
 !docs/BUTTERFLY_PAPER_OUTLINE.md
 !SECURITY.md
 !CONTRIBUTING.md
+!docs/superpowers/plans/*.md
+!results/benchmarks/qwen35_0p8b_mlx/OVERNIGHT_LOG.md
+!results/benchmarks/qwen35_0p8b_mlx/BLOCKER_MEMO_*.md
 
 # Local tool databases
 counterpoint.copilot.db
