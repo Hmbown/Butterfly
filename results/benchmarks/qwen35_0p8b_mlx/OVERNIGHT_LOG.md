@@ -307,6 +307,29 @@ cache in the layer-swap dispatch code. With that one-line fix:
 This is the unique contribution to ship: V4-systems architecture +
 Butterfly deterministic routing + frozen-model retrofit.
 
+### Phase A4: Ladder up — 64k and 128k validation
+
+With the eviction fix, the win compounds with context length.
+
+| variant | e2e (s) | peak (GB) | retained KV (MB) |
+|---|---:|---:|---:|
+| stock 32k | 9.52 | 1.78 | 414 |
+| **compressed 32k** | **10.09** | **0.91** | **16.4** |
+| stock 64k | 25.10 | 2.64 | 817 |
+| **compressed 64k** | **25.54** | **1.14** | **21.1** |
+| stock 128k | 80.95 | 4.26 | 1622 |
+| **compressed 128k** | **72.23** | **1.44** | **25.8** |
+
+Ratios vs stock:
+- e2e:    32k 1.06×,  64k 1.02×,  **128k 0.89×** (compressed becomes faster).
+- peak:   32k 0.51×,  64k 0.43×,  **128k 0.34×** (gap widens with T).
+- KV:     32k 0.040×, 64k 0.026×, **128k 0.016×** (62× smaller at 128k).
+
+The benefit GROWS with context. At 128k, compressed Butterfly attention on
+Qwen 3.5 0.8B 4-bit MLX is faster, uses 1/3 the peak memory, and has a 62×
+smaller retained KV cache than stock — on a frozen pretrained checkpoint
+with deterministic causal_shift routing as the no-train sparse selector.
+
 ### Diagnostic artifacts
 
 - `results/benchmarks/qwen35_0p8b_mlx/diag_stock_32768/peak_journal.json`

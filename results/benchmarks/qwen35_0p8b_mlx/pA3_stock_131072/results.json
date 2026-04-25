@@ -1,0 +1,194 @@
+{
+  "created_at": "2026-04-25T13:12:48.486193+00:00",
+  "command": "scripts/bench_qwen_consumer_mlx.py --model-path /Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462 --hf-home /Volumes/VIXinSSD/hf_cache --hf-hub-cache /Volumes/VIXinSSD/hf_cache/hub --hf-offline --mode stock --seq-lens 131072 --decode-len 8 --repeats 1 --chunk-size 384 --skip-multi-turn --skip-quality --stage-timeout-sec 1800 --out-dir results/benchmarks/qwen35_0p8b_mlx/pA3_stock_131072",
+  "model_path": "/Volumes/VIXinSSD/hf_cache/hub/models--mlx-community--Qwen3.5-0.8B-4bit/snapshots/da28692b5f139cb0ec58a356b437486b7dac7462",
+  "hf_cache": {
+    "hf_home": "/Volumes/VIXinSSD/hf_cache",
+    "hf_hub_cache": "/Volumes/VIXinSSD/hf_cache/hub",
+    "hf_hub_offline": "1"
+  },
+  "mode": "stock",
+  "butterfly_decode_backend": "stock",
+  "wayfinder_decode_backend": "stock",
+  "kv_quantization": {
+    "enabled": false,
+    "bits": null,
+    "group_size": 64,
+    "quantized_kv_start": 0,
+    "backend": "mlx_lm",
+    "applies_to": "full_attention_kv_cache_only",
+    "policy": "post_prefill_before_decode",
+    "preserve_dense_prefix_cache": true
+  },
+  "retro_backfill_enabled": false,
+  "butterfly_config": null,
+  "wayfinder_config": null,
+  "butterfly": {
+    "enabled": false,
+    "decode_backend": "stock",
+    "prefill_scope": "discovered_full_attention_layers",
+    "target_prefill_layer_indices": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23
+    ],
+    "active_prefill_layer_indices": [],
+    "active_prefill_layer_count": 0,
+    "debug_override_layer_indices": null,
+    "config": null
+  },
+  "observability": {
+    "runtime_summary_always_on": true,
+    "hsa_trace_samples_enabled": false,
+    "hsa_trace_max_layers": 8,
+    "hsa_trace_max_steps": 0,
+    "hsa_trace_layer_indices": []
+  },
+  "status": "completed",
+  "status_reason": null,
+  "progress": {
+    "single_turn_rows_completed": 1,
+    "multi_turns_completed": 0,
+    "quality_tasks_completed": 0,
+    "last_stage": "single_turn_row_complete",
+    "last_seq_len": 131072,
+    "last_repeat": 1
+  },
+  "timing": {
+    "writeout_sec_last": 0.002102333994116634,
+    "writeout_sec_total": 0.006396916985977441,
+    "script_start_unix_sec": 1777122768.486387,
+    "script_end_unix_sec": 1777123189.8187652
+  },
+  "single_turn": [
+    {
+      "seq_len": 131072,
+      "decode_len": 8,
+      "repeat": 1,
+      "prefill_sec": 80.87409024999943,
+      "ttft_sec": 0.011628042004304007,
+      "itl_p50_sec": 0.009726208008942194,
+      "itl_p95_sec": 0.010013000006438233,
+      "decode_sec": 0.07947845800663345,
+      "e2e_sec": 80.95356870800606,
+      "decode_tok_s": 100.65620547560576,
+      "peak_memory_bytes": 4259952908,
+      "sample_output_text": "iagnosticsodamines\u00e9ro already\u60c5\u81f3\u4eca\u306e\u9ad8\u3044",
+      "decode_backend": "stock",
+      "kv_quantization": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 131080
+      },
+      "kv_quantization_after_prefill": {
+        "enabled": false,
+        "bits": null,
+        "group_size": 64,
+        "quantized_kv_start": 0,
+        "backend": "mlx_lm",
+        "applies_to": "full_attention_kv_cache_only",
+        "full_attention_cache_entries": 6,
+        "eligible_entries": 0,
+        "quantized_entries": 0,
+        "active": false,
+        "max_offset": 131072,
+        "converted_entries": 0
+      },
+      "cache_storage_after_prefill": {
+        "total_bytes": 1622286336,
+        "total_gib": 1.5108718872070312,
+        "compressed_entries": 0,
+        "full_entries": 24,
+        "empty_entries": 0,
+        "max_offset": 131072
+      },
+      "cache_storage_after_decode": {
+        "total_bytes": 1622286336,
+        "total_gib": 1.5108718872070312,
+        "compressed_entries": 0,
+        "full_entries": 24,
+        "empty_entries": 0,
+        "max_offset": 131080
+      },
+      "expected_primary_path": "stock_attention",
+      "hsa_trace_summary": {
+        "sample_count": 350,
+        "layer_observations": 350,
+        "phase_counts": {
+          "prefill": 342,
+          "decode": 8
+        },
+        "path_counts": {
+          "stock_attention": 350
+        },
+        "cache_source_counts": {},
+        "graph_seq_len_counts": {},
+        "q_len_counts": {},
+        "stock_fallback_reason_counts": {},
+        "stock_fallback_layer_observations": 0,
+        "decode_layer_observations": 8,
+        "stock_fallback_decode_layer_observations": 0,
+        "prefill_layer_observations": 342,
+        "stock_fallback_prefill_layer_observations": 0,
+        "decode_step_observations": 8,
+        "stock_fallback_decode_steps": 0,
+        "prefill_step_observations": 342,
+        "stock_fallback_prefill_steps": 0,
+        "stock_fallback_share_run": 0.0,
+        "stock_fallback_share_decode_layers": 0.0,
+        "stock_fallback_share_prefill_layers": 0.0,
+        "stock_fallback_share_decode_steps": 0.0,
+        "stock_fallback_share_prefill_steps": 0.0,
+        "fallback_share_known": true,
+        "active_query_ratio": 0.0,
+        "adaptive_graph_reuse_ratio": 0.0,
+        "cache_hit_ratio": 0.0,
+        "graph_build_ms_mean": null,
+        "graph_build_ms_p95": null,
+        "butterfly_ms_mean": null,
+        "butterfly_ms_p95": null,
+        "butterfly_ms_decode_mean": null,
+        "butterfly_ms_prefill_mean": null,
+        "attention_ms_mean": null,
+        "attention_ms_p95": null,
+        "total_ms_mean": null,
+        "total_ms_p95": null
+      },
+      "path_counts": {
+        "stock_attention": 350
+      },
+      "stock_fallback_reason_counts": {},
+      "stock_fallback_share_run": 0.0,
+      "stock_fallback_share_decode_layers": 0.0,
+      "stock_fallback_share_prefill_layers": 0.0,
+      "stock_fallback_share_decode_steps": 0.0,
+      "stock_fallback_share_prefill_steps": 0.0,
+      "graph_build_ms_mean": null,
+      "butterfly_ms_mean": null,
+      "butterfly_ms_decode_mean": null,
+      "butterfly_ms_prefill_mean": null,
+      "attention_ms_mean": null,
+      "observability_fallback_share_known": true,
+      "stage_timing_sec": {
+        "prompt_build_sec": 339.29791045800084,
+        "prompt_tokenize_sec": 339.29791045800084,
+        "prefill_sec": 80.87409024999943,
+        "decode_sec": 0.07947845800663345,
+        "writeout_sec": 0.00368624999828171
+      }
+    }
+  ],
+  "multi_turn": null,
+  "quality": null
+}
